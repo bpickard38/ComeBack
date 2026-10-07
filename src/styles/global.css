@@ -1,0 +1,258 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--navy);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+/* Form controls don't inherit fonts by default; make them match the page. */
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(0.96);
+}
+
+:focus-visible {
+  outline: 3px solid var(--warn);
+  outline-offset: 2px;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+h1 {
+  font-weight: 800;
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.8px;
+}
+
+h2 {
+  font-weight: 700;
+  font-size: 24px;
+}
+
+/* Layout */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  background: var(--navy);
+  color: var(--white);
+  padding: 14px var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: -0.5px;
+}
+
+.main {
+  flex-grow: 1;
+  padding: var(--gutter);
+}
+
+.column {
+  width: 100%;
+  max-width: var(--width-athlete);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.column--staff {
+  max-width: var(--width-staff);
+  gap: 20px;
+}
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--navy);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.muted {
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+.card p {
+  margin: 0;
+}
+
+.brand svg {
+  color: var(--pale-blue);
+}
+
+/* Buttons (see components/Button.tsx) */
+.btn {
+  min-height: var(--tap);
+  padding: 0 20px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--navy);
+  background: var(--white);
+  color: var(--navy);
+  font-weight: 600;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn--primary {
+  background: var(--navy);
+  color: var(--white);
+  font-weight: 700;
+}
+
+.btn--link {
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+  padding: 0 16px;
+}
+
+/* Role switcher in the header */
+.role-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.role-switch__btn {
+  min-height: var(--tap);
+  padding: 0 20px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--pale-blue);
+  background: transparent;
+  color: var(--white);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* aria-pressed tells screen readers which role is on; the CSS reuses it for the look. */
+.role-switch__btn[aria-pressed='true'] {
+  background: var(--pale-blue);
+  color: var(--navy);
+}
+
+/* Demo controls strip */
+.demo-bar {
+  background: var(--pale-blue);
+  padding: 10px var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.demo-bar__label {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* Toasts */
+.toast-region {
+  padding: 0 var(--gutter);
+}
+
+.toast {
+  max-width: var(--width-staff);
+  margin: 16px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 16px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--navy);
+  background: var(--white);
+  color: var(--navy);
+  font-weight: 600;
+}
+
+.toast--error {
+  background: var(--warn-bg);
+  border-color: var(--warn);
+  color: var(--warn-text-strong);
+}
+
+.toast__text {
+  flex-grow: 1;
+}
+
+.toast__close {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: 0;
+  background: transparent;
+  font-size: 22px;
+}
+
+/* Tabs (see components/TabBar.tsx) */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tabs__tab {
+  flex: 1 1 auto;
+  min-height: var(--tap);
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--navy);
+  background: var(--white);
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.tabs__tab[aria-current='page'] {
+  background: var(--navy);
+  color: var(--white);
+}

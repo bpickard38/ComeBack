@@ -1,0 +1,567 @@
+/* Styles for the screens and the smaller components. Base layout lives in global.css. */
+
+/* ---------- Small helpers ---------- */
+.stack-xs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.spread {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.strong {
+  font-weight: 700;
+}
+
+.normal {
+  font-weight: 400;
+}
+
+.small {
+  font-size: 14px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.warn-text {
+  color: var(--warn-text);
+}
+
+.align-center {
+  align-self: center;
+}
+
+.align-start {
+  align-self: flex-start;
+}
+
+.eyebrow {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.section-title {
+  font-family: var(--font-body);
+  font-size: 18px;
+}
+
+/* Text only screen readers see, such as a table caption. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* The orange focus ring is too faint on navy (under 3:1), so use gold there. */
+.topbar :focus-visible,
+.card--dark :focus-visible {
+  outline-color: var(--gold);
+}
+
+/* ---------- Card variants ---------- */
+.card--mist {
+  background: var(--pale-blue);
+  border-color: var(--pale-blue);
+}
+
+.card--dark {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: var(--white);
+}
+
+.card--flush {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.card--strong {
+  border-width: 1.5px;
+  gap: 20px;
+}
+
+/* ---------- Badges, bars, notices ---------- */
+.badge {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1.5px solid var(--navy);
+  background: var(--white);
+  color: var(--navy);
+}
+
+.badge--solid {
+  background: var(--navy);
+  color: var(--white);
+}
+
+.badge--warn {
+  border-color: var(--warn);
+  color: var(--warn-text);
+}
+
+.bar {
+  height: 10px;
+  background: var(--pale-blue);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bar--lg {
+  height: 14px;
+  border-radius: 7px;
+}
+
+.bar__fill {
+  height: 100%;
+  background: var(--navy);
+}
+
+.bar--on-dark {
+  background: var(--navy-track);
+}
+
+.bar--on-dark .bar__fill {
+  background: var(--pale-blue);
+}
+
+.notice {
+  background: var(--warn-bg);
+  border: 1.5px solid var(--warn);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notice__title {
+  font-weight: 700;
+  color: var(--warn-text);
+}
+
+.bubble {
+  background: var(--ground);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 15px;
+}
+
+.bubble--mist {
+  background: var(--pale-blue);
+}
+
+.video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--navy);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--white);
+  text-align: center;
+}
+
+.video svg,
+.video .small {
+  color: var(--pale-blue);
+}
+
+/* ---------- Forms ---------- */
+.panel {
+  border: 1.5px solid var(--navy);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border: 1.5px solid var(--navy);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: 18px;
+}
+
+.field--area {
+  padding: 10px;
+  font-size: 16px;
+  resize: vertical;
+}
+
+.chip-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.chip-group legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.chip {
+  min-height: var(--tap);
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--navy);
+  background: var(--white);
+  color: var(--navy);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--navy);
+  color: var(--white);
+}
+
+/* ---------- Goals ---------- */
+.big-stat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.big-stat__num {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 40px;
+  line-height: 1;
+}
+
+/* ---------- Trophies ---------- */
+.rank-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.rank-hero__name {
+  font-size: 40px;
+  line-height: 1.05;
+  letter-spacing: -1px;
+}
+
+.eyebrow--on-dark,
+.on-dark-muted {
+  color: var(--pale-blue);
+}
+
+.stats {
+  margin: 0;
+  padding-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+/* dt is the label and dd the number; column-reverse shows the number on top. */
+.stats div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.stats dt {
+  font-size: 14px;
+  color: var(--pale-blue);
+}
+
+.stats dd {
+  margin: 0;
+  font-weight: 800;
+  font-size: 28px;
+}
+
+.medal {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--navy);
+}
+
+.medal--lg {
+  width: 72px;
+  height: 72px;
+}
+
+.medal--bronze {
+  background: var(--bronze);
+}
+
+.medal--silver {
+  background: var(--silver);
+}
+
+.medal--gold {
+  background: var(--gold);
+}
+
+.medal--locked {
+  background: var(--pale-blue);
+  color: var(--text-secondary);
+}
+
+.trophy-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+}
+
+.trophy {
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1.5px dashed var(--text-secondary);
+  background: var(--ground);
+}
+
+.trophy--earned {
+  border: 1.5px solid var(--navy);
+  background: var(--white);
+}
+
+.trophy--current {
+  border-width: 3px;
+}
+
+/* ---------- Appointments ---------- */
+.appt-head {
+  background: var(--pale-blue);
+  padding: 12px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.appt-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+}
+
+/* ---------- Staff ---------- */
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Two columns on wide screens; stacks when there isn't room for 420px each. */
+.staff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.table-head {
+  background: var(--pale-blue);
+  padding: 12px 20px;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.roster-row {
+  width: 100%;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border: 0;
+  border-top: 1px solid var(--pale-blue);
+  background: var(--white);
+  text-align: left;
+  font-size: 16px;
+  box-shadow: inset 4px 0 0 transparent;
+}
+
+.roster-row[aria-pressed='true'] {
+  background: var(--ground);
+  box-shadow: inset 4px 0 0 var(--navy);
+}
+
+.roster-row__name {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.roster-row__stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--navy);
+  border-radius: var(--radius-sm);
+}
+
+.week {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  text-align: left;
+}
+
+.week th,
+.week td {
+  padding: 10px 8px;
+  vertical-align: top;
+  border-top: 1px solid var(--pale-blue);
+}
+
+.week thead th {
+  background: var(--pale-blue);
+  border-top: 0;
+}
+
+.week th:first-child {
+  padding-left: 12px;
+  font-weight: 400;
+  min-width: 140px;
+}
+
+.week thead th:first-child {
+  font-weight: 700;
+}
+
+/* ---------- Pain rating ---------- */
+.pain-scale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Each number is a label wrapping a hidden radio input; :has() styles the label from the input's state. */
+.pain-option span {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--navy);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pain-option:has(input:checked) span {
+  background: var(--navy);
+  color: var(--white);
+}
+
+.pain-option:has(input:focus-visible) span {
+  outline: 3px solid var(--warn);
+  outline-offset: 2px;
+}
+
+/* ---------- Coach view ---------- */
+.table-wrap--flush {
+  border: 0;
+  border-radius: 0;
+}
+
+.pad {
+  padding: 20px;
+}
+
+.legend-list {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.legend-list div {
+  display: flex;
+  gap: 6px;
+}
+
+.legend-list dd {
+  margin: 0;
+}
+
+.field--date {
+  max-width: 220px;
+  font-size: 16px;
+}

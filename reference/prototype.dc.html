@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Comeback Rehab App</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EAF1F6}
+button{font-family:Figtree,system-ui,sans-serif}
+button:focus-visible{outline:3px solid #B4490F;outline-offset:2px}
+button:hover{filter:brightness(0.96)}
+</style>
+</helmet>
+<div style="min-height: 980px; background: #EAF1F6; color: #0E2A3B; font-family: Figtree, system-ui, sans-serif; font-size: 16px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="background: #0E2A3B; color: #FFFFFF; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; align-items: center; gap: 12px">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C3DAE7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l5-5 4 4 7-8"/><path d="M15 8h5v5"/></svg>
+<span style="font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.5px">Comeback</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px" role="group" aria-label="Viewing as">
+<sc-for list="{{roleButtons}}" as="rb" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{rb.pressed}}" onClick="{{rb.pick}}" style="{{rb.style}}">{{rb.label}}</button>
+</sc-for>
+</div>
+</header>
+
+<div style="background: #C3DAE7; padding: 10px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+<span style="font-size: 14px; font-weight: 700; color: #0E2A3B; text-transform: uppercase; letter-spacing: 0.6px">Prototype controls</span>
+<button type="button" onClick="{{simReminder}}" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #FFFFFF; color: #0E2A3B; font-weight: 600; font-size: 15px; cursor: pointer">Simulate end-of-day reminder</button>
+<button type="button" aria-pressed="{{offline}}" onClick="{{toggleOffline}}" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #FFFFFF; color: #0E2A3B; font-weight: 600; font-size: 15px; cursor: pointer">{{offlineLabel}}</button>
+<button type="button" onClick="{{resetAll}}" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #FFFFFF; color: #0E2A3B; font-weight: 600; font-size: 15px; cursor: pointer">Reset demo data</button>
+</div>
+
+<div role="status" aria-live="polite" style="padding: 0 24px">
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div style="{{toastStyle}}">
+<span style="flex-grow: 1">{{toastMsg}}</span>
+<button type="button" aria-label="Dismiss message" onClick="{{dismissToast}}" style="min-width: 44px; min-height: 44px; background: transparent; border: 0; color: inherit; font-size: 22px; cursor: pointer">&times;</button>
+</div>
+</sc-if>
+</div>
+
+<main style="flex-grow: 1; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<sc-if value="{{isAthlete}}" hint-placeholder-val="{{true}}">
+<div style="width: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px">
+
+<nav aria-label="Athlete sections" style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{tabButtons}}" as="tb" hint-placeholder-count="4">
+<button type="button" aria-pressed="{{tb.pressed}}" onClick="{{tb.pick}}" style="{{tb.style}}">{{tb.label}}</button>
+</sc-for>
+</nav>
+
+<sc-if value="{{tabToday}}" hint-placeholder-val="{{true}}">
+
+<section style="background: #FFFFFF; border: 1px solid #0E2A3B; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="font-size: 14px; font-weight: 600; color: #3F5868">{{dateLabel}}</div>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: 34px; line-height: 1.1; letter-spacing: -0.8px">Today&rsquo;s rehab</h1>
+<div style="font-size: 15px; color: #3F5868">{{athName}} &middot; {{athSport}} &middot; {{athInjury}}</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 15px"><span>{{doneCount}} of {{totalCount}} done</span><span>{{progressPct}}%</span></div>
+<div style="height: 10px; background: #C3DAE7; border-radius: 6px; overflow: hidden"><div style="{{progressStyle}}"></div></div>
+</div>
+</section>
+
+<sc-if value="{{showReminder}}" hint-placeholder-val="{{false}}">
+<section style="background: #FFF1E6; border: 1.5px solid #B4490F; border-radius: 12px; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px">
+<div style="font-weight: 700; color: #8A3607">Reminder &middot; 6:00 PM</div>
+<div style="color: #0E2A3B">{{reminderText}}</div>
+</section>
+</sc-if>
+
+<sc-if value="{{hasToMe}}" hint-placeholder-val="{{false}}">
+<section style="background: #FFFFFF; border: 1px solid #0E2A3B; border-radius: 12px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px">
+<div style="font-weight: 700">Messages from your trainer</div>
+<sc-for list="{{toMe}}" as="m" hint-placeholder-count="1">
+<div style="background: #EAF1F6; border-radius: 8px; padding: 10px 12px; font-size: 15px"><span style="font-weight: 700">{{m.time}}</span><br>{{m.text}}</div>
+</sc-for>
+</section>
+</sc-if>
+
+<sc-for list="{{exercises}}" as="ex" hint-placeholder-count="4">
+<section style="background: #FFFFFF; border: 1px solid #0E2A3B; border-radius: 12px; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div style="font-weight: 700; font-size: 18px">{{ex.name}}</div>
+<div style="font-size: 15px; color: #3F5868">{{ex.rx}}</div>
+</div>
+<div style="{{ex.badgeStyle}}">{{ex.badge}}</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" aria-expanded="{{ex.open}}" onClick="{{ex.toggle}}" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #FFFFFF; color: #0E2A3B; font-weight: 600; font-size: 15px; cursor: pointer; display: flex; align-items: center; gap: 8px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg>
+{{ex.tutorialLabel}}
+</button>
+<sc-if value="{{ex.pending}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{ex.log}}" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #0E2A3B; color: #FFFFFF; font-weight: 700; font-size: 15px; cursor: pointer">Mark done</button>
+</sc-if>
+</div>
+<sc-if value="{{ex.open}}" hint-placeholder-val="{{false}}">
+<div style="background: #0E2A3B; border-radius: 8px; aspect-ratio: 16 / 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #FFFFFF; text-align: center; padding: 16px">
+<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#C3DAE7" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4z" fill="#C3DAE7"/></svg>
+<div style="font-weight: 700">Tutorial video: {{ex.name}}</div>
+<div style="font-size: 14px; color: #C3DAE7">[VIDEO ATTACHED BY TRAINER]</div>
+</div>
+</sc-if>
+</section>
+</sc-for>
+
+<sc-if value="{{allDone}}" hint-placeholder-val="{{false}}">
+<section style="background: #C3DAE7; border-radius: 12px; padding: 16px 20px; font-weight: 700">All exercises logged for today. Your trainer and coach can see your progress.</section>
+</sc-if>
+
+<button type="button" onClick="{{editPlan}}" style="align-self: center; min-height: 44px; padding: 0 16px; background: transparent; border: 0; color: #0E2A3B; font-weight: 600; font-size: 15px; text-decoration: underline; cursor: pointer">Edit my plan</button>
+</sc-if>
+
+<sc-if value="{{tabProgress}}" hint-placeholder-val="{{false}}">
+<section style="background: #FFFFFF; border: 1px solid #0E2A3B; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: 34px; line-height: 1.1; letter-spacing: -0.8px">Your goals</h1>
+<div style="font-size: 15px; color: #3F5868">Your trainer set one goal per test. Reach all of them to be cleared for healthy status. Each goal you reach is worth 10 points toward your rank and unlocks trophies.</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 15px"><span>{{msMet}} of {{msTotal}} goals reached</span><span>{{msOverall}}% overall</span></div>
+<div style="height: 10px; background: #C3DAE7; border-radius: 6px; overflow: hidden"><div style="{{msOverallStyle}}"></div></div>
+</div>
+</section>
+
+<sc-for list="{{milestones}}" as="m" hint-placeholder-count="4">
+<section style="background: #FFFFFF; border: 1px solid #0E2A3B; border-radius: 12px; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div style="font-weight: 700; font-size: 18px">{{m.name}}</div>
+<div style="font-size: 15px; color: #3F5868">{{m.say}}</div>
+</div>
+<div style="{{m.badgeStyle}}">{{m.badge}}</div>
+</div>
+<div style="display: flex; align-items: baseline; gap: 8px">
+<span style="font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: 40px; line-height: 1">{{m.currentNum}}</span>
+<span style="font-size: 16px; color: #3F5868">{{m.unit}} now &middot; goal {{m.targetNum}}</span>
+</div>
+<div style="height: 14px; background: #C3DAE7; border-radius: 7px; overflow: hidden"><div style="{{m.barStyle}}"></div></div>
+<div style="font-weight: 700; font-size: 15px">{{m.togo}}</div>
+<div style="font-size: 14px; color: #3F5868">{{m.trend}}</div>
+<sc-if value="{{m.open}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 8px; border: 1.5px solid #0E2A3B; border-radius: 8px; padding: 12px">
+<label for="{{m.inputId}}" style="font-weight: 700; font-size: 15px">New result ({{m.unit}})</label>
+<input id="{{m.inputId}}" type="number" inputmode="decimal" value="{{m.logVal}}" onChange="{{m.setLogVal}}" style="width: 100%; box-sizing: border-box; min-height: 44px; font-family: Figtree, system-ui, sans-serif; font-size: 18px; padding: 0 12px; border: 1.5px solid #0E2A3B; border-radius: 8px; color: #0E2A3B; background: #FFFFFF">
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" onClick="{{m.saveLog}}" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #0E2A3B; color: #FFFFFF; font-weight: 700; font-size: 15px; cursor: pointer">Save result</button>
+<button type="button" onClick="{{m.cancelLog}}" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #FFFFFF; color: #0E2A3B; font-weight: 600; font-size: 15px; cursor: pointer">Cancel</button>
+</div>
+<div style="font-size: 14px; color: #3F5868">Self-reported. Your trainer confirms it at your next retest.</div>
+</div>
+</sc-if>
+<sc-if value="{{m.closed}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{m.openLog}}" style="align-self: flex-start; min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #FFFFFF; color: #0E2A3B; font-weight: 700; font-size: 15px; cursor: pointer">Log new result</button>
+</sc-if>
+</section>
+</sc-for>
+</sc-if>
+
+<sc-if value="{{tabTrophies}}" hint-placeholder-val="{{false}}">
+<section style="background: #0E2A3B; color: #FFFFFF; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="{{heroIconStyle}}">
+<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4"/><path d="M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4"/><path d="M8 20h8"/><path d="M10 17h4"/></svg>
+</div>
+<div>
+<div style="font-size: 14px; font-weight: 600; color: #C3DAE7">Your rank &middot; {{rankMetal}} trophy</div>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: 40px; line-height: 1.05; letter-spacing: -1px">{{rankName}}</h1>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="height: 10px; background: #2B4B5F; border-radius: 6px; overflow: hidden"><div style="{{rankBarStyle}}"></div></div>
+<div style="font-size: 15px; color: #C3DAE7">{{rankNote}}</div>
+</div>
+<div style="font-size: 14px; color: #C3DAE7">{{pointsNote}}</div>
+<div style="display: flex; flex-wrap: wrap; gap: 24px; padding-top: 4px">
+<div><div style="font-weight: 800; font-size: 28px">{{streakNow}}</div><div style="font-size: 14px; color: #C3DAE7">Day streak</div></div>
+<div><div style="font-weight: 800; font-size: 28px">{{streakBest}}</div><div style="font-size: 14px; color: #C3DAE7">Best streak</div></div>
+<div><div style="font-weight: 800; font-size: 28px">{{totalLogged}}</div><div style="font-size: 14px; color: #C3DAE7">Points</div></div>
+</div>
+</section>
+
+<div style="font-weight: 700; font-size: 18px">Trophy ladder &middot; {{trophyCount}} of {{trophyTotal}} earned</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px">
+<sc-for list="{{trophies}}" as="tr" hint-placeholder-count="11">
+<div style="{{tr.cardStyle}}">
+<div style="{{tr.iconStyle}}">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4"/><path d="M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4"/><path d="M8 20h8"/><path d="M10 17h4"/></svg>
+</div>
+<div style="font-weight: 700">{{tr.name}}</div>
+<div style="font-size: 14px; color: #3F5868">{{tr.desc}}</div>
+<div style="{{tr.statusStyle}}">{{tr.status}}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{tabAppts}}" hint-placeholder-val="{{false}}">
+<section style="background: #FFFFFF; border: 1px solid #0E2A3B; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 8px">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: 34px; line-height: 1.1; letter-spacing: -0.8px">Appointments</h1>
+<div style="font-size: 15px; color: #3F5868">What to work on before each visit.</div>
+</section>
+<sc-for list="{{appts}}" as="ap" hint-placeholder-count="3">
+<section style="background: #FFFFFF; border: 1px solid #0E2A3B; border-radius: 12px; overflow: hidden">
+<div style="background: #C3DAE7; padding: 12px 20px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px">
+<span style="font-weight: 700">{{ap.when}}</span>
+<span style="font-size: 15px">{{ap.where}}</span>
+</div>
+<div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="font-weight: 700; font-size: 18px">{{ap.title}}</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 14px; font-weight: 700; color: #3F5868">Milestones to work toward</div>
+<sc-for list="{{ap.tests}}" as="t" hint-placeholder-count="2">
+<div style="display: flex; justify-content: space-between; gap: 12px; font-size: 15px"><span>{{t.name}}</span><span style="font-weight: 700">{{t.note}}</span></div>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 14px; font-weight: 700; color: #3F5868">Exercises to focus on</div>
+<sc-for list="{{ap.exs}}" as="e" hint-placeholder-count="2">
+<div style="display: flex; justify-content: space-between; gap: 12px; font-size: 15px"><span>{{e.name}} <span style="color: #3F5868">&middot; {{e.rx}}</span></span><span style="{{e.style}}">{{e.note}}</span></div>
+</sc-for>
+</div>
+</div>
+</section>
+</sc-for>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{isStaff}}" hint-placeholder-val="{{false}}">
+<div style="width: 100%; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px">
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 14px; font-weight: 600; color: #3F5868">{{dateLabel}}</div>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: 34px; line-height: 1.1; letter-spacing: -0.8px">{{staffTitle}}</h1>
+<div style="font-size: 15px; color: #3F5868">{{staffSub}}</div>
+</div>
+<sc-if value="{{canAssign}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{openAssign}}" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #0E2A3B; color: #FFFFFF; font-weight: 700; font-size: 15px; cursor: pointer">Assign injury and exercises</button>
+</sc-if>
+</div>
+
+<sc-if value="{{assigning}}" hint-placeholder-val="{{false}}">
+<section style="background: #FFFFFF; border: 1.5px solid #0E2A3B; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 20px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; font-size: 24px">New assignment</h2>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-weight: 700">1. Athlete</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{formAthletes}}" as="c" hint-placeholder-count="4">
+<button type="button" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}" style="{{c.style}}">{{c.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-weight: 700">2. Injury <span style="font-weight: 400; color: #3F5868">(trainers only)</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{formInjuries}}" as="c" hint-placeholder-count="5">
+<button type="button" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}" style="{{c.style}}">{{c.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-weight: 700">3. Exercises <span style="font-weight: 400; color: #3F5868">(a tutorial video is attached to each one)</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{formExercises}}" as="c" hint-placeholder-count="8">
+<button type="button" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}" style="{{c.style}}">{{c.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" onClick="{{submitAssign}}" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #0E2A3B; color: #FFFFFF; font-weight: 700; font-size: 15px; cursor: pointer">Assign to athlete</button>
+<button type="button" onClick="{{cancelAssign}}" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #FFFFFF; color: #0E2A3B; font-weight: 600; font-size: 15px; cursor: pointer">Cancel</button>
+</div>
+</section>
+</sc-if>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 20px; align-items: start">
+
+<section style="background: #FFFFFF; border: 1px solid #0E2A3B; border-radius: 12px; overflow: hidden">
+<div style="background: #C3DAE7; padding: 12px 20px; font-weight: 700; display: flex; justify-content: space-between; gap: 12px"><span>Athlete</span><span>Today &middot; Week &middot; Status</span></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+<button type="button" aria-pressed="{{r.selected}}" onClick="{{r.select}}" style="{{r.style}}">
+<span style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 700; font-size: 17px">{{r.name}}</span>
+<span style="font-size: 14px; color: #3F5868">{{r.sport}} &middot; {{r.injury}}</span>
+</span>
+<span style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right">
+<span style="font-size: 14px">{{r.todayLabel}} today &middot; {{r.weekLabel}}</span>
+<span style="{{r.statusStyle}}">{{r.status}}</span>
+</span>
+</button>
+</sc-for>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #0E2A3B; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; font-size: 24px">{{selName}}</h2>
+<div style="font-size: 15px; color: #3F5868">{{selSport}} &middot; {{selInjury}}</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" onClick="{{openCompose}}" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #FFFFFF; color: #0E2A3B; font-weight: 700; font-size: 15px; cursor: pointer">{{msgButtonLabel}}</button>
+</div>
+<sc-if value="{{composing}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 8px; border: 1.5px solid #0E2A3B; border-radius: 8px; padding: 12px">
+<label for="msgbox" style="font-weight: 700; font-size: 15px">To {{msgTarget}}</label>
+<textarea id="msgbox" rows="3" value="{{draft}}" onChange="{{setDraft}}" style="width: 100%; box-sizing: border-box; font-family: Figtree, system-ui, sans-serif; font-size: 16px; padding: 10px; border: 1.5px solid #0E2A3B; border-radius: 8px; color: #0E2A3B; background: #FFFFFF"></textarea>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" onClick="{{sendMsg}}" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #0E2A3B; color: #FFFFFF; font-weight: 700; font-size: 15px; cursor: pointer">Send</button>
+<button type="button" onClick="{{cancelCompose}}" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: #FFFFFF; color: #0E2A3B; font-weight: 600; font-size: 15px; cursor: pointer">Cancel</button>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{hasThread}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 14px; font-weight: 700; color: #3F5868">Sent</div>
+<sc-for list="{{thread}}" as="m" hint-placeholder-count="1">
+<div style="background: #EAF1F6; border-radius: 8px; padding: 10px 12px; font-size: 15px"><span style="font-weight: 700">{{m.who}} &middot; {{m.time}}</span><br>{{m.text}}</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{hasCoachInbox}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 14px; font-weight: 700; color: #3F5868">From coach</div>
+<sc-for list="{{coachInbox}}" as="m" hint-placeholder-count="1">
+<div style="background: #C3DAE7; border-radius: 8px; padding: 10px 12px; font-size: 15px"><span style="font-weight: 700">{{m.who}} &middot; {{m.time}}</span><br>{{m.text}}</div>
+</sc-for>
+</div>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 0; border: 1px solid #0E2A3B; border-radius: 8px; overflow: hidden">
+<div style="display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); background: #C3DAE7; font-weight: 700; font-size: 14px">
+<div style="padding: 10px 12px">Exercise</div><div style="padding: 10px 8px">Mon</div><div style="padding: 10px 8px">Tue</div><div style="padding: 10px 8px">Wed</div>
+</div>
+<sc-for list="{{detailRows}}" as="d" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); border-top: 1px solid #C3DAE7; font-size: 14px">
+<div style="padding: 10px 12px"><div style="font-weight: 700">{{d.name}}</div><div style="color: #3F5868">{{d.rx}}</div></div>
+<sc-for list="{{d.cells}}" as="cell" hint-placeholder-count="3">
+<div style="{{cell.style}}">{{cell.text}}</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</section>
+
+</div>
+</div>
+</sc-if>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  state = this.initial();
+
+  lib() {
+    return [
+      { id: 'ankle-alphabet', name: 'Ankle alphabet', rx: '2 rounds, A to Z' },
+      { id: 'calf-raise', name: 'Double-leg calf raise', rx: '3 sets of 15' },
+      { id: 'band-eversion', name: 'Banded ankle eversion', rx: '3 sets of 12' },
+      { id: 'single-leg-balance', name: 'Single-leg balance', rx: '3 sets of 30 sec' },
+      { id: 'heel-slides', name: 'Heel slides', rx: '3 sets of 15' },
+      { id: 'quad-sets', name: 'Quad sets', rx: '3 sets of 10, 5 sec hold' },
+      { id: 'straight-leg-raise', name: 'Straight leg raise', rx: '3 sets of 12' },
+      { id: 'mini-squat', name: 'Mini squat', rx: '3 sets of 10' },
+      { id: 'band-external-rotation', name: 'Band external rotation', rx: '3 sets of 12' },
+      { id: 'scap-squeeze', name: 'Scapular squeeze', rx: '3 sets of 15' },
+      { id: 'wall-slide', name: 'Wall slide', rx: '3 sets of 10' },
+      { id: 'glute-bridge', name: 'Glute bridge', rx: '3 sets of 12' },
+      { id: 'hamstring-curl-slide', name: 'Slider hamstring curl', rx: '3 sets of 8' },
+      { id: 'bird-dog', name: 'Bird dog', rx: '3 sets of 10 per side' }
+    ];
+  }
+
+  injuries() {
+    return ['Ankle sprain', 'ACL reconstruction', 'Hamstring strain', 'Shoulder impingement', 'Patellar tendinopathy'];
+  }
+
+  mk(assigned, perDay) {
+    const times = ['6:10 PM', '5:55 PM', '8:20 AM'];
+    const logs = [];
+    [0, 1, 2].forEach((day) => {
+      assigned.slice(0, perDay[day]).forEach((id) => logs.push({ ex: id, day: day, time: times[day] }));
+    });
+    return logs;
+  }
+
+  initial() {
+    const a1 = ['ankle-alphabet', 'calf-raise', 'band-eversion', 'single-leg-balance'];
+    const a2 = ['heel-slides', 'quad-sets', 'straight-leg-raise', 'mini-squat'];
+    const a3 = ['band-external-rotation', 'scap-squeeze', 'wall-slide'];
+    const a4 = ['glute-bridge', 'hamstring-curl-slide', 'bird-dog'];
+    return {
+      role: 'athlete',
+      offline: false,
+      reminder: false,
+      toast: null,
+      openId: null,
+      selId: 'a1',
+      assigning: false,
+      form: { athleteId: 'a1', injury: '', exIds: [] },
+      athletes: [
+        { id: 'a1', name: 'Maya Torres', sport: 'Soccer', injury: 'Ankle sprain', assigned: a1, logs: this.mk(a1, [4, 4, 1]), prior: { exercises: 48, bestStreak: 6, fullDay: true } },
+        { id: 'a2', name: 'Jordan Reyes', sport: 'Basketball', injury: 'ACL reconstruction', assigned: a2, logs: this.mk(a2, [4, 4, 2]), prior: { exercises: 30, bestStreak: 4, fullDay: true } },
+        { id: 'a3', name: 'Devon Clarke', sport: 'Volleyball', injury: 'Shoulder impingement', assigned: a3, logs: this.mk(a3, [3, 1, 0]), prior: { exercises: 12, bestStreak: 2, fullDay: true } },
+        { id: 'a4', name: 'Priya Nair', sport: 'Track', injury: 'Hamstring strain', assigned: a4, logs: this.mk(a4, [3, 3, 3]), prior: { exercises: 70, bestStreak: 9, fullDay: true } }
+      ],
+      athTab: 'today',
+      tests: this.tests(),
+      logTest: null,
+      logVal: '',
+      messages: [],
+      composing: false,
+      draft: ''
+    };
+  }
+
+  stats(a, tests) {
+    tests = tests || this.state.tests;
+    const full = (d) => a.assigned.length > 0 && a.assigned.every((id) => a.logs.some((l) => l.ex === id && l.day === d));
+    let d = full(2) ? 2 : 1;
+    let streak = 0;
+    while (d >= 0 && full(d)) { streak++; d--; }
+    const goals = tests.filter((t) => t.hist[t.hist.length - 1] >= t.target).length;
+    const logged = tests.reduce((x, t) => x + Math.max(0, t.hist.length - 5), 0);
+    const total = a.prior.exercises + a.logs.length;
+    return {
+      goals: goals,
+      goalCount: tests.length,
+      logged: logged,
+      points: total + goals * 10,
+      total: a.prior.exercises + a.logs.length,
+      streak: streak,
+      best: Math.max(a.prior.bestStreak, streak),
+      fullEver: a.prior.fullDay || [0, 1, 2].some(full)
+    };
+  }
+
+  ranks() {
+    return [['Starter I', 0, 'Bronze'], ['Starter II', 20, 'Bronze'], ['Starter III', 40, 'Bronze'], ['Varsity I', 60, 'Silver'], ['Varsity II', 90, 'Silver'], ['Varsity III', 120, 'Silver'], ['All-conference I', 160, 'Gold'], ['All-conference II', 210, 'Gold'], ['All-conference III', 270, 'Gold']];
+  }
+
+  rankOf(total) {
+    const r = this.ranks();
+    let i = 0;
+    r.forEach((x, k) => { if (total >= x[1]) i = k; });
+    return i;
+  }
+
+  trophyDefs(st) {
+    return [];
+  }
+
+  tests() {
+    return [
+      { id: 'balance', name: 'One-leg balance', say: 'How long you can stand on your injured leg.', unit: 'seconds', base: 8, target: 30, hist: [8, 11, 15, 19, 22] },
+      { id: 'calf', name: 'One-leg heel raises', say: 'How many heel raises you can do on your injured leg.', unit: 'reps', base: 5, target: 25, hist: [5, 7, 10, 12, 14] },
+      { id: 'lunge', name: 'Ankle flexibility', say: 'How far your knee reaches toward a wall with your heel down.', unit: 'cm', base: 6, target: 12, hist: [6, 7, 8, 9, 9] },
+      { id: 'hop', name: 'Hop distance', say: 'How far you hop, compared with your healthy leg.', unit: '% of healthy leg', base: 55, target: 90, hist: [55, 60, 66, 70, 72] }
+    ];
+  }
+
+  appointments() {
+    return [
+      { when: 'Fri, Oct 2 \u00b7 3:30 PM', where: 'Athletic training room', title: 'Weekly check-in', tests: [['balance', 'Retest: aim for 25 sec']], exs: ['single-leg-balance', 'band-eversion'] },
+      { when: 'Wed, Oct 7 \u00b7 3:30 PM', where: 'Athletic training room', title: 'Strength and hop retest', tests: [['calf', 'Retest: aim for 18 reps'], ['hop', 'Retest: aim for 78%']], exs: ['calf-raise', 'band-eversion'] },
+      { when: 'Wed, Oct 14 \u00b7 3:30 PM', where: 'Athletic training room', title: 'Return-to-play review', tests: [['balance', 'Target 30 sec'], ['calf', 'Target 25 reps'], ['lunge', 'Target 12 cm'], ['hop', 'Target 90%']], exs: ['ankle-alphabet', 'calf-raise', 'band-eversion', 'single-leg-balance'] }
+    ];
+  }
+
+  say(msg, kind) {
+    this.setState({ toast: { msg: msg, kind: kind } });
+    if (this._t) clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: null }), 5000);
+  }
+
+  chip(on) {
+    return 'min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1.5px solid #0E2A3B; background: ' + (on ? '#0E2A3B' : '#FFFFFF') + '; color: ' + (on ? '#FFFFFF' : '#0E2A3B') + '; font-weight: 600; font-size: 15px; cursor: pointer';
+  }
+
+  renderVals() {
+    const s = this.state;
+    const TODAY = 2;
+    const lib = this.lib();
+    const byId = (id) => lib.find((e) => e.id === id);
+    const me = s.athletes.find((a) => a.id === 'a1');
+    const logOf = (a, id, day) => a.logs.find((l) => l.ex === id && l.day === day);
+
+    const roles = [['athlete', 'Athlete'], ['trainer', 'Trainer'], ['coach', 'Coach']];
+    const roleButtons = roles.map((r) => {
+      const on = s.role === r[0];
+      return {
+        label: r[1],
+        pressed: on,
+        style: 'min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1.5px solid #C3DAE7; background: ' + (on ? '#C3DAE7' : 'transparent') + '; color: ' + (on ? '#0E2A3B' : '#FFFFFF') + '; font-weight: 700; font-size: 15px; cursor: pointer',
+        pick: () => this.setState({ role: r[0], assigning: false, toast: null })
+      };
+    });
+
+    const exercises = me.assigned.map((id) => {
+      const ex = byId(id);
+      const log = logOf(me, id, TODAY);
+      const open = s.openId === id;
+      return {
+        name: ex.name,
+        rx: ex.rx,
+        pending: !log,
+        open: open,
+        badge: log ? 'Logged ' + log.time : 'Not done',
+        badgeStyle: log
+          ? 'font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #0E2A3B; color: #FFFFFF; white-space: nowrap'
+          : 'font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #FFFFFF; color: #8A3607; border: 1.5px solid #B4490F; white-space: nowrap',
+        tutorialLabel: open ? 'Hide tutorial' : 'Watch tutorial',
+        toggle: () => this.setState({ openId: open ? null : id }),
+        log: () => {
+          const cur = this.state.athletes.find((a) => a.id === 'a1');
+          if (this.state.offline) {
+            this.say('Could not save your log for ' + ex.name + '. Nothing was recorded. Check your connection and try again.', 'err');
+            return;
+          }
+          if (logOf(cur, id, TODAY)) {
+            this.say(ex.name + ' is already logged today.', 'err');
+            return;
+          }
+          const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+          const upd = Object.assign({}, cur, { logs: cur.logs.concat([{ ex: id, day: TODAY, time: time }]) });
+          const before = this.trophyDefs(this.stats(cur));
+          const after = this.trophyDefs(this.stats(upd));
+          const won = after.filter((t, i) => t.earned && !before[i].earned).map((t) => t.name);
+          const rankUp = this.rankOf(this.stats(upd).points) > this.rankOf(this.stats(cur).points);
+          this.setState({
+            athletes: this.state.athletes.map((a) => a.id === 'a1' ? upd : a)
+          });
+          let msg = 'Logged: ' + ex.name + ' at ' + time + '. Your trainer and coach can see it.';
+          if (won.length) msg += ' Trophy unlocked: ' + won.join(', ') + '.';
+          if (rankUp) msg += ' Rank up: ' + this.ranks()[this.rankOf(this.stats(upd).points)][0] + '!';
+          this.say(msg, 'ok');
+        }
+      };
+    });
+    const doneCount = exercises.filter((e) => !e.pending).length;
+    const totalCount = exercises.length;
+    const progressPct = totalCount ? Math.round((100 * doneCount) / totalCount) : 0;
+    const left = totalCount - doneCount;
+
+    const rows = s.athletes.map((a) => {
+      const n = a.assigned.length;
+      const todayDone = a.assigned.filter((id) => logOf(a, id, TODAY)).length;
+      const weekDone = a.logs.filter((l) => a.assigned.indexOf(l.ex) >= 0).length;
+      const pct = n ? Math.round((100 * weekDone) / (n * 3)) : 0;
+      const ok = pct >= 80;
+      const sel = s.selId === a.id;
+      return {
+        name: a.name,
+        sport: a.sport,
+        injury: a.injury,
+        todayLabel: todayDone + '/' + n,
+        weekLabel: pct + '% week',
+        status: ok ? 'On track' : 'Behind',
+        statusStyle: 'font-size: 13px; font-weight: 700; color: ' + (ok ? '#0E2A3B' : '#8A3607'),
+        selected: sel,
+        style: 'width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border: 0; border-top: 1px solid #C3DAE7; background: ' + (sel ? '#EAF1F6' : '#FFFFFF') + '; color: #0E2A3B; text-align: left; font-size: 16px; cursor: pointer; box-shadow: inset 4px 0 0 ' + (sel ? '#0E2A3B' : 'transparent'),
+        select: () => this.setState({ selId: a.id })
+      };
+    });
+
+    const sel = s.athletes.find((a) => a.id === s.selId) || s.athletes[0];
+    const detailRows = sel.assigned.map((id) => {
+      const ex = byId(id);
+      const cells = [0, 1, 2].map((day) => {
+        const log = logOf(sel, id, day);
+        let text = 'Done ' + (log ? log.time : '');
+        let color = '#0E2A3B';
+        let weight = 700;
+        if (!log && day < TODAY) { text = 'Missed'; color = '#8A3607'; }
+        if (!log && day === TODAY) { text = 'Pending'; color = '#3F5868'; weight = 500; }
+        return { text: text, style: 'padding: 10px 8px; font-weight: ' + weight + '; color: ' + color };
+      });
+      return { name: ex.name, rx: ex.rx, cells: cells };
+    });
+
+    const f = s.form;
+    const formAthletes = s.athletes.map((a) => ({
+      label: a.name,
+      pressed: f.athleteId === a.id,
+      style: this.chip(f.athleteId === a.id),
+      pick: () => this.setState({ form: Object.assign({}, this.state.form, { athleteId: a.id }) })
+    }));
+    const formInjuries = this.injuries().map((name) => ({
+      label: name,
+      pressed: f.injury === name,
+      style: this.chip(f.injury === name),
+      pick: () => this.setState({ form: Object.assign({}, this.state.form, { injury: name }) })
+    }));
+    const formExercises = lib.map((ex) => {
+      const on = f.exIds.indexOf(ex.id) >= 0;
+      return {
+        label: (on ? '✓ ' : '') + ex.name,
+        pressed: on,
+        style: this.chip(on),
+        pick: () => {
+          const cur = this.state.form.exIds;
+          const next = cur.indexOf(ex.id) >= 0 ? cur.filter((x) => x !== ex.id) : cur.concat([ex.id]);
+          this.setState({ form: Object.assign({}, this.state.form, { exIds: next }) });
+        }
+      };
+    });
+
+    // athlete tabs
+    const tabs = [['today', 'Today'], ['progress', 'Progress'], ['trophies', 'Trophies'], ['appts', 'Appointments']];
+    const tabButtons = tabs.map((x) => {
+      const on = s.athTab === x[0];
+      return {
+        label: x[1],
+        pressed: on,
+        style: 'flex: 1 1 auto; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1.5px solid #0E2A3B; background: ' + (on ? '#0E2A3B' : '#FFFFFF') + '; color: ' + (on ? '#FFFFFF' : '#0E2A3B') + '; font-weight: 700; font-size: 15px; cursor: pointer',
+        pick: () => this.setState({ athTab: x[0] })
+      };
+    });
+
+    // milestones
+    const tests = s.tests;
+    const milestones = tests.map((m) => {
+      const cur = m.hist[m.hist.length - 1];
+      const pct = Math.max(0, Math.min(100, Math.round((100 * (cur - m.base)) / (m.target - m.base))));
+      const met = cur >= m.target;
+      const lo = Math.min.apply(null, m.hist.concat([m.target]));
+      const hi = Math.max.apply(null, m.hist.concat([m.target]));
+      const yOf = (v) => (56 - ((v - lo) / (hi - lo)) * 50).toFixed(1);
+      const points = m.hist.map((v, i) => ((i * 200) / (m.hist.length - 1)).toFixed(1) + ',' + yOf(v)).join(' ');
+      return {
+        id: m.id,
+        inputId: 'log-' + m.id,
+        open: s.logTest === m.id,
+        closed: s.logTest !== m.id,
+        openLog: () => this.setState({ logTest: m.id, logVal: '' }),
+        cancelLog: () => this.setState({ logTest: null, logVal: '' }),
+        logVal: s.logVal,
+        setLogVal: (e) => this.setState({ logVal: e.target.value }),
+        saveLog: () => {
+          const v = parseFloat(this.state.logVal);
+          if (!isFinite(v) || v < 0) { this.say('Enter a number for ' + m.name + '.', 'err'); return; }
+          if (this.state.offline) { this.say('Could not save your result. Nothing was recorded. Check your connection and try again.', 'err'); return; }
+          const meNow = this.state.athletes.find((a) => a.id === 'a1');
+          const newTests = this.state.tests.map((x) => x.id === m.id ? Object.assign({}, x, { hist: x.hist.concat([v]) }) : x);
+          const b4 = this.trophyDefs(this.stats(meNow, this.state.tests));
+          const af = this.trophyDefs(this.stats(meNow, newTests));
+          const won = af.filter((t, i) => t.earned && !b4[i].earned).map((t) => t.name);
+          const r0 = this.rankOf(this.stats(meNow, this.state.tests).points);
+          const r1 = this.rankOf(this.stats(meNow, newTests).points);
+          this.setState({ tests: newTests, logTest: null, logVal: '' });
+          const left = m.target - v;
+          let msg = 'Saved: ' + m.name + ' ' + v + ' ' + m.unit + '. ' + (left <= 0 ? 'Goal reached, +10 points.' : left + ' to go.');
+          if (won.length) msg += ' Trophy unlocked: ' + won.join(', ') + '.';
+          if (r1 > r0) msg += ' Rank up: ' + this.ranks()[r1][0] + '!';
+          this.say(msg, 'ok');
+        },
+        name: m.name,
+        currentNum: cur,
+        targetNum: m.target,
+        unit: m.unit,
+        say: m.say,
+        togo: met ? 'Goal reached.' : (m.target - cur) + ' more ' + (m.unit.indexOf('%') === 0 ? 'percentage points' : m.unit) + ' to go.',
+        trend: 'Week 1: ' + m.base + ' \u2192 this week: ' + cur + ' (up ' + (cur - m.base) + ')',
+        current: cur + m.unit,
+        target: m.target + m.unit,
+        base: m.base + m.unit,
+        pct: pct,
+        met: met,
+        badge: met ? 'Goal reached' : pct + '% there',
+        badgeStyle: met
+          ? 'font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #0E2A3B; color: #FFFFFF; white-space: nowrap'
+          : 'font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #FFFFFF; color: #0E2A3B; border: 1.5px solid #0E2A3B; white-space: nowrap',
+        barStyle: 'height: 100%; background: #0E2A3B; width: ' + pct + '%',
+        targetY: yOf(m.target),
+        points: points,
+        chartLabel: m.name + ' over 5 weeks: ' + m.hist.join(', ') + m.unit + '. Target ' + m.target + m.unit + '.'
+      };
+    });
+    const msMet = milestones.filter((m) => m.met).length;
+    const msOverall = Math.round(milestones.reduce((x, m) => x + m.pct, 0) / milestones.length);
+
+    // trophies and rank
+    const st = this.stats(me);
+    const defs = this.trophyDefs(st);
+    const rk = this.ranks();
+    const ri = this.rankOf(st.points);
+    const nextRank = rk[ri + 1];
+    const metalFill = { Bronze: '#CD7F32', Silver: '#C9D3DB', Gold: '#F2B632' };
+    const trophies = rk.map((r, i) => {
+      const earned = i <= ri;
+      return {
+        name: r[0],
+        desc: r[2] + ' \u00b7 ' + r[1] + ' points',
+        status: i < ri ? 'Earned' : (i === ri ? 'Current rank' : 'Locked \u00b7 ' + (r[1] - st.points) + ' points away'),
+        statusStyle: 'font-size: 14px; font-weight: 700; color: ' + (earned ? '#0E2A3B' : '#3F5868'),
+        cardStyle: 'border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px; border: ' + (i === ri ? '3px solid #0E2A3B' : (earned ? '1.5px solid #0E2A3B' : '1.5px dashed #3F5868')) + '; background: ' + (earned ? '#FFFFFF' : '#EAF1F6'),
+        iconStyle: 'width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ' + (earned ? metalFill[r[2]] : '#C3DAE7') + '; color: ' + (earned ? '#0E2A3B' : '#3F5868')
+      };
+    });
+    const rankPct = nextRank ? Math.round((100 * (st.points - rk[ri][1])) / (nextRank[1] - rk[ri][1])) : 100;
+
+    // appointments
+    const appts = this.appointments().map((ap) => ({
+      when: ap.when,
+      where: ap.where,
+      title: ap.title,
+      tests: ap.tests.map((t) => ({ name: tests.find((x) => x.id === t[0]).name, note: t[1] })),
+      exs: ap.exs.map((id) => {
+        const ex = byId(id);
+        const done = !!logOf(me, id, TODAY);
+        return { name: ex.name, rx: ex.rx, note: done ? 'Done today' : 'Not done today', style: 'font-weight: 700; white-space: nowrap; color: ' + (done ? '#0E2A3B' : '#8A3607') };
+      })
+    }));
+
+    // messages
+    const sel2 = sel;
+    const threadKey = s.role === 'trainer' ? sel2.id : 'coach';
+    const thread = s.messages.filter((m) => m.thread === threadKey).map((m) => ({ who: m.from, text: m.text, time: m.time }));
+    const toMe = s.messages.filter((m) => m.thread === 'a1' && m.from === 'Trainer').map((m) => ({ who: m.from, text: m.text, time: m.time }));
+    const msgTarget = s.role === 'trainer' ? sel2.name : 'your trainer';
+
+    const t = s.toast;
+    const isStaff = s.role !== 'athlete';
+
+    return {
+      tabButtons: tabButtons,
+      tabToday: s.athTab === 'today',
+      tabProgress: s.athTab === 'progress',
+      tabTrophies: s.athTab === 'trophies',
+      tabAppts: s.athTab === 'appts',
+      milestones: milestones,
+      msMet: msMet,
+      msTotal: milestones.length,
+      msOverall: msOverall,
+      msOverallStyle: 'height: 100%; background: #0E2A3B; width: ' + msOverall + '%',
+      trophies: trophies,
+      trophyCount: ri + 1,
+      trophyTotal: rk.length,
+      rankMetal: rk[ri][2],
+      heroIconStyle: 'width: 72px; height: 72px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #0E2A3B; background: ' + metalFill[rk[ri][2]],
+      rankName: rk[ri][0],
+      rankBarStyle: 'height: 100%; background: #C3DAE7; width: ' + rankPct + '%',
+      rankNote: nextRank ? (nextRank[1] - st.points) + ' more points to reach ' + nextRank[0] + ' (' + nextRank[2].toLowerCase() + ')' : 'Top rank reached',
+      streakNow: st.streak,
+      streakBest: st.best,
+      totalLogged: st.points,
+      pointsNote: st.total + ' exercises logged (1 point each) + ' + st.goals + ' goals reached (10 points each)',
+      appts: appts,
+
+      msgButtonLabel: s.role === 'trainer' ? 'Message ' + sel2.name : 'Message trainer',
+      msgTarget: msgTarget,
+      composing: s.composing && isStaff,
+      openCompose: () => this.setState({ composing: true, draft: '' }),
+      cancelCompose: () => this.setState({ composing: false, draft: '' }),
+      draft: s.draft,
+      setDraft: (e) => this.setState({ draft: e.target.value }),
+      sendMsg: () => {
+        const text = (this.state.draft || '').trim();
+        if (!text) { this.say('Write a message first.', 'err'); return; }
+        const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        const isTrainer = this.state.role === 'trainer';
+        const m = { thread: isTrainer ? this.state.selId : 'coach', from: isTrainer ? 'Trainer' : 'Coach', text: text, time: time };
+        this.setState({ messages: this.state.messages.concat([m]), composing: false, draft: '' });
+        this.say(isTrainer ? 'Message sent to ' + sel2.name + '.' : 'Message sent to the trainer.', 'ok');
+      },
+      thread: thread,
+      coachInbox: s.role === 'trainer' ? s.messages.filter((m) => m.thread === 'coach').map((m) => ({ who: m.from, text: m.text, time: m.time })) : [],
+      hasCoachInbox: s.role === 'trainer' && s.messages.some((m) => m.thread === 'coach'),
+      hasThread: thread.length > 0,
+      toMe: toMe,
+      hasToMe: toMe.length > 0,
+
+      roleButtons: roleButtons,
+      isAthlete: s.role === 'athlete',
+      isStaff: isStaff,
+      offline: s.offline,
+      offlineLabel: s.offline ? 'Connection: offline' : 'Connection: online',
+      simReminder: () => this.setState({ reminder: true, role: 'athlete', toast: null }),
+      toggleOffline: () => this.setState({ offline: !this.state.offline }),
+      resetAll: () => this.setState(this.initial()),
+      hasToast: !!t,
+      toastMsg: t ? t.msg : '',
+      toastStyle: 'margin-top: 16px; display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 16px; border-radius: 8px; font-weight: 600; ' + (t && t.kind === 'err' ? 'background: #FFF1E6; border: 1.5px solid #B4490F; color: #6B2A05' : 'background: #FFFFFF; border: 1.5px solid #0E2A3B; color: #0E2A3B'),
+      dismissToast: () => this.setState({ toast: null }),
+
+      dateLabel: 'Wed, Sep 30',
+      athName: me.name,
+      athSport: me.sport,
+      athInjury: me.injury,
+      doneCount: doneCount,
+      totalCount: totalCount,
+      progressPct: progressPct,
+      progressStyle: 'height: 100%; background: #0E2A3B; width: ' + progressPct + '%',
+      showReminder: s.reminder && left > 0,
+      reminderText: left + (left === 1 ? ' exercise is' : ' exercises are') + ' still not logged for today.',
+      exercises: exercises,
+      allDone: totalCount > 0 && left === 0,
+      editPlan: () => this.say('Only your trainer can change your plan, injury or records.', 'err'),
+
+      staffTitle: s.role === 'trainer' ? 'Roster' : 'Team recovery',
+      staffSub: s.role === 'trainer' ? 'Trainer view. You can assign injuries and exercises.' : 'Coach view. Read-only.',
+      canAssign: s.role === 'trainer',
+      assigning: s.assigning && s.role === 'trainer',
+      openAssign: () => this.setState({ assigning: true, form: { athleteId: this.state.selId, injury: '', exIds: [] } }),
+      cancelAssign: () => this.setState({ assigning: false }),
+      formAthletes: formAthletes,
+      formInjuries: formInjuries,
+      formExercises: formExercises,
+      submitAssign: () => {
+        const fm = this.state.form;
+        const who = this.state.athletes.find((a) => a.id === fm.athleteId);
+        if (!who || !fm.injury || fm.exIds.length === 0) {
+          this.say('Pick an athlete, an injury and at least one exercise.', 'err');
+          return;
+        }
+        this.setState({
+          athletes: this.state.athletes.map((a) => a.id === who.id ? Object.assign({}, a, { injury: fm.injury, assigned: fm.exIds.slice() }) : a),
+          selId: who.id,
+          assigning: false
+        });
+        this.say('Assigned ' + fm.exIds.length + ' exercises to ' + who.name + ' for ' + fm.injury + '. Tutorial videos attached.', 'ok');
+      },
+
+      rows: rows,
+      selName: sel.name,
+      selSport: sel.sport,
+      selInjury: sel.injury,
+      detailRows: detailRows
+    };
+  }
+}
+</script>
+</body>
+</html>

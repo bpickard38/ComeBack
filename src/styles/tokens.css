@@ -1,0 +1,41 @@
+/*
+  Design tokens: every color, font and size the app uses, in one place.
+  Components refer to these with var(--name), so changing a value here
+  restyles the whole app.
+*/
+:root {
+  /* Colors */
+  --navy: #0e2a3b;
+  --pale-blue: #c3dae7;
+  --ground: #eaf1f6;
+  --text-secondary: #3f5868;
+  --white: #ffffff;
+  --navy-track: #2b4b5f; /* progress bar track on navy cards */
+
+  --warn: #b4490f;
+  --warn-text: #8a3607;
+  --warn-text-strong: #6b2a05;
+  --warn-bg: #fff1e6;
+
+  --bronze: #cd7f32;
+  --silver: #c9d3db;
+  --gold: #f2b632;
+
+  /* Fonts */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: Figtree, system-ui, sans-serif;
+
+  /* Sizes */
+  --tap: 44px; /* minimum touch target */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --width-athlete: 520px;
+  --width-staff: 1100px;
+  --gutter: 24px;
+}
+
+@media (max-width: 480px) {
+  :root {
+    --gutter: 16px;
+  }
+}
