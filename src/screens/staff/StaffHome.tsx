@@ -7,6 +7,7 @@ import { AssignForm } from './AssignForm';
 import { AthleteDetail } from './AthleteDetail';
 import { CoachView } from './CoachView';
 import { Roster } from './Roster';
+import { TeamCodes } from './TeamCodes';
 
 /** /staff shows a different screen per role: the coach never gets medical details. */
 export function StaffHome() {
@@ -37,6 +38,8 @@ function TrainerView() {
           </Button>
         )}
       </div>
+
+      <TeamCodes />
 
       {assigning && selected && (
         <AssignForm

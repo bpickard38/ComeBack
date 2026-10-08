@@ -256,3 +256,66 @@ h2 {
   background: var(--navy);
   color: var(--white);
 }
+
+/* Sign-in screen and loading state (see store/AuthGate.tsx) */
+.sign-in {
+  margin-top: 8vh;
+}
+
+.sign-in__error {
+  margin: 0;
+  color: var(--warn-text-strong);
+  background: var(--warn-bg);
+  border: 1.5px solid var(--warn);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.gate-status {
+  padding: var(--gutter);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.sign-in__notice {
+  margin: 0;
+  background: var(--ground);
+  border: 1.5px solid var(--navy);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+/* Role picker on the sign-up form reuses the pain-scale buttons, sized to words. */
+.role-option span {
+  padding: 0 16px;
+}
+
+/* Signed-in name and sign out, in the header */
+.account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.account__role {
+  color: var(--pale-blue);
+}
+
+/* Join codes: monospace so 0/O and 1/I are easy to tell apart */
+.join-code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+input.join-code {
+  text-transform: uppercase;
+}
+
+.team-codes {
+  gap: 32px;
+}

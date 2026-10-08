@@ -6,7 +6,6 @@ import { MessageBox } from '../../components/MessageBox';
 import { ProgressBar } from '../../components/ProgressBar';
 import { useToast } from '../../components/Toast';
 import { useReturnFocus } from '../../components/useReturnFocus';
-import { exerciseById } from '../../data/seed';
 import { availabilityLabel } from '../../domain/availability';
 import { findLog } from '../../domain/logs';
 import { athleteThread } from '../../domain/messages';
@@ -14,7 +13,7 @@ import { isHighPain, PAIN_SCALE } from '../../domain/pain';
 import { REMINDER_HOUR, shouldShowReminder } from '../../domain/reminder';
 import type { Exercise, ExerciseLog } from '../../domain/types';
 import { formatCalendarDay, formatDay, formatTime } from '../../format';
-import { useAppStore, useSignedInAthlete } from '../../store/AppStore';
+import { exerciseById, useAppStore, useSignedInAthlete } from '../../store/AppStore';
 
 export function Today() {
   const { state, commands } = useAppStore();
@@ -25,7 +24,7 @@ export function Today() {
 
   const now = new Date();
   const items = me.assignedExerciseIds.map((id) => ({
-    exercise: exerciseById(id),
+    exercise: exerciseById(state, id),
     log: findLog(state.logs, me.id, id, now),
   }));
   const total = items.length;
@@ -35,8 +34,8 @@ export function Today() {
   const showReminder = left > 0 && (state.reminderSimulated || shouldShowReminder(now, left));
 
   /** Returns true when the log saved, so the card can move keyboard focus. */
-  function markDone(exercise: Exercise, pain: number | undefined): boolean {
-    const result = commands.logExercise(me.id, exercise.id, pain);
+  async function markDone(exercise: Exercise, pain: number | undefined): Promise<boolean> {
+    const result = await commands.logExercise(me.id, exercise.id, pain);
     if (!result.ok) {
       notify(result.error, 'error');
       return false;
@@ -126,7 +125,7 @@ interface ExerciseCardProps {
   log: ExerciseLog | undefined;
   open: boolean;
   onToggle: () => void;
-  onMarkDone: (pain: number | undefined) => boolean;
+  onMarkDone: (pain: number | undefined) => Promise<boolean>;
 }
 
 function ExerciseCard({ exercise, log, open, onToggle, onMarkDone }: ExerciseCardProps) {
@@ -135,6 +134,7 @@ function ExerciseCard({ exercise, log, open, onToggle, onMarkDone }: ExerciseCar
   // "Mark done" first asks for a pain rating before saving.
   const [rating, setRating] = useState(false);
   const [pain, setPain] = useState<number | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
   const markDoneRef = useReturnFocus(rating);
   const titleId = `ex-${exercise.id}`;
 
@@ -143,9 +143,12 @@ function ExerciseCard({ exercise, log, open, onToggle, onMarkDone }: ExerciseCar
     setPain(undefined);
   }
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
-    if (onMarkDone(pain)) {
+    setSaving(true);
+    const saved = await onMarkDone(pain);
+    setSaving(false);
+    if (saved) {
       setRating(false);
       cardRef.current?.focus();
     }
@@ -206,8 +209,8 @@ function ExerciseCard({ exercise, log, open, onToggle, onMarkDone }: ExerciseCar
             <p className="small strong warn-text">That&rsquo;s a lot. Your trainer will be flagged to check in.</p>
           )}
           <div className="row">
-            <Button type="submit" variant="primary">
-              Log it
+            <Button type="submit" variant="primary" disabled={saving}>
+              {saving ? 'Saving…' : 'Log it'}
             </Button>
             <Button onClick={cancel}>Cancel</Button>
           </div>

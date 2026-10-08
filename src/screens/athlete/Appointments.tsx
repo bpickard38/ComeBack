@@ -1,8 +1,7 @@
 import { Card } from '../../components/Card';
-import { exerciseById, testById } from '../../data/seed';
 import { findLog } from '../../domain/logs';
 import { formatDay, formatTime } from '../../format';
-import { useAppStore, useSignedInAthlete } from '../../store/AppStore';
+import { exerciseById, testById, useAppStore, useSignedInAthlete } from '../../store/AppStore';
 
 export function Appointments() {
   const { state } = useAppStore();
@@ -42,7 +41,7 @@ export function Appointments() {
               <div className="stack-sm">
                 <h3 className="label">Milestones to work toward</h3>
                 {ap.testIds.map((id) => {
-                  const test = testById(id);
+                  const test = testById(state, id);
                   return (
                     <div key={id} className="line">
                       <span>{test.name}</span>
@@ -57,7 +56,7 @@ export function Appointments() {
               <div className="stack-sm">
                 <h3 className="label">Exercises to focus on</h3>
                 {ap.exerciseIds.map((id) => {
-                  const ex = exerciseById(id);
+                  const ex = exerciseById(state, id);
                   const done = Boolean(findLog(state.logs, me.id, id, now));
                   return (
                     <div key={id} className="line">

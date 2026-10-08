@@ -1,8 +1,8 @@
 /*
   The shapes of the app's data. `interface` and `type` only exist for
   TypeScript's checker; they disappear when the app is built.
-  Dates are stored as ISO strings (e.g. "2026-10-07T18:10:00.000Z") so they
-  survive being saved to localStorage, and later to a real database.
+  Dates are ISO strings (e.g. "2026-10-07T18:10:00.000Z"), the way the
+  database sends them.
 */
 
 export type Role = 'athlete' | 'trainer' | 'coach';
@@ -10,6 +10,8 @@ export type Role = 'athlete' | 'trainer' | 'coach';
 /** What the coach sees instead of medical details. */
 export type Availability = 'out' | 'limited' | 'cleared';
 
+/** An exercise on an athlete's plan. id is the plan_exercises row, so the same
+ * exercise can be prescribed differently for different athletes. */
 export interface Exercise {
   id: string;
   name: string;
@@ -42,8 +44,10 @@ export interface ExerciseLog {
   pain?: number;
 }
 
+/** A test as one athlete's goal. id is the case_milestones row. */
 export interface MilestoneTest {
   id: string;
+  athleteId: string;
   name: string;
   /** Plain-language explanation shown to the athlete. */
   description: string;
@@ -57,7 +61,7 @@ export interface TestResult {
   testId: string;
   value: number;
   recordedAt: string;
-  source: 'athlete';
+  source: 'athlete' | 'trainer';
 }
 
 export interface Appointment {
@@ -79,6 +83,9 @@ export interface Message {
   id: string;
   thread: MessageThread;
   from: 'Trainer' | 'Coach' | 'Athlete';
+  /** Who sent it, when known (a users id), and their name. */
+  senderId?: string;
+  senderName?: string;
   text: string;
   sentAt: string;
 }

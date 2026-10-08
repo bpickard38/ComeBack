@@ -24,6 +24,7 @@ export function MessageBox({ thread, recipient, title }: MessageBoxProps) {
   const { notify } = useToast();
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
   const openButtonRef = useReturnFocus(composing);
   const textareaId = `msg-${thread}`;
 
@@ -32,9 +33,11 @@ export function MessageBox({ thread, recipient, title }: MessageBoxProps) {
     setDraft('');
   }
 
-  function send(event: FormEvent) {
+  async function send(event: FormEvent) {
     event.preventDefault();
-    const result = commands.sendMessage(thread, draft);
+    setSending(true);
+    const result = await commands.sendMessage(thread, draft);
+    setSending(false);
     if (!result.ok) {
       notify(result.error, 'error');
       return;
@@ -59,8 +62,8 @@ export function MessageBox({ thread, recipient, title }: MessageBoxProps) {
             autoFocus
           />
           <div className="row">
-            <Button type="submit" variant="primary">
-              Send
+            <Button type="submit" variant="primary" disabled={sending}>
+              {sending ? 'Sending…' : 'Send'}
             </Button>
             <Button onClick={close}>Cancel</Button>
           </div>
@@ -80,22 +83,17 @@ export function MessageBox({ thread, recipient, title }: MessageBoxProps) {
  * everyone else's are pale blue. Renders nothing when empty.
  */
 export function MessageList({ title, messages }: { title: string; messages: Message[] }) {
-  const { state } = useAppStore();
+  const { profile } = useAppStore();
   if (messages.length === 0) return null;
 
-  const me = ({ trainer: 'Trainer', coach: 'Coach', athlete: 'Athlete' } as const)[state.role];
-  const senderName = (m: Message) => {
-    if (m.from === me) return 'You';
-    if (m.from !== 'Athlete') return m.from;
-    // The athlete's name comes from the thread id, "athlete:<id>".
-    return state.athletes.find((a) => `athlete:${a.id}` === m.thread)?.name ?? 'Athlete';
-  };
+  const mine = (m: Message) => m.senderId === profile.id;
+  const senderName = (m: Message) => (mine(m) ? 'You' : (m.senderName ?? m.from));
 
   return (
     <div className="stack-sm">
       <h3 className="label">{title}</h3>
       {messages.map((m) => (
-        <div key={m.id} className={m.from === me ? 'bubble' : 'bubble bubble--mist'}>
+        <div key={m.id} className={mine(m) ? 'bubble' : 'bubble bubble--mist'}>
           <span className="strong">
             {senderName(m)} &middot; {formatTime(m.sentAt)}
           </span>

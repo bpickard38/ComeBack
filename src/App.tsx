@@ -21,8 +21,8 @@ function RoleHome() {
 
 /**
  * Shows `children` only to the listed roles; anyone else is redirected home.
- * This is how a coach opening /athlete ends up on /staff. (Not real security,
- * just navigation. Real access control needs a backend.)
+ * This is how a coach opening /athlete ends up on /staff. (Just navigation:
+ * the real access rules are in the database, see supabase/erd_schema.sql.)
  */
 function RequireRole({ allowed, children }: { allowed: Role[]; children: ReactNode }) {
   const { state } = useAppStore();

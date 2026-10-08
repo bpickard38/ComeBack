@@ -2,6 +2,7 @@ import type { Result } from './types';
 
 export interface AssignmentInput {
   athleteId: string;
+  /** The injury's id (injuries table). */
   injury: string;
   exerciseIds: string[];
 }

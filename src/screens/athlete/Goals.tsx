@@ -5,18 +5,18 @@ import { Card } from '../../components/Card';
 import { ProgressBar } from '../../components/ProgressBar';
 import { useToast } from '../../components/Toast';
 import { useReturnFocus } from '../../components/useReturnFocus';
-import { TESTS } from '../../data/seed';
 import { currentValue, goalPercent, goalsReached, isGoalReached, overallGoalPercent } from '../../domain/goals';
 import { POINTS_PER_GOAL } from '../../domain/points';
 import type { MilestoneTest } from '../../domain/types';
 import { formatNumber } from '../../format';
-import { useAppStore, useSignedInAthlete } from '../../store/AppStore';
+import { testsFor, useAppStore, useSignedInAthlete } from '../../store/AppStore';
 
 export function Goals() {
   const { state } = useAppStore();
   const me = useSignedInAthlete();
-  const met = goalsReached(TESTS, state.results, me.id);
-  const overall = overallGoalPercent(TESTS, state.results, me.id);
+  const tests = testsFor(state, me.id);
+  const met = goalsReached(tests, state.results, me.id);
+  const overall = overallGoalPercent(tests, state.results, me.id);
 
   return (
     <>
@@ -29,7 +29,7 @@ export function Goals() {
         <div className="stack-sm">
           <div className="spread strong">
             <span>
-              {met} of {TESTS.length} goals reached
+              {met} of {tests.length} goals reached
             </span>
             <span>{overall}% overall</span>
           </div>
@@ -37,7 +37,13 @@ export function Goals() {
         </div>
       </Card>
 
-      {TESTS.map((test) => (
+      {tests.length === 0 && (
+        <Card>
+          <p className="muted">Your trainer hasn&rsquo;t set any goals yet. They&rsquo;ll appear here after your next visit.</p>
+        </Card>
+      )}
+
+      {tests.map((test) => (
         <GoalCard key={test.id} test={test} athleteId={me.id} />
       ))}
     </>
@@ -55,6 +61,7 @@ function GoalCard({ test, athleteId }: { test: MilestoneTest; athleteId: string 
   const { notify } = useToast();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
+  const [saving, setSaving] = useState(false);
   const logButtonRef = useReturnFocus(open);
 
   const current = currentValue(test, state.results, athleteId);
@@ -69,9 +76,11 @@ function GoalCard({ test, athleteId }: { test: MilestoneTest; athleteId: string 
   }
 
   // A <form> lets Enter submit. preventDefault stops the browser reloading the page.
-  function save(event: FormEvent) {
+  async function save(event: FormEvent) {
     event.preventDefault();
-    const saved = commands.recordResult(athleteId, test.id, value);
+    setSaving(true);
+    const saved = await commands.recordResult(athleteId, test.id, value);
+    setSaving(false);
     if (!saved.ok) {
       notify(saved.error, 'error');
       return;
@@ -127,8 +136,8 @@ function GoalCard({ test, athleteId }: { test: MilestoneTest; athleteId: string 
             autoFocus
           />
           <div className="row">
-            <Button type="submit" variant="primary">
-              Save result
+            <Button type="submit" variant="primary" disabled={saving}>
+              {saving ? 'Saving…' : 'Save result'}
             </Button>
             <Button onClick={close}>Cancel</Button>
           </div>

@@ -1,0 +1,169 @@
+erDiagram
+    USERS ||--o{ TEAM_MEMBERS : "belongs to"
+    TEAMS ||--o{ TEAM_MEMBERS : "has roster"
+    USERS ||--o{ ATHLETE_INJURIES : "is injured (athlete)"
+    INJURIES ||--o{ ATHLETE_INJURIES : "classifies"
+    USERS ||--o{ ATHLETE_INJURIES : "assigns (trainer)"
+    ATHLETE_INJURIES ||--o{ PLAN_EXERCISES : "prescribes"
+    EXERCISES ||--o{ PLAN_EXERCISES : "used in"
+    PLAN_EXERCISES ||--o{ EXERCISE_LOGS : "logged as"
+    USERS ||--o{ EXERCISE_LOGS : "logs (athlete)"
+    ATHLETE_INJURIES ||--o{ CASE_MILESTONES : "has goals"
+    MILESTONE_TESTS ||--o{ CASE_MILESTONES : "defines test"
+    CASE_MILESTONES ||--o{ TEST_RESULTS : "measured by"
+    USERS ||--o{ TEST_RESULTS : "records"
+    ATHLETE_INJURIES ||--o{ APPOINTMENTS : "reviewed at"
+    USERS ||--o{ APPOINTMENTS : "attends / runs"
+    APPOINTMENTS ||--o{ APPOINTMENT_TESTS : "focuses on"
+    CASE_MILESTONES ||--o{ APPOINTMENT_TESTS : "focus test"
+    APPOINTMENTS ||--o{ APPOINTMENT_EXERCISES : "focuses on"
+    PLAN_EXERCISES ||--o{ APPOINTMENT_EXERCISES : "focus exercise"
+    USERS ||--o{ POINT_EVENTS : "earns"
+    CONVERSATIONS ||--o{ CONVERSATION_MEMBERS : "includes"
+    USERS ||--o{ CONVERSATION_MEMBERS : "joins"
+    CONVERSATIONS ||--o{ MESSAGES : "contains"
+    USERS ||--o{ MESSAGES : "sends"
+    USERS ||--o{ NOTIFICATIONS : "receives"
+
+    USERS {
+        uuid id PK
+        text name
+        text email UK
+        text phone "for SMS reminders"
+        text role "athlete | trainer | coach"
+        timestamptz created_at
+    }
+    TEAMS {
+        uuid id PK
+        text name
+        text sport
+        text school
+    }
+    TEAM_MEMBERS {
+        uuid team_id PK,FK
+        uuid user_id PK,FK
+        text role "athlete | trainer | coach"
+        text availability "out | limited | cleared (coach-visible)"
+        date expected_return
+    }
+    INJURIES {
+        uuid id PK
+        text name UK "trainer-only list"
+        text body_region
+    }
+    ATHLETE_INJURIES {
+        uuid id PK
+        uuid athlete_id FK
+        uuid injury_id FK
+        uuid assigned_by FK "trainer"
+        date start_date
+        text status "active | cleared"
+        timestamptz cleared_at
+    }
+    EXERCISES {
+        uuid id PK
+        text name
+        text description
+        text video_url "tutorial"
+    }
+    PLAN_EXERCISES {
+        uuid id PK
+        uuid athlete_injury_id FK
+        uuid exercise_id FK
+        int sets
+        int reps
+        int hold_seconds
+        bool active
+    }
+    EXERCISE_LOGS {
+        uuid id PK
+        uuid plan_exercise_id FK
+        uuid athlete_id FK
+        date log_date "UNIQUE with plan_exercise_id"
+        timestamptz logged_at
+        text source "app | in_office"
+        smallint pain "0-10"
+    }
+    MILESTONE_TESTS {
+        uuid id PK
+        text name
+        text description "plain language"
+        text unit
+    }
+    CASE_MILESTONES {
+        uuid id PK
+        uuid athlete_injury_id FK
+        uuid test_id FK
+        numeric baseline
+        numeric target "set by trainer"
+    }
+    TEST_RESULTS {
+        uuid id PK
+        uuid case_milestone_id FK
+        numeric value
+        uuid recorded_by FK
+        text source "athlete | trainer"
+        uuid confirmed_by FK "nullable"
+        timestamptz confirmed_at
+        timestamptz recorded_at
+    }
+    APPOINTMENTS {
+        uuid id PK
+        uuid athlete_id FK
+        uuid trainer_id FK
+        uuid athlete_injury_id FK
+        text title
+        timestamptz starts_at
+        text location
+        text status "scheduled | done | cancelled"
+    }
+    APPOINTMENT_TESTS {
+        uuid appointment_id PK,FK
+        uuid case_milestone_id PK,FK
+        text note "e.g. Retest: aim for 25 sec"
+    }
+    APPOINTMENT_EXERCISES {
+        uuid appointment_id PK,FK
+        uuid plan_exercise_id PK,FK
+    }
+    RANKS {
+        int id PK
+        text name "Starter I ... All-conference III"
+        text metal "bronze | silver | gold"
+        int min_points
+    }
+    POINT_EVENTS {
+        uuid id PK
+        uuid athlete_id FK
+        text source_type "exercise_log | goal_reached | prior"
+        uuid source_id "UNIQUE with source_type"
+        int points "1 per exercise, 10 per goal"
+        timestamptz created_at
+    }
+    CONVERSATIONS {
+        uuid id PK
+        text kind "trainer_athlete | coach_trainer"
+        uuid athlete_id FK "nullable"
+    }
+    CONVERSATION_MEMBERS {
+        uuid conversation_id PK,FK
+        uuid user_id PK,FK
+    }
+    MESSAGES {
+        uuid id PK
+        uuid conversation_id FK
+        uuid sender_id FK
+        text body
+        timestamptz sent_at
+        timestamptz read_at
+    }
+    NOTIFICATIONS {
+        uuid id PK
+        uuid user_id FK
+        text kind "exercise_reminder | appointment_reminder | message"
+        text channel "in_app | sms"
+        text status "pending | sent | failed"
+        int attempts
+        timestamptz scheduled_for
+        timestamptz sent_at
+    }

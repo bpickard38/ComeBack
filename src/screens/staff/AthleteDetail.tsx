@@ -1,7 +1,6 @@
 import { Card } from '../../components/Card';
 import { MessageBox, MessageList } from '../../components/MessageBox';
 import { useToast } from '../../components/Toast';
-import { exerciseById } from '../../data/seed';
 import { AVAILABILITY_OPTIONS } from '../../domain/availability';
 import { dayKey, daysThisWeek } from '../../domain/dates';
 import { findLog } from '../../domain/logs';
@@ -9,7 +8,7 @@ import { athleteThread, messagesIn } from '../../domain/messages';
 import { isHighPain } from '../../domain/pain';
 import type { Athlete, Availability } from '../../domain/types';
 import { formatTime, formatWeekday } from '../../format';
-import { useAppStore } from '../../store/AppStore';
+import { exerciseById, useAppStore } from '../../store/AppStore';
 
 /** Trainer's view of one athlete: coach-facing status, messages, and this week's log. */
 export function AthleteDetail({ athlete }: { athlete: Athlete }) {
@@ -44,8 +43,8 @@ function AvailabilityEditor({ athlete }: { athlete: Athlete }) {
   const { notify } = useToast();
   const dateId = `return-${athlete.id}`;
 
-  function save(availability: Availability, expectedReturn: string | null, announce: boolean) {
-    const result = commands.setAvailability(athlete.id, availability, expectedReturn);
+  async function save(availability: Availability, expectedReturn: string | null, announce: boolean) {
+    const result = await commands.setAvailability(athlete.id, availability, expectedReturn);
     if (!result.ok) notify(result.error, 'error');
     else if (announce) {
       const label = AVAILABILITY_OPTIONS.find((o) => o.value === availability)?.label;
@@ -116,7 +115,7 @@ function WeekGrid({ athlete }: { athlete: Athlete }) {
         </thead>
         <tbody>
           {athlete.assignedExerciseIds.map((id) => {
-            const ex = exerciseById(id);
+            const ex = exerciseById(state, id);
             return (
               <tr key={id}>
                 <th scope="row">

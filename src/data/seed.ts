@@ -1,5 +1,7 @@
 /*
-  Sample data copied from reference/prototype.dc.html. All names and numbers
+  Sample data copied from reference/prototype.dc.html, now used only by the
+  tests in src/domain (the app loads real data from Supabase; the demo
+  version of this lives in supabase/demo_data.sql). All names and numbers
   are made up. Dates are built relative to "now" so the demo always looks
   current; the prototype's Mon/Tue/Wed become two days ago, yesterday and today.
 */
@@ -14,7 +16,7 @@ import type {
   TestResult,
 } from '../domain/types';
 
-/** The athlete you are "signed in" as in the athlete view. */
+/** The athlete the sample results belong to (Maya). */
 export const SIGNED_IN_ATHLETE_ID = 'a1';
 
 export const INJURIES = [
@@ -50,10 +52,10 @@ export const EXERCISES: Exercise[] = [
 ];
 
 export const TESTS: MilestoneTest[] = [
-  { id: 'balance', name: 'One-leg balance', description: 'How long you can stand on your injured leg.', unit: 'seconds', baseline: 8, target: 30 },
-  { id: 'calf', name: 'One-leg heel raises', description: 'How many heel raises you can do on your injured leg.', unit: 'reps', baseline: 5, target: 25 },
-  { id: 'lunge', name: 'Ankle flexibility', description: 'How far your knee reaches toward a wall with your heel down.', unit: 'cm', baseline: 6, target: 12 },
-  { id: 'hop', name: 'Hop distance', description: 'How far you hop, compared with your healthy leg.', unit: '% of healthy leg', baseline: 55, target: 90 },
+  { id: 'balance', athleteId: SIGNED_IN_ATHLETE_ID, name: 'One-leg balance', description: 'How long you can stand on your injured leg.', unit: 'seconds', baseline: 8, target: 30 },
+  { id: 'calf', athleteId: SIGNED_IN_ATHLETE_ID, name: 'One-leg heel raises', description: 'How many heel raises you can do on your injured leg.', unit: 'reps', baseline: 5, target: 25 },
+  { id: 'lunge', athleteId: SIGNED_IN_ATHLETE_ID, name: 'Ankle flexibility', description: 'How far your knee reaches toward a wall with your heel down.', unit: 'cm', baseline: 6, target: 12 },
+  { id: 'hop', athleteId: SIGNED_IN_ATHLETE_ID, name: 'Hop distance', description: 'How far you hop, compared with your healthy leg.', unit: '% of healthy leg', baseline: 55, target: 90 },
 ];
 
 export function exerciseById(id: string): Exercise {

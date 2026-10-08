@@ -1,26 +1,11 @@
-import { useNavigate } from 'react-router-dom';
-import type { Role } from '../domain/types';
-import { homeFor } from '../routes';
 import { useAppStore } from '../store/AppStore';
-import { useToast } from './Toast';
+import { supabase } from '../store/supabase';
 
-const ROLES: Array<{ role: Role; label: string }> = [
-  { role: 'athlete', label: 'Athlete' },
-  { role: 'trainer', label: 'Trainer' },
-  { role: 'coach', label: 'Coach' },
-];
+const ROLE_LABEL = { athlete: 'Athlete', trainer: 'Athletic trainer', coach: 'Coach' } as const;
 
-/** Navy top bar: logo plus the role switcher that stands in for logging in. */
+/** Navy top bar: logo, who is signed in, and sign out. */
 export function Header() {
-  const { state, commands } = useAppStore();
-  const { dismiss } = useToast();
-  const navigate = useNavigate();
-
-  function switchTo(role: Role) {
-    commands.setRole(role);
-    dismiss();
-    navigate(homeFor(role));
-  }
+  const { profile } = useAppStore();
 
   return (
     <header className="topbar">
@@ -31,18 +16,13 @@ export function Header() {
         </svg>
         <span>Comeback</span>
       </div>
-      <div className="role-switch" role="group" aria-label="Viewing as">
-        {ROLES.map(({ role, label }) => (
-          <button
-            key={role}
-            type="button"
-            className="role-switch__btn"
-            aria-pressed={state.role === role}
-            onClick={() => switchTo(role)}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="account">
+        <span className="account__who">
+          {profile.name} <span className="account__role">&middot; {ROLE_LABEL[profile.role]}</span>
+        </span>
+        <button type="button" className="role-switch__btn" onClick={() => supabase.auth.signOut()}>
+          Sign out
+        </button>
       </div>
     </header>
   );

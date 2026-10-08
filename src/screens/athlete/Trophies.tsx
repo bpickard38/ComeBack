@@ -1,18 +1,17 @@
 import { Card } from '../../components/Card';
 import { ProgressBar } from '../../components/ProgressBar';
 import { Medal } from '../../components/TrophyIcon';
-import { TESTS } from '../../data/seed';
 import { pointsFor, POINTS_PER_EXERCISE, POINTS_PER_GOAL } from '../../domain/points';
 import { RANKS, rankStatus } from '../../domain/rank';
 import { bestStreak, currentStreak } from '../../domain/streak';
 import { plural } from '../../format';
-import { useAppStore, useSignedInAthlete } from '../../store/AppStore';
+import { testsFor, useAppStore, useSignedInAthlete } from '../../store/AppStore';
 
 export function Trophies() {
   const { state } = useAppStore();
   const me = useSignedInAthlete();
   const now = new Date();
-  const points = pointsFor(me, state.logs, TESTS, state.results);
+  const points = pointsFor(me, state.logs, testsFor(state, me.id), state.results);
   const status = rankStatus(points.total);
   const { rank, next } = status;
 
