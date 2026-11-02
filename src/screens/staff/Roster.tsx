@@ -1,5 +1,5 @@
 import { doneOnDay } from '../../domain/logs';
-import { needsReply } from '../../domain/messages';
+import { athleteThread, unreadIn } from '../../domain/messages';
 import { highestRecentPain, isHighPain } from '../../domain/pain';
 import type { Athlete } from '../../domain/types';
 import { weekCompletion, weekStatus } from '../../domain/week';
@@ -13,11 +13,11 @@ interface RosterProps {
 
 /**
  * One row per athlete: today's count, week %, On track / Behind, plus flags
- * for recent high pain and unanswered messages. Everything is in words, not
+ * for recent high pain and unread messages. Everything is in words, not
  * just color.
  */
 export function Roster({ athletes, selectedId, onSelect }: RosterProps) {
-  const { state } = useAppStore();
+  const { state, profile } = useAppStore();
   const now = new Date();
 
   return (
@@ -32,7 +32,7 @@ export function Roster({ athletes, selectedId, onSelect }: RosterProps) {
         const pain = highestRecentPain(state.logs, a.id, now);
         const flags = [
           isHighPain(pain ?? undefined) ? `Pain ${pain} reported` : null,
-          needsReply(state.messages, a.id) ? 'New message' : null,
+          unreadIn(state.messages, athleteThread(a.id), profile.id) > 0 ? 'New message' : null,
         ].filter(Boolean);
         return (
           <button

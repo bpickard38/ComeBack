@@ -11,6 +11,7 @@
   --text-secondary: #3f5868;
   --white: #ffffff;
   --navy-track: #2b4b5f; /* progress bar track on navy cards */
+  --accent: #0b63ce; /* unread dot and Send in messages */
 
   --warn: #b4490f;
   --warn-text: #8a3607;

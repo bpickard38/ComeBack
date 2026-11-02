@@ -5,7 +5,7 @@
   save to the database, before dispatching. Keeping it this simple makes
   every change easy to trace.
 */
-import type { Availability, ExerciseLog, Message, TestResult } from '../domain/types';
+import type { Availability, ExerciseLog, Message, MessageThread, TestResult } from '../domain/types';
 import type { AppState, RemoteData } from './state';
 
 export type Action =
@@ -15,6 +15,7 @@ export type Action =
   | { type: 'addLog'; log: ExerciseLog }
   | { type: 'addResult'; result: TestResult }
   | { type: 'addMessage'; message: Message }
+  | { type: 'markRead'; thread: MessageThread; readerId: string; readAt: string }
   | { type: 'setAvailability'; athleteId: string; availability: Availability; expectedReturn: string | null };
 
 export function reducer(state: AppState, action: Action): AppState {
@@ -32,6 +33,14 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, results: [...state.results, action.result] };
     case 'addMessage':
       return { ...state, messages: [...state.messages, action.message] };
+    case 'markRead':
+      // Only other people's messages: yours are "read" when they open them.
+      return {
+        ...state,
+        messages: state.messages.map((m) =>
+          m.thread === action.thread && m.senderId !== action.readerId && !m.readAt ? { ...m, readAt: action.readAt } : m,
+        ),
+      };
     case 'setAvailability':
       return {
         ...state,

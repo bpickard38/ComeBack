@@ -1,3 +1,4 @@
+import { turnOffReminders } from '../push';
 import { useAppStore } from '../store/AppStore';
 import { supabase } from '../store/supabase';
 
@@ -6,6 +7,13 @@ const ROLE_LABEL = { athlete: 'Athlete', trainer: 'Athletic trainer', coach: 'Co
 /** Navy top bar: logo, who is signed in, and sign out. */
 export function Header() {
   const { profile } = useAppStore();
+
+  async function signOut() {
+    // Stop this device's reminders first (needs you signed in), so the next
+    // person on this phone doesn't get yours.
+    await turnOffReminders().catch(() => undefined);
+    await supabase.auth.signOut();
+  }
 
   return (
     <header className="topbar">
@@ -20,7 +28,7 @@ export function Header() {
         <span className="account__who">
           {profile.name} <span className="account__role">&middot; {ROLE_LABEL[profile.role]}</span>
         </span>
-        <button type="button" className="role-switch__btn" onClick={() => supabase.auth.signOut()}>
+        <button type="button" className="role-switch__btn" onClick={signOut}>
           Sign out
         </button>
       </div>

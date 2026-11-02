@@ -24,8 +24,9 @@ function TrainerView() {
 
   const selected = state.athletes.find((a) => a.id === selectedId) ?? state.athletes[0];
 
+  // The page column and tabs come from StaffLayout.
   return (
-    <div className="column column--staff">
+    <>
       <div className="page-head">
         <div className="stack-xs">
           <div className="eyebrow">{formatDay(new Date())}</div>
@@ -60,6 +61,6 @@ function TrainerView() {
           {selected && <AthleteDetail athlete={selected} />}
         </div>
       )}
-    </div>
+    </>
   );
 }

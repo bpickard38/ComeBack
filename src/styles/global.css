@@ -136,6 +136,8 @@ h2 {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Also used on links that look like buttons (e.g. "Message your trainer"). */
+  text-decoration: none;
 }
 
 .btn--primary {

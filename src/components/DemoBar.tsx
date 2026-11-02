@@ -1,13 +1,30 @@
 import { useNavigate } from 'react-router-dom';
-import { useAppStore } from '../store/AppStore';
+import { findLog } from '../domain/logs';
+import { listNames } from '../domain/reminder';
+import { previewReminder } from '../push';
+import { exerciseById, useAppStore } from '../store/AppStore';
 import { Button } from './Button';
 import { useToast } from './Toast';
 
 /** Pale blue strip of demo-only controls. Not part of the real product. */
 export function DemoBar() {
-  const { state, commands } = useAppStore();
+  const { state, commands, profile } = useAppStore();
   const { dismiss, notify } = useToast();
   const navigate = useNavigate();
+
+  /** The 6 PM push as it would read right now (same wording as supabase/push.sql). */
+  function eveningPush(): [string, string] {
+    const me = state.athletes.find((a) => a.id === profile.id);
+    const now = new Date();
+    const left = (me?.assignedExerciseIds ?? [])
+      .filter((id) => !findLog(state.logs, profile.id, id, now))
+      .map((id) => exerciseById(state, id).name);
+    if (left.length === 0) return ['All done today', 'Nothing left to log. This is what a reminder looks like.'];
+    return [
+      `${left.length} ${left.length === 1 ? 'exercise' : 'exercises'} left today`,
+      `${listNames(left)}. A few minutes now keeps your streak going.`,
+    ];
+  }
 
   return (
     <div className="demo-bar">
@@ -21,6 +38,16 @@ export function DemoBar() {
           }}
         >
           Simulate end-of-day reminder
+        </Button>
+      )}
+      {state.role === 'athlete' && (
+        <Button
+          onClick={async () => {
+            const result = await previewReminder(...eveningPush());
+            if (!result.ok) notify(result.error, 'error');
+          }}
+        >
+          Preview push reminder
         </Button>
       )}
       <Button aria-pressed={state.offline} onClick={commands.toggleOffline}>

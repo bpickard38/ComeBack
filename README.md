@@ -10,7 +10,7 @@ When a college athlete gets hurt, the athletic trainer hands them a rehab plan, 
 
 ![Comeback entity relationship diagram](reference/erd.png)
 
-The diagram source is `reference/erd.mmd` (Mermaid). The database is built from it by `supabase/erd_schema.sql`. Two things were added after the diagram was drawn and are in the database but not yet in the image: a `pain` column on `exercise_logs` (0 to 10, required for app logs) and `availability` / `expected_return` columns on `team_members` (what the coach sees). The `notifications` table in the diagram is not created yet because real reminders are out of scope for now.
+The diagram source is `reference/erd.mmd` (Mermaid). The database is built from it by `supabase/erd_schema.sql`. Two things were added after the diagram was drawn and are in the database but not yet in the image: a `pain` column on `exercise_logs` (0 to 10, required for app logs) and `availability` / `expected_return` columns on `team_members` (what the coach sees). The `notifications` table is created by `supabase/push.sql` for push reminders, with a `push` channel, a `missed_exercises` kind, and the title and body added; that script also adds `push_subscriptions` (one row per device with reminders on).
 
 Core entities and how they relate:
 
@@ -132,10 +132,46 @@ Use the demo accounts above. To show two roles side by side, sign in to the seco
 
 1. **Athlete (Maya)**: on Today, tap "Mark done" on the three pending exercises and pick a pain rating for each. The last one ranks her up to Varsity I. Rate one a 7 and message your trainer about it.
 2. **Progress**: log 30 for One-leg balance. The card flips to "Goal reached" and adds 10 points.
-3. **Trainer**: Maya and Devon are flagged for pain and a new message. Reply to Maya (her flag clears), set Devon to Out with a return date, and assign Jordan new exercises.
-4. **Coach**: "Team availability" shows only Out / Limited / Cleared and return dates, no injuries. Message the trainer, then show it under "From coach" on the trainer's screen.
+3. **Trainer**: Maya and Devon are flagged for pain and a new message. Open Maya's conversation on the Messages tab and reply (her flag clears once it's read), set Devon to Out with a return date, and assign Jordan new exercises.
+4. **Coach**: "Team availability" shows only Out / Limited / Cleared and return dates, no injuries. Message the trainer, then show it under Coach on the trainer's Messages tab.
 5. **Errors**: set "Connection: offline" and try logging; tap "Edit my plan"; log without a pain rating; save an empty result or message.
 6. **Sign-up**: create a new athlete account and join with the athlete code from the trainer's "Join codes" card. Try the coach code first to show it is refused.
+
+## Push reminders
+
+Athletes can turn on reminders on the Today screen. They then get a phone or browser notification, even with the app closed:
+
+- **6 PM** their time, if exercises are left: "2 exercises left today. Calf raises and Wall slides. A few minutes now keeps your streak going."
+- **9 AM** their time, if they missed any yesterday: "You missed 1 exercise yesterday."
+
+Each goes out at most once a day. Inside the app, Today also shows the 6 PM banner and a "Yesterday you missed..." card. On iPhone, the athlete must first add Comeback to the home screen (Share > Add to Home Screen) and turn reminders on from there; Apple only allows push for installed web apps. Signing out turns reminders off on that device.
+
+How it fits together: the browser registers `public/sw.js` (a service worker that shows the notification) and saves its push address in `push_subscriptions` (`src/push.ts`). Every 15 minutes a database schedule calls the `send-reminders` Edge Function, which asks the database who is due (`claim_due_reminders` in `supabase/push.sql`) and sends the pushes.
+
+### Setting it up (once per Supabase project)
+
+Already done for the class project (`gtmkcxqussynwzrnrhug`) on Nov 2, 2026. To set up another project, use the Supabase CLI (no install needed; `npx` fetches it). Commands that change the hosted project ask for confirmation; add `--yes` to skip that.
+
+```sh
+npx supabase login                                   # opens the browser once
+npx supabase link --project-ref <your-project-ref>   # the part before .supabase.co
+npm run push-secrets -- you@example.com              # makes the keys; nothing secret is printed
+npx supabase db query --remote --file supabase/push.sql
+npx supabase db query --remote "create extension if not exists pg_cron with schema pg_catalog; create extension if not exists pg_net with schema extensions;"
+npx supabase secrets set --env-file supabase/.env.push.local
+npx supabase functions deploy send-reminders --no-verify-jwt --use-api
+```
+
+Then follow `supabase/push_schedule.sql` to store the schedule's secret in Vault and start the schedule. Last, add `VITE_VAPID_PUBLIC_KEY` (printed by `push-secrets`, also in `.env.local`) in Vercel under Settings > Environment Variables, and redeploy.
+
+What each piece is:
+
+- `push-secrets` writes the public key to `.env.local` and the function's secrets to `supabase/.env.push.local`: the private key (signs pushes), `VAPID_SUBJECT` (a contact for push services) and `CRON_SECRET` (proves a call came from our schedule). Both files are ignored by git. Running it again keeps the same keys.
+- `--no-verify-jwt`: the schedule doesn't sign in, so the function checks `CRON_SECRET` itself and refuses anything else.
+
+Without `VITE_VAPID_PUBLIC_KEY` the Reminders card is hidden, so the app works the same without push.
+
+**For demos:** the demo bar's "Preview push reminder" shows the 6 PM notification right away on that device (reminders must be on), so you don't have to wait for 6 PM. To check on the real thing, the queries at the bottom of `push_schedule.sql` show recent runs and what was sent.
 
 ## Where things live
 
@@ -144,7 +180,9 @@ Use the demo accounts above. To show two roles side by side, sign in to the seco
 | `src/domain` | Rules as plain functions (points, streaks, rank, week %), with tests. No React. |
 | `src/data` | Sample data (`seed.ts`) used by the tests |
 | `src/store` | Sign-in gate, loading from and saving to Supabase (`remote.ts`), app state, and the commands screens call |
-| `supabase` | Database setup scripts (run in order, see above) |
+| `supabase` | Database setup scripts (run in order, see above), and the `send-reminders` Edge Function in `functions/` |
+| `public` | Files served as-is: the service worker (`sw.js`), app manifest and icons |
+| `scripts` | `push-secrets.mjs`, which makes the push reminder keys and secrets |
 | `src/components` | Reusable pieces: Button, Card, ProgressBar, Toast, TabBar, trophy icons |
 | `src/screens` | Athlete and staff screens |
 | `src/styles` | `tokens.css` (colors, fonts, sizes), `global.css`, `screens.css` |

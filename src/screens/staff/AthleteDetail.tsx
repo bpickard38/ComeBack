@@ -1,19 +1,18 @@
+import { Link } from 'react-router-dom';
 import { Card } from '../../components/Card';
-import { MessageBox, MessageList } from '../../components/MessageBox';
 import { useToast } from '../../components/Toast';
 import { AVAILABILITY_OPTIONS } from '../../domain/availability';
 import { dayKey, daysThisWeek } from '../../domain/dates';
 import { findLog } from '../../domain/logs';
-import { athleteThread, messagesIn } from '../../domain/messages';
+import { athleteThread, unreadIn } from '../../domain/messages';
 import { isHighPain } from '../../domain/pain';
 import type { Athlete, Availability } from '../../domain/types';
 import { formatTime, formatWeekday } from '../../format';
 import { exerciseById, useAppStore } from '../../store/AppStore';
 
-/** Trainer's view of one athlete: coach-facing status, messages, and this week's log. */
+/** Trainer's view of one athlete: coach-facing status, a link to messages, and this week's log. */
 export function AthleteDetail({ athlete }: { athlete: Athlete }) {
-  const { state } = useAppStore();
-  const fromCoach = messagesIn(state.messages, 'coach-trainer');
+  const { state, profile } = useAppStore();
 
   return (
     <Card aria-labelledby="detail-name">
@@ -24,14 +23,12 @@ export function AthleteDetail({ athlete }: { athlete: Athlete }) {
         </p>
       </div>
       <AvailabilityEditor athlete={athlete} />
-      {/* key resets the message draft when a different athlete is selected */}
-      <MessageBox
-        key={athlete.id}
-        thread={athleteThread(athlete.id)}
-        recipient={athlete.name}
-        title="Conversation"
-      />
-      <MessageList title="From coach" messages={fromCoach} />
+      {/* The conversation itself lives on the Messages tab. */}
+      <Link to={`/staff/messages?with=${athlete.id}`} className="btn btn--secondary align-start strong">
+        {unreadIn(state.messages, athleteThread(athlete.id), profile.id) > 0
+          ? `Read new message from ${athlete.name}`
+          : `Message ${athlete.name}`}
+      </Link>
       <WeekGrid athlete={athlete} />
     </Card>
   );

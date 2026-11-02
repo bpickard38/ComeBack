@@ -16,7 +16,7 @@ import { Button } from '../components/Button';
 import { isGoalReached, parseResultValue } from '../domain/goals';
 import { normalizeAvailability } from '../domain/availability';
 import { ALREADY_LOGGED, createLog } from '../domain/logs';
-import { athleteThread } from '../domain/messages';
+import { athleteThread, unreadIn } from '../domain/messages';
 import { pointsFor } from '../domain/points';
 import { rankUp, type Rank } from '../domain/rank';
 import type {
@@ -166,6 +166,17 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       };
       dispatch({ type: 'addMessage', message });
       return { ok: true, value: message };
+    },
+
+    /** Called when a conversation is on screen. Quietly does nothing offline. */
+    async markRead(thread: MessageThread): Promise<Result> {
+      const unread = unreadIn(state.messages, thread, profile.id);
+      const conversation = state.conversations.find((c) => c.thread === thread);
+      if (unread === 0 || !conversation || state.offline) return { ok: true, value: undefined };
+      const saved = await remote.markRead(conversation.id, profile.id);
+      if (!saved.ok) return saved;
+      dispatch({ type: 'markRead', thread, readerId: profile.id, readAt: saved.value.readAt });
+      return { ok: true, value: undefined };
     },
 
     async setAvailability(athleteId: string, availability: Availability, expectedReturn: string | null): Promise<Result> {

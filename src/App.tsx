@@ -8,10 +8,13 @@ import { homeFor } from './routes';
 import { AthleteLayout } from './screens/athlete/AthleteLayout';
 import { Appointments } from './screens/athlete/Appointments';
 import { Goals } from './screens/athlete/Goals';
+import { Messages } from './screens/athlete/Messages';
 import { Today } from './screens/athlete/Today';
 import { Week } from './screens/athlete/Week';
 import { Trophies } from './screens/athlete/Trophies';
 import { StaffHome } from './screens/staff/StaffHome';
+import { StaffLayout } from './screens/staff/StaffLayout';
+import { TrainerMessages } from './screens/staff/TrainerMessages';
 import { useAppStore } from './store/AppStore';
 
 /** Sends you to your role's home screen. */
@@ -54,15 +57,27 @@ export function App() {
             <Route path="goals" element={<Goals />} />
             <Route path="trophies" element={<Trophies />} />
             <Route path="appointments" element={<Appointments />} />
+            <Route path="messages" element={<Messages />} />
           </Route>
           <Route
             path="/staff"
             element={
               <RequireRole allowed={['trainer', 'coach']}>
-                <StaffHome />
+                <StaffLayout />
               </RequireRole>
             }
-          />
+          >
+            <Route index element={<StaffHome />} />
+            {/* Coaches message the trainer from their home screen, so this is trainer-only. */}
+            <Route
+              path="messages"
+              element={
+                <RequireRole allowed={['trainer']}>
+                  <TrainerMessages />
+                </RequireRole>
+              }
+            />
+          </Route>
           <Route path="*" element={<RoleHome />} />
         </Routes>
       </main>

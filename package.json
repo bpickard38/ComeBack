@@ -10,7 +10,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "push-secrets": "node scripts/push-secrets.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
