@@ -137,6 +137,16 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       return valid;
     },
 
+    /** Marks one of the athlete's injuries cleared; its exercises leave their list. */
+    async clearInjury(caseId: string): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can clear an injury.' };
+      if (state.offline) return { ok: false, error: `Could not save the change. ${OFFLINE_ERROR}` };
+      const saved = await remote.clearInjury(caseId);
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
+    },
+
     async sendMessage(thread: MessageThread, text: string): Promise<Result<Message>> {
       const valid = validateMessage(text);
       if (!valid.ok) return valid;

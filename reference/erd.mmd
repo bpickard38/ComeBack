@@ -53,8 +53,8 @@ erDiagram
     }
     ATHLETE_INJURIES {
         uuid id PK
-        uuid athlete_id FK
-        uuid injury_id FK
+        uuid athlete_id FK "junction: athlete side"
+        uuid injury_id FK "junction: injury side, one active per athlete+injury"
         uuid assigned_by FK "trainer"
         date start_date
         text status "active | cleared"

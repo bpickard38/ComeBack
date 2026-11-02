@@ -16,7 +16,7 @@ import {
   shouldShowReminder,
 } from "../../domain/reminder";
 import type { Exercise, ExerciseLog } from "../../domain/types";
-import { formatCalendarDay, formatDay, formatTime } from "../../format";
+import { formatCalendarDay, formatDay, formatTime, injuryLabel } from "../../format";
 import {
   exerciseById,
   useAppStore,
@@ -72,7 +72,7 @@ export function Today() {
         <div className="eyebrow">{formatDay(now)}</div>
         <h1>Today&rsquo;s exercises</h1>
         <p className="muted">
-          {me.name} &middot; {me.sport} &middot; {me.injury}
+          {me.name} &middot; {me.sport} &middot; {injuryLabel(me)}
         </p>
         <p className="strong">
           Status: {availabilityLabel(me.availability)}

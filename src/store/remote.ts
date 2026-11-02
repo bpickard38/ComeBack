@@ -113,14 +113,15 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL }>(users);
   const userById = new Map(userRows.map((u) => [u.id, u]));
 
-  // Each athlete's current case: the newest active one.
+  // Each athlete's current cases: every active one, oldest first. An athlete
+  // can have several injuries at once (athlete_injuries is many-to-many).
   const caseRows = rows<CaseRow>(cases);
-  const activeCase = new Map<string, CaseRow>();
-  for (const c of caseRows) {
+  const activeCases = new Map<string, CaseRow[]>();
+  for (const c of [...caseRows].sort((a, b) => a.start_date.localeCompare(b.start_date))) {
     if (c.status !== 'active') continue;
-    const current = activeCase.get(c.athlete_id);
-    if (!current || c.start_date > current.start_date) activeCase.set(c.athlete_id, c);
+    activeCases.set(c.athlete_id, [...(activeCases.get(c.athlete_id) ?? []), c]);
   }
+  const activeCaseIds = new Set(caseRows.filter((c) => c.status === 'active').map((c) => c.id));
   const caseAthlete = new Map(caseRows.map((c) => [c.id, c.athlete_id]));
 
   const planRows = rows<PlanRow>(plans);
@@ -139,13 +140,15 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   const athletes: Athlete[] = [];
   for (const m of rows<MemberRow>(members)) {
     if (m.role !== 'athlete' || athletes.some((a) => a.id === m.user_id)) continue;
-    const c = activeCase.get(m.user_id);
+    const current = activeCases.get(m.user_id) ?? [];
     athletes.push({
       id: m.user_id,
       name: userById.get(m.user_id)?.name ?? 'Athlete',
       sport: m.teams?.sport ?? m.teams?.name ?? '',
-      injury: c?.injuries?.name ?? 'No injury on file',
-      assignedExerciseIds: c ? planRows.filter((p) => p.athlete_injury_id === c.id && p.active).map((p) => p.id) : [],
+      injuries: current.map((c) => ({ caseId: c.id, name: c.injuries?.name ?? 'Injury' })),
+      assignedExerciseIds: planRows
+        .filter((p) => p.active && current.some((c) => c.id === p.athlete_injury_id))
+        .map((p) => p.id),
       priorExerciseCount: priorPoints.get(m.user_id) ?? 0,
       priorBestStreak: 0,
       availability: m.availability ?? 'cleared',
@@ -158,7 +161,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   const tests: MilestoneTest[] = [];
   for (const g of rows<GoalRow>(goals)) {
     const athleteId = caseAthlete.get(g.athlete_injury_id);
-    if (!athleteId || activeCase.get(athleteId)?.id !== g.athlete_injury_id) continue;
+    if (!athleteId || !activeCaseIds.has(g.athlete_injury_id)) continue;
     tests.push({
       id: g.id,
       athleteId,
@@ -299,6 +302,12 @@ export async function updateAvailability(athleteId: string, availability: Availa
   // Security rules turn a forbidden update into "0 rows changed", not an error.
   if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can change their status.' };
   return { ok: true, value: undefined };
+}
+
+/** Trainer marks one injury (an athlete_injuries row) as cleared. */
+export async function clearInjury(caseId: string): Promise<Result> {
+  const { error } = await supabase.rpc('clear_injury', { p_case: caseId });
+  return error ? { ok: false, error: error.message } : { ok: true, value: undefined };
 }
 
 export async function assignPlan(athleteId: string, injuryId: string, exerciseIds: string[]): Promise<Result> {

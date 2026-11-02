@@ -25,7 +25,7 @@ const athlete: Athlete = {
   id: 'x',
   name: 'Test Athlete',
   sport: 'Soccer',
-  injury: 'Ankle sprain',
+  injuries: [{ caseId: 'c1', name: 'Ankle sprain' }],
   assignedExerciseIds: ['e1', 'e2'],
   priorExerciseCount: 10,
   priorBestStreak: 1,

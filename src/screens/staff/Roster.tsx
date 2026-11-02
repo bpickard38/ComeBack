@@ -3,6 +3,7 @@ import { athleteThread, unreadIn } from '../../domain/messages';
 import { highestRecentPain, isHighPain } from '../../domain/pain';
 import type { Athlete } from '../../domain/types';
 import { weekCompletion, weekStatus } from '../../domain/week';
+import { injuryLabel } from '../../format';
 import { useAppStore } from '../../store/AppStore';
 
 interface RosterProps {
@@ -45,7 +46,7 @@ export function Roster({ athletes, selectedId, onSelect }: RosterProps) {
             <span className="stack-xs">
               <span className="roster-row__name">{a.name}</span>
               <span className="small muted">
-                {a.sport} &middot; {a.injury}
+                {a.sport} &middot; {injuryLabel(a)}
               </span>
               {flags.length > 0 && <span className="small strong warn-text">{flags.join(' · ')}</span>}
             </span>

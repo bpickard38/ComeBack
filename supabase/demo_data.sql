@@ -123,10 +123,42 @@ begin
     values (v_athlete, 'prior', null, a.prior);
   end loop;
 
+  -- ---------- Jordan's second injury (athletes can have several) ----------
+  -- Patellar tendinopathy on top of the ACL, opened a week ago, with its own
+  -- plan. Shows both injuries on the trainer's roster and on Jordan's Today.
+  select id into v_athlete from auth.users where email = 'bpickard38+demo-jordan@gmail.com';
+  if v_athlete is not null then
+    insert into public.athlete_injuries (athlete_id, injury_id, assigned_by, start_date)
+    select v_athlete, id, v_trainer, current_date - 7 from public.injuries where name = 'Patellar tendinopathy'
+    returning id into v_case;
+
+    v_plan := array[]::uuid[];
+    for a in
+      select * from (values ('Glute bridge', 3, 12, null::int), ('Single-leg balance', 3, null::int, 30))
+        as t(exercise, sets, reps, hold)
+    loop
+      insert into public.plan_exercises (athlete_injury_id, exercise_id, sets, reps, hold_seconds)
+      select v_case, e.id, a.sets, a.reps, a.hold from public.exercises e where e.name = a.exercise
+      returning id into v_id;
+      v_plan := v_plan || v_id;
+    end loop;
+
+    -- Both done two days ago and yesterday, one so far today.
+    for d in 0 .. 2 loop
+      v_at := now() - make_interval(days => 2 - d, mins => case when d = 2 then 30 else 0 end);
+      for i in 1 .. (case when d = 2 then 1 else 2 end) loop
+        insert into public.exercise_logs (plan_exercise_id, athlete_id, log_date, logged_at, source, pain)
+        values (v_plan[i], v_athlete, (v_at at time zone tz)::date, v_at, 'app', 2);
+      end loop;
+    end loop;
+  end if;
+
   -- ---------- Maya's goals, history and appointments ----------
   select ai.id into v_case
-  from public.athlete_injuries ai join auth.users u on u.id = ai.athlete_id
-  where u.email = 'bpickard38+demo-athlete@gmail.com' and ai.status = 'active';
+  from public.athlete_injuries ai
+  join auth.users u on u.id = ai.athlete_id
+  join public.injuries inj on inj.id = ai.injury_id
+  where u.email = 'bpickard38+demo-athlete@gmail.com' and ai.status = 'active' and inj.name = 'Ankle sprain';
 
   if v_case is not null then
     for a in

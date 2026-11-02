@@ -119,11 +119,11 @@ language sql volatile security definer set search_path = '' as $$
     order by s.user_id, s.created_at desc
   ),
   current_case as (
-    -- Same rule as the app: the newest active injury is "the plan".
-    select distinct on (ai.athlete_id) ai.athlete_id, ai.id, ai.start_date
+    -- Same rule as the app: every active injury's plan is on today's list
+    -- (an athlete can have several at once).
+    select ai.athlete_id, ai.id, ai.start_date
     from public.athlete_injuries ai
     where ai.status = 'active'
-    order by ai.athlete_id, ai.start_date desc
   ),
   windows as (
     -- for_day: the day the reminder is about. local_at: when it's due.

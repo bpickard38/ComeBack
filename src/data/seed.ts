@@ -95,10 +95,10 @@ export function createSeed(now: Date = new Date()): SeedData {
 
   const returnIn = (days: number) => dayKey(addDays(now, days));
   const athletes: Athlete[] = [
-    { id: 'a1', name: 'Maya Torres', sport: 'Soccer', injury: 'Ankle sprain', assignedExerciseIds: plans.a1, priorExerciseCount: 48, priorBestStreak: 6, availability: 'limited', expectedReturn: returnIn(14) },
-    { id: 'a2', name: 'Jordan Reyes', sport: 'Basketball', injury: 'ACL reconstruction', assignedExerciseIds: plans.a2, priorExerciseCount: 30, priorBestStreak: 4, availability: 'out', expectedReturn: returnIn(75) },
-    { id: 'a3', name: 'Devon Clarke', sport: 'Volleyball', injury: 'Shoulder impingement', assignedExerciseIds: plans.a3, priorExerciseCount: 12, priorBestStreak: 2, availability: 'limited', expectedReturn: returnIn(10) },
-    { id: 'a4', name: 'Priya Nair', sport: 'Track', injury: 'Hamstring strain', assignedExerciseIds: plans.a4, priorExerciseCount: 70, priorBestStreak: 9, availability: 'cleared', expectedReturn: null },
+    { id: 'a1', name: 'Maya Torres', sport: 'Soccer', injuries: [{ caseId: 'c-a1', name: 'Ankle sprain' }], assignedExerciseIds: plans.a1, priorExerciseCount: 48, priorBestStreak: 6, availability: 'limited', expectedReturn: returnIn(14) },
+    { id: 'a2', name: 'Jordan Reyes', sport: 'Basketball', injuries: [{ caseId: 'c-a2', name: 'ACL reconstruction' }], assignedExerciseIds: plans.a2, priorExerciseCount: 30, priorBestStreak: 4, availability: 'out', expectedReturn: returnIn(75) },
+    { id: 'a3', name: 'Devon Clarke', sport: 'Volleyball', injuries: [{ caseId: 'c-a3', name: 'Shoulder impingement' }], assignedExerciseIds: plans.a3, priorExerciseCount: 12, priorBestStreak: 2, availability: 'limited', expectedReturn: returnIn(10) },
+    { id: 'a4', name: 'Priya Nair', sport: 'Track', injuries: [{ caseId: 'c-a4', name: 'Hamstring strain' }], assignedExerciseIds: plans.a4, priorExerciseCount: 70, priorBestStreak: 9, availability: 'cleared', expectedReturn: null },
   ];
 
   // How many exercises each athlete finished [two days ago, yesterday, today].
