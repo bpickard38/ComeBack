@@ -24,6 +24,8 @@ export function AssignForm({ athletes, initialAthleteId, onClose }: AssignFormPr
   const [exerciseIds, setExerciseIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const { injuries, exercises } = state.catalog;
+  // Picking an injury the athlete already has updates that plan instead of adding a second one.
+  const activeNames = athletes.find((a) => a.id === athleteId)?.injuries.map((i) => i.name) ?? [];
 
   function toggleExercise(id: string) {
     setExerciseIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
@@ -56,10 +58,11 @@ export function AssignForm({ athletes, initialAthleteId, onClose }: AssignFormPr
         ))}
       </ChipGroup>
 
-      <ChipGroup legend="2. Injury" hint="(trainers only)">
+      <ChipGroup legend="2. Injury" hint="(trainers only; adds to the athlete's other injuries)">
         {injuries.map((i) => (
           <Chip key={i.id} pressed={injuryId === i.id} onClick={() => setInjuryId(i.id)}>
             {i.name}
+            {activeNames.includes(i.name) && <span className="muted normal"> (active)</span>}
           </Chip>
         ))}
       </ChipGroup>

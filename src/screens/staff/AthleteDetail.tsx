@@ -7,7 +7,7 @@ import { findLog } from '../../domain/logs';
 import { athleteThread, unreadIn } from '../../domain/messages';
 import { isHighPain } from '../../domain/pain';
 import type { Athlete, Availability } from '../../domain/types';
-import { formatTime, formatWeekday } from '../../format';
+import { formatTime, formatWeekday, injuryLabel } from '../../format';
 import { exerciseById, useAppStore } from '../../store/AppStore';
 
 /** Trainer's view of one athlete: coach-facing status, a link to messages, and this week's log. */
@@ -19,9 +19,10 @@ export function AthleteDetail({ athlete }: { athlete: Athlete }) {
       <div className="stack-xs">
         <h2 id="detail-name">{athlete.name}</h2>
         <p className="muted">
-          {athlete.sport} &middot; {athlete.injury}
+          {athlete.sport} &middot; {injuryLabel(athlete)}
         </p>
       </div>
+      {state.role === 'trainer' && <InjuryList athlete={athlete} />}
       <AvailabilityEditor athlete={athlete} />
       {/* The conversation itself lives on the Messages tab. */}
       <Link to={`/staff/messages?with=${athlete.id}`} className="btn btn--secondary align-start strong">
@@ -31,6 +32,37 @@ export function AthleteDetail({ athlete }: { athlete: Athlete }) {
       </Link>
       <WeekGrid athlete={athlete} />
     </Card>
+  );
+}
+
+/** Every active injury, each clearable on its own. Trainer only: coaches never see injuries. */
+function InjuryList({ athlete }: { athlete: Athlete }) {
+  const { commands } = useAppStore();
+  const { notify } = useToast();
+
+  async function clear(caseId: string, name: string) {
+    const result = await commands.clearInjury(caseId);
+    if (!result.ok) notify(result.error, 'error');
+    else notify(`${name} cleared for ${athlete.name}. Its exercises are off their list.`);
+  }
+
+  if (athlete.injuries.length === 0) return null;
+  return (
+    <section className="panel stack-xs" aria-labelledby={`injuries-${athlete.id}`}>
+      <h3 id={`injuries-${athlete.id}`} className="strong">
+        Active injuries ({athlete.injuries.length})
+      </h3>
+      <ul className="injury-list stack-xs">
+        {athlete.injuries.map((i) => (
+          <li key={i.caseId} className="row">
+            <span>{i.name}</span>
+            <button type="button" className="btn btn--secondary" onClick={() => clear(i.caseId, i.name)}>
+              Mark {i.name} cleared
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

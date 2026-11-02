@@ -21,11 +21,19 @@ export interface Exercise {
   videoUrl: string | null;
 }
 
+/** One active injury on an athlete. caseId is the athlete_injuries row. */
+export interface AthleteInjury {
+  caseId: string;
+  name: string;
+}
+
 export interface Athlete {
   id: string;
   name: string;
   sport: string;
-  injury: string;
+  /** Every active injury. An athlete can have several at once. */
+  injuries: AthleteInjury[];
+  /** Plan exercises from all active injuries together. */
   assignedExerciseIds: string[];
   /** Exercises logged before this app's history starts. Each counts 1 point. */
   priorExerciseCount: number;

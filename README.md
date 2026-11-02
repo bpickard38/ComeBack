@@ -10,6 +10,8 @@ When a college athlete gets hurt, the athletic trainer hands them a rehab plan, 
 
 ![Comeback entity relationship diagram](reference/erd.png)
 
+**Athletes and injuries are many-to-many.** `athlete_injuries` is the junction table between `users` (athletes) and the `injuries` catalog: one athlete can have several injuries at once, and one injury (say, "Ankle sprain") can be on many athletes. Each row is an injury *case* with its own exercise plan, goals and appointments. An athlete can't have the same injury open twice at once (a partial unique index on active cases), but can get a new case for it after the old one is cleared. The athlete's daily list is the exercises from all their active cases.
+
 The diagram source is `reference/erd.mmd` (Mermaid). The database is built from it by `supabase/erd_schema.sql`. Two things were added after the diagram was drawn and are in the database but not yet in the image: a `pain` column on `exercise_logs` (0 to 10, required for app logs) and `availability` / `expected_return` columns on `team_members` (what the coach sees). The `notifications` table is created by `supabase/push.sql` for push reminders, with a `push` channel, a `missed_exercises` kind, and the title and body added; that script also adds `push_subscriptions` (one row per device with reminders on).
 
 Core entities and how they relate:
@@ -58,11 +60,14 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
 ### 2. Create the Supabase project (once per team)
 
 1. At supabase.com, create a new project. Any name and region. Write down the database password.
-2. Open **SQL Editor** and run these four files in order. Paste each file's contents into a new query and click Run.
+2. Open **SQL Editor** and run these five files in order. Paste each file's contents into a new query and click Run.
    1. `supabase/erd_schema.sql`: the tables, triggers, security rules and catalogs
    2. `supabase/signup.sql`: roles, teams and join codes
    3. `supabase/live_data.sql`: conversations and plan assignment the screens use
-   4. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
+   4. `supabase/multi_injury.sql`: lets an athlete have several active injuries at once
+   5. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
+
+   Already set up before `multi_injury.sql` existed? Run just that file, then run `supabase/push.sql` again if you use push reminders.
 3. Under **Authentication > Sign In / Providers**, turn on "Allow new users to sign up". Under Email, turn off "Confirm email" unless you want people to confirm by email first.
 
 ### 3. Connect the app to your project

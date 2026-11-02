@@ -946,3 +946,14 @@
     text-align: left;
   }
 }
+
+/* Trainer's list of an athlete's active injuries (AthleteDetail). */
+.injury-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.injury-list li {
+  justify-content: space-between;
+}

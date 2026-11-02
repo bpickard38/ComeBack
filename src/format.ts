@@ -2,7 +2,14 @@
   Turning dates and numbers into display text. Kept apart from domain/
   because this is about presentation, not rules.
 */
+import type { Athlete } from './domain/types';
+
 const LOCALE = 'en-US';
+
+/** "Ankle sprain, Hamstring strain", or "No injury on file". */
+export function injuryLabel(athlete: Pick<Athlete, 'injuries'>): string {
+  return athlete.injuries.length ? athlete.injuries.map((i) => i.name).join(', ') : 'No injury on file';
+}
 
 /** "6:10 PM" */
 export function formatTime(value: string | Date): string {
