@@ -14,6 +14,13 @@ export function formatDay(value: string | Date): string {
   return new Date(value).toLocaleDateString(LOCALE, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+/** "6:10 PM" for today, otherwise "Wed, Oct 7, 6:10 PM". For message times. */
+export function formatSentAt(value: string | Date): string {
+  const date = new Date(value);
+  const isToday = date.toDateString() === new Date().toDateString();
+  return isToday ? formatTime(date) : `${formatDay(date)}, ${formatTime(date)}`;
+}
+
 /** "Wed" */
 export function formatWeekday(value: string | Date): string {
   return new Date(value).toLocaleDateString(LOCALE, { weekday: 'short' });

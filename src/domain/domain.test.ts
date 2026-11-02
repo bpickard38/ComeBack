@@ -12,9 +12,9 @@ import { RANKS, rankIndex, rankStatus, rankUp } from './rank';
 import { shouldShowReminder } from './reminder';
 import { bestStreak, currentStreak } from './streak';
 import { normalizeAvailability } from './availability';
-import { needsReply } from './messages';
+import { awaitsTrainer, inboxOrder, needsReply } from './messages';
 import { highestRecentPain, validatePain } from './pain';
-import type { Athlete, ExerciseLog, Message, TestResult } from './types';
+import type { Athlete, ExerciseLog, Message, MessageThread, TestResult } from './types';
 import { validateAssignment, validateMessage } from './validation';
 import { weekCompletion, weekStatus } from './week';
 
@@ -275,6 +275,23 @@ describe('messages', () => {
     expect(needsReply([msg('Trainer', 1), msg('Athlete', 2)], 'x')).toBe(true);
     expect(needsReply([msg('Athlete', 1), msg('Trainer', 2)], 'x')).toBe(false);
     expect(needsReply([], 'x')).toBe(false);
+  });
+
+  it('waits on the trainer when the coach wrote last', () => {
+    const coach = { ...msg('Coach', 1), thread: 'coach-trainer' as const };
+    expect(awaitsTrainer([coach], 'coach-trainer')).toBe(true);
+    expect(awaitsTrainer([coach, { ...msg('Trainer', 2), thread: 'coach-trainer' }], 'coach-trainer')).toBe(false);
+  });
+
+  it('orders the inbox: waiting first, then newest, then empty', () => {
+    const at = (thread: MessageThread, from: Message['from'], minutes: number) => ({ ...msg(from, minutes), thread });
+    const messages = [
+      at('athlete:old', 'Trainer', 1),
+      at('athlete:new', 'Trainer', 5),
+      at('athlete:waiting', 'Athlete', 2),
+    ];
+    const threads: MessageThread[] = ['athlete:empty', 'athlete:old', 'athlete:new', 'athlete:waiting'];
+    expect(inboxOrder(threads, messages)).toEqual(['athlete:waiting', 'athlete:new', 'athlete:old', 'athlete:empty']);
   });
 });
 

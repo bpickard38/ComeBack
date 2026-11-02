@@ -1,18 +1,18 @@
 import { useRef, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
-import { MessageBox } from '../../components/MessageBox';
 import { ProgressBar } from '../../components/ProgressBar';
 import { useToast } from '../../components/Toast';
 import { useReturnFocus } from '../../components/useReturnFocus';
 import { availabilityLabel } from '../../domain/availability';
 import { findLog } from '../../domain/logs';
-import { athleteThread } from '../../domain/messages';
+import { athleteThread, lastMessage } from '../../domain/messages';
 import { isHighPain, PAIN_SCALE } from '../../domain/pain';
 import { REMINDER_HOUR, shouldShowReminder } from '../../domain/reminder';
 import type { Exercise, ExerciseLog } from '../../domain/types';
-import { formatCalendarDay, formatDay, formatTime } from '../../format';
+import { formatCalendarDay, formatDay, formatSentAt, formatTime } from '../../format';
 import { exerciseById, useAppStore, useSignedInAthlete } from '../../store/AppStore';
 
 export function Today() {
@@ -32,6 +32,9 @@ export function Today() {
   const left = total - done;
   const percent = total ? Math.round((100 * done) / total) : 0;
   const showReminder = left > 0 && (state.reminderSimulated || shouldShowReminder(now, left));
+  // The trainer's message, if they wrote last (so it's the one to read).
+  const last = lastMessage(state.messages, athleteThread(me.id));
+  const fromTrainer = last?.from === 'Trainer' ? last : undefined;
 
   /** Returns true when the log saved, so the card can move keyboard focus. */
   async function markDone(exercise: Exercise, pain: number | undefined): Promise<boolean> {
@@ -84,8 +87,14 @@ export function Today() {
         <h2 id="trainer-msgs" className="title">
           Your trainer
         </h2>
-        <p className="small muted">Questions, pain or anything that felt off. Your coach can&rsquo;t see these.</p>
-        <MessageBox thread={athleteThread(me.id)} recipient="your trainer" title="Conversation" />
+        {fromTrainer ? (
+          <p className="small strong">Your trainer replied {formatSentAt(fromTrainer.sentAt)}.</p>
+        ) : (
+          <p className="small muted">Questions, pain or anything that felt off. Your coach can&rsquo;t see these.</p>
+        )}
+        <Link to="/athlete/messages" className="btn btn--secondary align-start strong">
+          {fromTrainer ? 'Read message' : 'Message your trainer'}
+        </Link>
       </Card>
 
       {total === 0 && (

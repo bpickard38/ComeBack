@@ -6,6 +6,7 @@ const ATHLETE_TABS = [
   { to: '/athlete/goals', label: 'Progress' },
   { to: '/athlete/trophies', label: 'Trophies' },
   { to: '/athlete/appointments', label: 'Appointments' },
+  { to: '/athlete/messages', label: 'Messages' },
 ];
 
 /** Single 520px column with the athlete tabs. <Outlet /> is where the current tab's screen goes. */

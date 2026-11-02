@@ -74,7 +74,7 @@ export function CoachView() {
               </div>
             ))}
           </dl>
-          <MessageBox thread="coach-trainer" recipient="the trainer" title="Sent" />
+          <MessageBox thread="coach-trainer" recipient="the trainer" title="Conversation" />
         </Card>
       </div>
     </div>
