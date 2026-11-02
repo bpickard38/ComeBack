@@ -12,7 +12,7 @@ import { RANKS, rankIndex, rankStatus, rankUp } from './rank';
 import { shouldShowReminder } from './reminder';
 import { bestStreak, currentStreak } from './streak';
 import { normalizeAvailability } from './availability';
-import { awaitsTrainer, inboxOrder, needsReply } from './messages';
+import { chatItems, inboxOrder, TIME_GAP_MINUTES, unreadIn } from './messages';
 import { highestRecentPain, validatePain } from './pain';
 import type { Athlete, ExerciseLog, Message, MessageThread, TestResult } from './types';
 import { validateAssignment, validateMessage } from './validation';
@@ -263,35 +263,37 @@ describe('pain', () => {
 });
 
 describe('messages', () => {
-  const msg = (from: Message['from'], minutes: number): Message => ({
+  // senderId follows the role, so "Athlete" and "Trainer" are two people.
+  const msg = (from: Message['from'], minutes: number, readAt?: string): Message => ({
     id: String(minutes),
     thread: 'athlete:x',
     from,
+    senderId: from.toLowerCase(),
     text: 'hi',
     sentAt: new Date(TODAY.getTime() + minutes * 60_000).toISOString(),
+    readAt,
   });
 
-  it('needs a reply when the athlete wrote last', () => {
-    expect(needsReply([msg('Trainer', 1), msg('Athlete', 2)], 'x')).toBe(true);
-    expect(needsReply([msg('Athlete', 1), msg('Trainer', 2)], 'x')).toBe(false);
-    expect(needsReply([], 'x')).toBe(false);
+  it('counts only unread messages from the other person', () => {
+    const messages = [msg('Athlete', 1, 'read'), msg('Athlete', 2), msg('Athlete', 3), msg('Trainer', 4)];
+    expect(unreadIn(messages, 'athlete:x', 'trainer')).toBe(2);
+    // The trainer's own message never counts as unread for them.
+    expect(unreadIn(messages, 'athlete:x', 'athlete')).toBe(1);
+    expect(unreadIn(messages, 'coach-trainer', 'trainer')).toBe(0);
   });
 
-  it('waits on the trainer when the coach wrote last', () => {
-    const coach = { ...msg('Coach', 1), thread: 'coach-trainer' as const };
-    expect(awaitsTrainer([coach], 'coach-trainer')).toBe(true);
-    expect(awaitsTrainer([coach, { ...msg('Trainer', 2), thread: 'coach-trainer' }], 'coach-trainer')).toBe(false);
+  it('orders the inbox newest first, empty threads last', () => {
+    const at = (thread: MessageThread, minutes: number) => ({ ...msg('Athlete', minutes), thread });
+    const messages = [at('athlete:old', 1), at('athlete:new', 5), at('athlete:mid', 2)];
+    const threads: MessageThread[] = ['athlete:empty', 'athlete:old', 'athlete:new', 'athlete:mid'];
+    expect(inboxOrder(threads, messages)).toEqual(['athlete:new', 'athlete:mid', 'athlete:old', 'athlete:empty']);
   });
 
-  it('orders the inbox: waiting first, then newest, then empty', () => {
-    const at = (thread: MessageThread, from: Message['from'], minutes: number) => ({ ...msg(from, minutes), thread });
-    const messages = [
-      at('athlete:old', 'Trainer', 1),
-      at('athlete:new', 'Trainer', 5),
-      at('athlete:waiting', 'Athlete', 2),
-    ];
-    const threads: MessageThread[] = ['athlete:empty', 'athlete:old', 'athlete:new', 'athlete:waiting'];
-    expect(inboxOrder(threads, messages)).toEqual(['athlete:waiting', 'athlete:new', 'athlete:old', 'athlete:empty']);
+  it('groups back-to-back messages and adds a timestamp after a pause', () => {
+    const items = chatItems([msg('Athlete', 0), msg('Athlete', 1), msg('Trainer', 2), msg('Trainer', 2 + TIME_GAP_MINUTES)]);
+    expect(items.map((i) => i.showTime)).toEqual([true, false, false, true]);
+    expect(items.map((i) => i.firstInGroup)).toEqual([true, false, true, true]);
+    expect(items.map((i) => i.lastInGroup)).toEqual([false, true, true, true]);
   });
 });
 

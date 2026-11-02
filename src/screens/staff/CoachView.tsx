@@ -1,6 +1,7 @@
 import { Card } from '../../components/Card';
-import { MessageBox } from '../../components/MessageBox';
+import { ChatThread } from '../../components/Chat';
 import { AVAILABILITY_OPTIONS, availabilityLabel } from '../../domain/availability';
+import { messagesIn } from '../../domain/messages';
 import type { Availability } from '../../domain/types';
 import { formatCalendarDay, formatDay } from '../../format';
 import { useAppStore } from '../../store/AppStore';
@@ -15,6 +16,9 @@ const ORDER: Record<Availability, number> = { out: 0, limited: 1, cleared: 2 };
 export function CoachView() {
   const { state } = useAppStore();
   const athletes = [...state.athletes].sort((a, b) => ORDER[a.availability] - ORDER[b.availability]);
+  // Use the trainer's name once they've written; until then, a generic one.
+  const trainerName =
+    messagesIn(state.messages, 'coach-trainer').find((m) => m.from === 'Trainer')?.senderName ?? 'Athletic trainer';
 
   return (
     <div className="column column--staff">
@@ -62,11 +66,7 @@ export function CoachView() {
               </table>
             </div>
           )}
-        </Card>
-
-        <Card aria-labelledby="coach-msgs">
-          <h2 id="coach-msgs">Message the trainer</h2>
-          <dl className="legend-list small">
+          <dl className="legend-list small pad">
             {AVAILABILITY_OPTIONS.map((o) => (
               <div key={o.value}>
                 <dt className="strong">{o.label}</dt>
@@ -74,8 +74,9 @@ export function CoachView() {
               </div>
             ))}
           </dl>
-          <MessageBox thread="coach-trainer" recipient="the trainer" title="Conversation" />
         </Card>
+
+        <ChatThread thread="coach-trainer" name={trainerName} detail="Athletic trainer. Only you two see this." />
       </div>
     </div>
   );

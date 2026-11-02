@@ -1,21 +1,19 @@
-import { Card } from '../../components/Card';
-import { ChatThread } from '../../components/MessageBox';
-import { athleteThread } from '../../domain/messages';
-import { useSignedInAthlete } from '../../store/AppStore';
+import { ChatThread } from '../../components/Chat';
+import { athleteThread, messagesIn } from '../../domain/messages';
+import { useAppStore, useSignedInAthlete } from '../../store/AppStore';
 
 /** The athlete's direct messages with their trainer. */
 export function Messages() {
+  const { state } = useAppStore();
   const me = useSignedInAthlete();
+  const thread = athleteThread(me.id);
+  // Use the trainer's name once they've written; until then, a generic one.
+  const trainerName = messagesIn(state.messages, thread).find((m) => m.from === 'Trainer')?.senderName ?? 'Your trainer';
 
   return (
-    <Card aria-labelledby="trainer-msgs">
-      <div className="stack-xs">
-        <h1 id="trainer-msgs" className="title">
-          Your trainer
-        </h1>
-        <p className="small muted">Questions, pain or anything that felt off. Your coach can&rsquo;t see these.</p>
-      </div>
-      <ChatThread thread={athleteThread(me.id)} recipient="your trainer" />
-    </Card>
+    <>
+      <h1 className="visually-hidden">Messages</h1>
+      <ChatThread thread={thread} name={trainerName} detail="Athletic trainer. Your coach can’t see these." />
+    </>
   );
 }

@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { TabBar } from '../../components/TabBar';
-import { athleteThread, awaitsTrainer } from '../../domain/messages';
+import { athleteThread, unreadIn } from '../../domain/messages';
 import type { MessageThread } from '../../domain/types';
 import { useAppStore } from '../../store/AppStore';
 
@@ -9,12 +9,12 @@ import { useAppStore } from '../../store/AppStore';
  * coach has a single screen, so no tabs. <Outlet /> is the current screen.
  */
 export function StaffLayout() {
-  const { state } = useAppStore();
+  const { state, profile } = useAppStore();
   if (state.role === 'coach') return <Outlet />;
 
-  // How many conversations are waiting on the trainer, shown on the tab.
+  // How many conversations have something you haven't read, shown on the tab.
   const threads: MessageThread[] = ['coach-trainer', ...state.athletes.map((a) => athleteThread(a.id))];
-  const waiting = threads.filter((t) => awaitsTrainer(state.messages, t)).length;
+  const waiting = threads.filter((t) => unreadIn(state.messages, t, profile.id) > 0).length;
   const tabs = [
     { to: '/staff', label: 'Roster' },
     { to: '/staff/messages', label: waiting > 0 ? `Messages (${waiting} new)` : 'Messages' },

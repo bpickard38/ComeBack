@@ -105,7 +105,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
         .neq('status', 'cancelled'),
       supabase.from('point_events').select('athlete_id, points').eq('source_type', 'prior'),
       supabase.from('conversations').select('id, kind, athlete_id'),
-      supabase.from('messages').select('id, conversation_id, sender_id, body, sent_at').order('sent_at'),
+      supabase.from('messages').select('id, conversation_id, sender_id, body, sent_at, read_at').order('sent_at'),
       isTrainer ? supabase.from('injuries').select('id, name').order('name') : none,
       isTrainer ? supabase.from('exercises').select('id, name').order('name') : none,
     ]);
@@ -203,7 +203,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     threadOf.set(c.id, thread);
     conversationList.push({ thread, id: c.id });
   }
-  const messageList: Message[] = rows<{ id: string; conversation_id: string; sender_id: string | null; body: string; sent_at: string }>(messages)
+  const messageList: Message[] = rows<{ id: string; conversation_id: string; sender_id: string | null; body: string; sent_at: string; read_at: string | null }>(messages)
     .filter((m) => threadOf.has(m.conversation_id))
     .map((m) => {
       const sender = m.sender_id ? userById.get(m.sender_id) : undefined;
@@ -215,6 +215,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
         senderName: sender?.name,
         text: m.body,
         sentAt: m.sent_at,
+        readAt: m.read_at ?? undefined,
       };
     });
 
@@ -273,6 +274,18 @@ export async function insertMessage(conversationId: string, senderId: string, te
     .single();
   if (error) return { ok: false, error: error.message };
   return { ok: true, value: { id: data.id, sentAt: data.sent_at } };
+}
+
+/** Marks everyone else's unread messages in a conversation as read now. */
+export async function markRead(conversationId: string, readerId: string): Promise<Result<{ readAt: string }>> {
+  const readAt = new Date().toISOString();
+  const { error } = await supabase
+    .from('messages')
+    .update({ read_at: readAt })
+    .eq('conversation_id', conversationId)
+    .neq('sender_id', readerId)
+    .is('read_at', null);
+  return error ? { ok: false, error: error.message } : { ok: true, value: { readAt } };
 }
 
 export async function updateAvailability(athleteId: string, availability: Availability, expectedReturn: string | null): Promise<Result> {

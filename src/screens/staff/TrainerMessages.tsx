@@ -1,9 +1,8 @@
 import { useSearchParams } from 'react-router-dom';
-import { Card } from '../../components/Card';
-import { ChatThread } from '../../components/MessageBox';
-import { athleteThread, awaitsTrainer, inboxOrder, lastMessage } from '../../domain/messages';
+import { Avatar, ChatThread } from '../../components/Chat';
+import { athleteThread, inboxOrder, lastMessage, unreadIn } from '../../domain/messages';
 import type { MessageThread } from '../../domain/types';
-import { formatSentAt } from '../../format';
+import { formatAgo } from '../../format';
 import { useAppStore } from '../../store/AppStore';
 
 /** One person the trainer can message. */
@@ -12,95 +11,106 @@ interface Contact {
   /** What goes in ?with= so a link can open this conversation. */
   param: string;
   name: string;
-  /** Second line in the list, e.g. the athlete's sport. */
+  /** Line under the name in the chat header. */
   detail: string;
 }
 
 /**
- * The trainer's direct messages: the coach, then every athlete, on the left;
- * the open conversation on the right. The open one is in the URL
- * (/staff/messages?with=<athlete id> or ?with=coach) so the roster can link
- * straight to it and the back button works.
+ * The trainer's direct messages, laid out like Instagram: the coach and
+ * every athlete (most recent first) on the left, the open conversation on
+ * the right. On phones it's one or the other, with a back arrow.
+ *
+ * The open conversation is in the URL (?with=<athlete id> or ?with=coach)
+ * so the roster can link straight to it and the back button works. Nothing
+ * opens by itself, so visiting this tab doesn't mark anything as read.
  */
 export function TrainerMessages() {
   const { state } = useAppStore();
   const [params, setParams] = useSearchParams();
 
-  const coach: Contact = { thread: 'coach-trainer', param: 'coach', name: 'Coach', detail: 'Team coach' };
+  const coach: Contact = {
+    thread: 'coach-trainer',
+    param: 'coach',
+    name: 'Coach',
+    detail: 'Team coach. Keep medical details out; they see status only.',
+  };
   const byThread = new Map<MessageThread, Contact>(
     state.athletes.map((a) => [
       athleteThread(a.id),
-      { thread: athleteThread(a.id), param: a.id, name: a.name, detail: a.sport },
+      { thread: athleteThread(a.id), param: a.id, name: a.name, detail: `${a.sport}. Only you two see this.` },
     ]),
   );
   const athletes = inboxOrder([...byThread.keys()], state.messages).map((t) => byThread.get(t)!);
-
-  const all = [coach, ...athletes];
-  const open = all.find((c) => c.param === params.get('with')) ?? athletes[0] ?? coach;
+  const open = [coach, ...athletes].find((c) => c.param === params.get('with'));
+  const select = (c: Contact) => setParams({ with: c.param });
 
   return (
     <>
-      <div className="stack-xs">
-        <h1>Messages</h1>
-        <p className="muted">Direct messages with your athletes and the coach. Athletes and the coach can&rsquo;t see each other&rsquo;s.</p>
-      </div>
-
-      <div className="staff-grid">
-        <section className="card card--flush" aria-label="Conversations">
-          <div className="table-head">
-            <span>Coach</span>
-          </div>
-          <ContactRow contact={coach} selected={open === coach} onSelect={() => setParams({ with: coach.param })} />
-          <div className="table-head">
-            <span>Athletes</span>
-          </div>
+      <h1>Messages</h1>
+      <div className={open ? 'dm dm--open' : 'dm'}>
+        <nav className="card card--flush dm__list" aria-label="Conversations">
+          <h2 className="dm__section">Coach</h2>
+          <ContactRow contact={coach} isOpen={open === coach} onSelect={() => select(coach)} />
+          <h2 className="dm__section">Athletes</h2>
           {athletes.length === 0 ? (
             <p className="muted pad">No athletes on the roster yet.</p>
           ) : (
-            athletes.map((c) => (
-              <ContactRow key={c.param} contact={c} selected={open === c} onSelect={() => setParams({ with: c.param })} />
-            ))
+            athletes.map((c) => <ContactRow key={c.param} contact={c} isOpen={open === c} onSelect={() => select(c)} />)
           )}
-        </section>
+        </nav>
 
-        <Card aria-labelledby="chat-name">
-          <div className="stack-xs">
-            <h2 id="chat-name">{open.name}</h2>
-            <p className="small muted">
-              {open === coach
-                ? 'Only you and the coach see this. Keep medical details out; the coach sees status only.'
-                : `Only you and ${open.name} see this.`}
-            </p>
-          </div>
-          {/* key starts a fresh draft when you switch conversations */}
-          <ChatThread key={open.thread} thread={open.thread} recipient={open.name} />
-        </Card>
+        <div className="dm__chat">
+          {open ? (
+            // key starts a fresh draft when you switch conversations
+            <ChatThread key={open.thread} thread={open.thread} name={open.name} detail={open.detail} onBack={() => setParams({})} />
+          ) : (
+            <section className="card dm__placeholder">
+              <h2>Your messages</h2>
+              <p className="muted">Pick a conversation to read it or send a message.</p>
+            </section>
+          )}
+        </div>
       </div>
     </>
   );
 }
 
-function ContactRow({ contact, selected, onSelect }: { contact: Contact; selected: boolean; onSelect: () => void }) {
+/** Avatar, name, last message and how long ago; bold with a dot when unread. */
+function ContactRow({ contact, isOpen, onSelect }: { contact: Contact; isOpen: boolean; onSelect: () => void }) {
   const { state, profile } = useAppStore();
   const last = lastMessage(state.messages, contact.thread);
-  const waiting = awaitsTrainer(state.messages, contact.thread);
+  const unread = unreadIn(state.messages, contact.thread, profile.id);
 
   return (
-    <button type="button" className="roster-row inbox-row" aria-pressed={selected} onClick={onSelect}>
-      <span className="stack-xs">
-        <span className="roster-row__name">{contact.name}</span>
-        <span className="small muted">
-          {contact.detail}
-          {last && <> &middot; {formatSentAt(last.sentAt)}</>}
+    <button
+      type="button"
+      className={unread > 0 ? 'inbox-row inbox-row--unread' : 'inbox-row'}
+      aria-current={isOpen}
+      onClick={onSelect}
+    >
+      <Avatar name={contact.name} />
+      <span className="inbox-row__text">
+        <span className="inbox-row__name">{contact.name}</span>
+        <span className="inbox-row__preview">
+          {last ? (
+            <>
+              <span className="inbox-row__snippet">
+                {unread > 1 ? `${unread} new messages` : `${last.senderId === profile.id ? 'You: ' : ''}${last.text}`}
+              </span>
+              <span aria-hidden="true">&middot;</span>
+              <span>{formatAgo(last.sentAt)}</span>
+            </>
+          ) : (
+            <span>No messages yet</span>
+          )}
         </span>
-        {last && (
-          <span className="small inbox-preview">
-            {last.senderId === profile.id ? 'You: ' : ''}
-            {last.text}
-          </span>
-        )}
-        {waiting && <span className="small strong warn-text">New message</span>}
       </span>
+      {unread > 0 && (
+        <>
+          <span className="unread-dot" aria-hidden="true" />
+          <span className="visually-hidden">, unread</span>
+        </>
+      )}
     </button>
   );
 }

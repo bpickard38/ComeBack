@@ -88,6 +88,8 @@ export interface Message {
   senderName?: string;
   text: string;
   sentAt: string;
+  /** When the other person opened it. Missing means not read yet. */
+  readAt?: string;
 }
 
 /**

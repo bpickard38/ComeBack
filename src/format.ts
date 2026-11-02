@@ -21,6 +21,23 @@ export function formatSentAt(value: string | Date): string {
   return isToday ? formatTime(date) : `${formatDay(date)}, ${formatTime(date)}`;
 }
 
+/** "now", "5m", "3h", "2d", "4w": how long ago, short, for inbox rows. */
+export function formatAgo(value: string | Date, now = new Date()): string {
+  const minutes = Math.floor((now.getTime() - new Date(value).getTime()) / 60_000);
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return days < 7 ? `${days}d` : `${Math.floor(days / 7)}w`;
+}
+
+/** "Maya Torres" to "MT", for avatars. */
+export function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.length === 0 ? '?' : (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
 /** "Wed" */
 export function formatWeekday(value: string | Date): string {
   return new Date(value).toLocaleDateString(LOCALE, { weekday: 'short' });
