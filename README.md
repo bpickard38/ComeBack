@@ -114,7 +114,7 @@ All use the password `ComebackDemo2026!`. These are throwaway demo logins, not r
 | Who | Role | Email |
 |---|---|---|
 | Maya Torres | Athlete (ankle sprain, the main demo athlete) | `bpickard38+demo-athlete@gmail.com` |
-| Jordan Reyes | Athlete (ACL, out) | `bpickard38+demo-jordan@gmail.com` |
+| Jordan Reyes | Athlete (ACL + patellar tendinopathy: two active injuries, out) | `bpickard38+demo-jordan@gmail.com` |
 | Devon Clarke | Athlete (shoulder, pain flagged, sent a message) | `bpickard38+demo-devon@gmail.com` |
 | Priya Nair | Athlete (hamstring, cleared) | `bpickard38+demo-priya@gmail.com` |
 | Sam Rivera | Athletic trainer | `bpickard38+demo-trainer@gmail.com` |
@@ -137,7 +137,7 @@ Use the demo accounts above. To show two roles side by side, sign in to the seco
 
 1. **Athlete (Maya)**: on Today, tap "Mark done" on the three pending exercises and pick a pain rating for each. The last one ranks her up to Varsity I. Rate one a 7 and message your trainer about it.
 2. **Progress**: log 30 for One-leg balance. The card flips to "Goal reached" and adds 10 points.
-3. **Trainer**: Maya and Devon are flagged for pain and a new message. Open Maya's conversation on the Messages tab and reply (her flag clears once it's read), set Devon to Out with a return date, and assign Jordan new exercises.
+3. **Trainer**: Maya and Devon are flagged for pain and a new message. Open Maya's conversation on the Messages tab and reply (her flag clears once it's read), set Devon to Out with a return date, and open Jordan: he has two active injuries, each with its own plan. Assign him new exercises for one of them (the other stays as is), or mark one cleared.
 4. **Coach**: "Team availability" shows only Out / Limited / Cleared and return dates, no injuries. Message the trainer, then show it under Coach on the trainer's Messages tab.
 5. **Errors**: set "Connection: offline" and try logging; tap "Edit my plan"; log without a pain rating; save an empty result or message.
 6. **Sign-up**: create a new athlete account and join with the athlete code from the trainer's "Join codes" card. Try the coach code first to show it is refused.
