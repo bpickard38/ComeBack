@@ -2,3 +2,5 @@ node_modules
 dist
 *.log
 *.local
+# Supabase CLI cache (made by `supabase link`)
+supabase/.temp

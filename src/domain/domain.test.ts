@@ -9,7 +9,7 @@ import { goalPercent, isGoalReached, overallGoalPercent, parseResultValue } from
 import { createLog } from './logs';
 import { pointsFor, POINTS_PER_GOAL } from './points';
 import { RANKS, rankIndex, rankStatus, rankUp } from './rank';
-import { shouldShowReminder } from './reminder';
+import { listNames, missedYesterday, shouldShowReminder } from './reminder';
 import { bestStreak, currentStreak } from './streak';
 import { normalizeAvailability } from './availability';
 import { chatItems, inboxOrder, TIME_GAP_MINUTES, unreadIn } from './messages';
@@ -199,6 +199,18 @@ describe('reminder', () => {
     expect(shouldShowReminder(evening, 2)).toBe(true);
     expect(shouldShowReminder(evening, 0)).toBe(false);
     expect(shouldShowReminder(TODAY, 2)).toBe(false);
+  });
+
+  it('lists what was missed yesterday, ignoring other days', () => {
+    expect(missedYesterday(athlete, [log('e1', 1), log('e2', 2), log('e2', 0)], TODAY)).toEqual(['e2']);
+    expect(missedYesterday(athlete, fullDays(1), TODAY)).toEqual([]);
+  });
+
+  it('names a few exercises in plain words', () => {
+    expect(listNames(['A'])).toBe('A');
+    expect(listNames(['A', 'B'])).toBe('A and B');
+    expect(listNames(['A', 'B', 'C'])).toBe('A, B and C');
+    expect(listNames(['A', 'B', 'C', 'D'])).toBe('A, B and 2 more');
   });
 });
 

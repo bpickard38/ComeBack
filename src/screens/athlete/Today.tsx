@@ -10,10 +10,11 @@ import { availabilityLabel } from '../../domain/availability';
 import { findLog } from '../../domain/logs';
 import { athleteThread, unreadIn } from '../../domain/messages';
 import { isHighPain, PAIN_SCALE } from '../../domain/pain';
-import { REMINDER_HOUR, shouldShowReminder } from '../../domain/reminder';
+import { listNames, missedYesterday, REMINDER_HOUR, shouldShowReminder } from '../../domain/reminder';
 import type { Exercise, ExerciseLog } from '../../domain/types';
 import { formatCalendarDay, formatDay, formatTime } from '../../format';
 import { exerciseById, useAppStore, useSignedInAthlete } from '../../store/AppStore';
+import { RemindersCard } from './RemindersCard';
 
 export function Today() {
   const { state, commands } = useAppStore();
@@ -32,6 +33,9 @@ export function Today() {
   const left = total - done;
   const percent = total ? Math.round((100 * done) / total) : 0;
   const showReminder = left > 0 && (state.reminderSimulated || shouldShowReminder(now, left));
+  const leftNames = items.filter((i) => !i.log).map((i) => i.exercise.name);
+  // Yesterday's misses, shown until you log something today.
+  const missed = done === 0 ? missedYesterday(me, state.logs, now).map((id) => exerciseById(state, id).name) : [];
   // Trainer messages you haven't opened yet on the Messages tab.
   const unread = unreadIn(state.messages, athleteThread(me.id), me.id);
 
@@ -77,8 +81,17 @@ export function Today() {
         <section className="notice">
           <div className="notice__title">Reminder &middot; {REMINDER_HOUR - 12}:00 PM</div>
           <div>
-            {left} {left === 1 ? 'exercise is' : 'exercises are'} still not logged for today.
+            {listNames(leftNames)} {left === 1 ? 'is' : 'are'} still not logged for today.
           </div>
+        </section>
+      )}
+
+      {missed.length > 0 && (
+        <section className="card card--mist">
+          <div className="strong">
+            Yesterday you missed {missed.length === 1 ? '1 exercise' : `${missed.length} exercises`}
+          </div>
+          <div>{listNames(missed)}. Today&rsquo;s a fresh start.</div>
         </section>
       )}
 
@@ -116,6 +129,8 @@ export function Today() {
       {total > 0 && left === 0 && (
         <Card className="card--mist strong">All exercises logged for today. Your trainer can see your progress.</Card>
       )}
+
+      <RemindersCard />
 
       <Button
         variant="link"
