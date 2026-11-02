@@ -9,6 +9,18 @@ const ROLES: Array<{ role: Role; label: string }> = [
   { role: 'trainer', label: 'Athletic trainer' },
 ];
 
+/**
+ * One-click logins for demos (the accounts in README.md > Demo accounts).
+ * The password is already public there; these are throwaway demo logins,
+ * so anyone with the link can use them. Run supabase/demo_data.sql to reset.
+ */
+const DEMO_PASSWORD = 'ComebackDemo2026!';
+const DEMO_ACCOUNTS: Array<{ label: string; email: string }> = [
+  { label: 'Demo athlete (Maya)', email: 'bpickard38+demo-athlete@gmail.com' },
+  { label: 'Demo trainer (Sam)', email: 'bpickard38+demo-trainer@gmail.com' },
+  { label: 'Demo coach (Lee)', email: 'bpickard38+demo-coach@gmail.com' },
+];
+
 /** Supabase's minimum unless you change it under Authentication > Providers > Email. */
 const MIN_PASSWORD = 6;
 
@@ -71,10 +83,21 @@ export function SignIn() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    await signIn(email.trim(), password);
+  }
+
+  async function signIn(address: string, secret: string) {
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: address, password: secret });
     setBusy(false);
     // On success AuthGate hears about it and swaps this screen for the app.
     if (error) setError(error.message === 'Invalid login credentials' ? 'Wrong email or password.' : error.message);
+  }
+
+  function signInDemo(address: string) {
+    setError('');
+    setNotice('');
+    signIn(address, DEMO_PASSWORD);
   }
 
   return (
@@ -159,6 +182,17 @@ export function SignIn() {
         <Button variant="link" onClick={switchMode}>
           {signingUp ? 'I already have an account' : 'New here? Create an account'}
         </Button>
+
+        {!signingUp && (
+          <div className="stack-sm">
+            <h2 className="label">Try a demo</h2>
+            {DEMO_ACCOUNTS.map((d) => (
+              <Button key={d.email} disabled={busy} onClick={() => signInDemo(d.email)}>
+                {d.label}
+              </Button>
+            ))}
+          </div>
+        )}
       </form>
     </main>
   );
