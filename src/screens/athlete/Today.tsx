@@ -52,7 +52,7 @@ export function Today() {
     <>
       <Card>
         <div className="eyebrow">{formatDay(now)}</div>
-        <h1>Today&rsquo;s rehab</h1>
+        <h1>Today&rsquo;s exercises</h1>
         <p className="muted">
           {me.name} &middot; {me.sport} &middot; {me.injury}
         </p>
@@ -80,14 +80,6 @@ export function Today() {
         </section>
       )}
 
-      <Card aria-labelledby="trainer-msgs">
-        <h2 id="trainer-msgs" className="title">
-          Your trainer
-        </h2>
-        <p className="small muted">Questions, pain or anything that felt off. Your coach can&rsquo;t see these.</p>
-        <MessageBox thread={athleteThread(me.id)} recipient="your trainer" title="Conversation" />
-      </Card>
-
       {total === 0 && (
         <Card>
           <p className="muted">Your trainer hasn&rsquo;t assigned any exercises yet. Check back after your next visit.</p>
@@ -108,6 +100,14 @@ export function Today() {
       {total > 0 && left === 0 && (
         <Card className="card--mist strong">All exercises logged for today. Your trainer can see your progress.</Card>
       )}
+
+      <Card aria-labelledby="trainer-msgs">
+        <h2 id="trainer-msgs" className="title">
+          Your trainer
+        </h2>
+        <p className="small muted">Questions, pain or anything that felt off. Your coach can&rsquo;t see these.</p>
+        <MessageBox thread={athleteThread(me.id)} recipient="your trainer" title="Conversation" />
+      </Card>
 
       <Button
         variant="link"

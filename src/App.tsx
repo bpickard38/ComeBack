@@ -9,6 +9,7 @@ import { AthleteLayout } from './screens/athlete/AthleteLayout';
 import { Appointments } from './screens/athlete/Appointments';
 import { Goals } from './screens/athlete/Goals';
 import { Today } from './screens/athlete/Today';
+import { Week } from './screens/athlete/Week';
 import { Trophies } from './screens/athlete/Trophies';
 import { StaffHome } from './screens/staff/StaffHome';
 import { useAppStore } from './store/AppStore';
@@ -49,6 +50,7 @@ export function App() {
             }
           >
             <Route index element={<Today />} />
+            <Route path="week" element={<Week />} />
             <Route path="goals" element={<Goals />} />
             <Route path="trophies" element={<Trophies />} />
             <Route path="appointments" element={<Appointments />} />

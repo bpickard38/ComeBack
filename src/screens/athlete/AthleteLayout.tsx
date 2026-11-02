@@ -3,6 +3,7 @@ import { TabBar } from '../../components/TabBar';
 
 const ATHLETE_TABS = [
   { to: '/athlete', label: 'Today' },
+  { to: '/athlete/week', label: 'This week' },
   { to: '/athlete/goals', label: 'Progress' },
   { to: '/athlete/trophies', label: 'Trophies' },
   { to: '/athlete/appointments', label: 'Appointments' },
