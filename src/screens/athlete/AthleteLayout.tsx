@@ -1,12 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { TabBar } from "../../components/TabBar";
-
-const ATHLETE_TABS = [
-  { to: "/athlete", label: "Today" },
-  { to: "/athlete/goals", label: "Progress" },
-  { to: "/athlete/trophies", label: "Trophies" },
-  { to: "/athlete/appointments", label: "Appointments" },
-];
+import { athleteThread, unreadIn } from "../../domain/messages";
+import { useAppStore } from "../../store/AppStore";
 
 /** Single 520px column with the athlete tabs. <Outlet /> is where the current tab's screen goes. */
 export function AthleteLayout() {

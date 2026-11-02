@@ -1,18 +1,17 @@
 import { useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
 import { Badge } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
+import { ChatThread } from "../../components/Chat";
 import { ProgressBar } from "../../components/ProgressBar";
 import { useToast } from "../../components/Toast";
 import { useReturnFocus } from "../../components/useReturnFocus";
 import { availabilityLabel } from "../../domain/availability";
 import { findLog } from "../../domain/logs";
-import { athleteThread, unreadIn } from "../../domain/messages";
+import { athleteThread, messagesIn } from "../../domain/messages";
 import { isHighPain, PAIN_SCALE } from "../../domain/pain";
 import {
   listNames,
-  missedYesterday,
   REMINDER_HOUR,
   shouldShowReminder,
 } from "../../domain/reminder";
@@ -44,15 +43,10 @@ export function Today() {
   const showReminder =
     left > 0 && (state.reminderSimulated || shouldShowReminder(now, left));
   const leftNames = items.filter((i) => !i.log).map((i) => i.exercise.name);
-  // Yesterday's misses, shown until you log something today.
-  const missed =
-    done === 0
-      ? missedYesterday(me, state.logs, now).map(
-          (id) => exerciseById(state, id).name,
-        )
-      : [];
-  // Trainer messages you haven't opened yet on the Messages tab.
-  const unread = unreadIn(state.messages, athleteThread(me.id), me.id);
+  const thread = athleteThread(me.id);
+  const trainerName =
+    messagesIn(state.messages, thread).find((message) => message.from === "Trainer")
+      ?.senderName ?? "Your trainer";
 
   /** Returns true when the log saved, so the card can move keyboard focus. */
   async function markDone(
@@ -117,10 +111,10 @@ export function Today() {
           Questions, pain or anything that felt off. Your coach can&rsquo;t see
           these.
         </p>
-        <MessageBox
-          thread={athleteThread(me.id)}
-          recipient="your trainer"
-          title="Conversation"
+        <ChatThread
+          thread={thread}
+          name={trainerName}
+          detail="Only you and your trainer see this."
         />
       </Card>
 
@@ -151,6 +145,8 @@ export function Today() {
           All exercises logged for today. Your trainer can see your progress.
         </Card>
       )}
+
+      <RemindersCard />
 
       <Button
         variant="link"
