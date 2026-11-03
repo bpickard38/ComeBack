@@ -52,6 +52,14 @@ export interface ExerciseLog {
   pain?: number;
 }
 
+/** A persisted points ledger entry created by the database. */
+export interface PointEvent {
+  athleteId: string;
+  sourceType: 'exercise_log' | 'goal_reached' | 'prior';
+  sourceId: string | null;
+  points: number;
+}
+
 /** A test as one athlete's goal. id is the case_milestones row. */
 export interface MilestoneTest {
   id: string;

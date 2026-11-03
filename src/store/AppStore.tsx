@@ -13,11 +13,11 @@
 */
 import { createContext, useCallback, useContext, useEffect, useReducer, useRef, useState, type Dispatch, type ReactNode } from 'react';
 import { Button } from '../components/Button';
-import { isGoalReached, parseResultValue } from '../domain/goals';
+import { parseResultValue } from '../domain/goals';
 import { normalizeAvailability } from '../domain/availability';
 import { ALREADY_LOGGED, createLog } from '../domain/logs';
 import { athleteThread, unreadIn } from '../domain/messages';
-import { pointsFor } from '../domain/points';
+import { pointsFromEvents } from '../domain/points';
 import { rankUp, type Rank } from '../domain/rank';
 import type {
   Athlete,
@@ -61,11 +61,9 @@ export function testById(state: AppState, id: string): MilestoneTest {
 
 function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Profile, reload: () => Promise<void>) {
   /** The new rank if these changes push the athlete over a threshold, else null. */
-  function rankUpFrom(athlete: Athlete, logs: ExerciseLog[], results: TestResult[]): Rank | null {
-    const tests = testsFor(state, athlete.id);
-    const before = pointsFor(athlete, state.logs, tests, state.results).total;
-    const after = pointsFor(athlete, logs, tests, results).total;
-    return rankUp(before, after);
+  function rankUpFrom(athleteId: string, pointsEarned: number): Rank | null {
+    const before = pointsFromEvents(athleteId, state.pointEvents).total;
+    return rankUp(before, before + pointsEarned, state.ranks);
   }
 
   return {
@@ -90,7 +88,7 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       const saved = await remote.insertLog(log);
       if (!saved.ok) return { ok: false, error: `Could not save your log for ${name}. ${saved.error}` };
       dispatch({ type: 'addLog', log });
-      return { ok: true, value: { log, rankUp: rankUpFrom(athlete, [...state.logs, log], state.results) } };
+      return { ok: true, value: { log, rankUp: rankUpFrom(athleteId, 1) } };
     },
 
     async recordResult(
@@ -113,14 +111,17 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       };
       const saved = await remote.insertResult(result, profile.id);
       if (!saved.ok) return { ok: false, error: `Could not save your result. ${saved.error}` };
-      const results = [...state.results, result];
       dispatch({ type: 'addResult', result });
+      const alreadyAwarded = state.pointEvents.some(
+        (event) => event.sourceType === 'goal_reached' && event.sourceId === testId,
+      );
+      const earnsGoalPoint = parsed.value >= test.target && !alreadyAwarded;
       return {
         ok: true,
         value: {
           result,
-          newlyReached: !isGoalReached(test, state.results, athleteId) && isGoalReached(test, results, athleteId),
-          rankUp: rankUpFrom(athlete, state.logs, results),
+          newlyReached: earnsGoalPoint,
+          rankUp: rankUpFrom(athleteId, earnsGoalPoint ? 10 : 0),
         },
       };
     },

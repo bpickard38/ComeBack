@@ -29,18 +29,20 @@ export interface RankStatus {
   percentToNext: number;
 }
 
-export function rankIndex(points: number): number {
+export function rankIndex(points: number, ranks: readonly Rank[] = RANKS): number {
+  if (ranks.length === 0) return 0;
   let index = 0;
-  RANKS.forEach((r, i) => {
+  ranks.forEach((r, i) => {
     if (points >= r.minPoints) index = i;
   });
   return index;
 }
 
-export function rankStatus(points: number): RankStatus {
-  const index = rankIndex(points);
-  const rank = RANKS[index];
-  const next = RANKS[index + 1] ?? null;
+export function rankStatus(points: number, ranks: readonly Rank[] = RANKS): RankStatus {
+  const ladder = ranks.length ? ranks : RANKS;
+  const index = rankIndex(points, ladder);
+  const rank = ladder[index];
+  const next = ladder[index + 1] ?? null;
   if (!next) return { index, rank, next, pointsToNext: 0, percentToNext: 100 };
   return {
     index,
@@ -52,7 +54,8 @@ export function rankStatus(points: number): RankStatus {
 }
 
 /** The new rank if going from `before` to `after` points crosses a threshold. */
-export function rankUp(before: number, after: number): Rank | null {
-  const i = rankIndex(after);
-  return i > rankIndex(before) ? RANKS[i] : null;
+export function rankUp(before: number, after: number, ranks: readonly Rank[] = RANKS): Rank | null {
+  const ladder = ranks.length ? ranks : RANKS;
+  const i = rankIndex(after, ladder);
+  return i > rankIndex(before, ladder) ? ladder[i] : null;
 }

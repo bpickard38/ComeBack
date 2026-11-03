@@ -60,14 +60,15 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
 ### 2. Create the Supabase project (once per team)
 
 1. At supabase.com, create a new project. Any name and region. Write down the database password.
-2. Open **SQL Editor** and run these five files in order. Paste each file's contents into a new query and click Run.
+2. Open **SQL Editor** and run these six files in order. Paste each file's contents into a new query and click Run.
    1. `supabase/erd_schema.sql`: the tables, triggers, security rules and catalogs
-   2. `supabase/signup.sql`: roles, teams and join codes
-   3. `supabase/live_data.sql`: conversations and plan assignment the screens use
-   4. `supabase/multi_injury.sql`: lets an athlete have several active injuries at once
-   5. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
+   2. `supabase/trophy_ledger_sync.sql`: backfills rewards and syncs existing trophy data
+   3. `supabase/signup.sql`: roles, teams and join codes
+   4. `supabase/live_data.sql`: conversations and plan assignment the screens use
+   5. `supabase/multi_injury.sql`: lets an athlete have several active injuries at once
+   6. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
 
-   Already set up before `multi_injury.sql` existed? Run just that file, then run `supabase/push.sql` again if you use push reminders.
+   Already set up? Run `supabase/trophy_ledger_sync.sql` and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too. Re-run `supabase/push.sql` if you use push reminders.
 3. Under **Authentication > Sign In / Providers**, turn on "Allow new users to sign up". Under Email, turn off "Confirm email" unless you want people to confirm by email first.
 
 ### 3. Connect the app to your project

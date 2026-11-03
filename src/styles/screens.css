@@ -569,47 +569,108 @@
   line-height: 1;
 }
 
-/* ---------- Trophies ---------- */
-.rank-hero {
+/* ---------- Athlete rank progress ---------- */
+.trophy-page {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.trophy-hero {
+  --rank-glow: rgba(205, 127, 50, 0.2);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: clamp(22px, 5vw, 36px);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 12% 15%, var(--rank-glow), transparent 42%),
+    linear-gradient(135deg, #0e2a3b, #173c52);
+  color: var(--white);
+}
+
+.trophy-hero--silver {
+  --rank-glow: rgba(201, 211, 219, 0.22);
+}
+
+.trophy-hero--gold {
+  --rank-glow: rgba(242, 182, 50, 0.24);
+}
+
+.trophy-hero__identity {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
-.rank-hero__name {
-  font-size: 40px;
-  line-height: 1.05;
-  letter-spacing: -1px;
+.trophy-hero__title {
+  min-width: 0;
 }
 
-.eyebrow--on-dark,
-.on-dark-muted {
+.trophy-hero__eyebrow {
   color: var(--pale-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
 }
 
-.stats {
-  margin: 0;
-  padding-top: 4px;
+.trophy-hero__title h1 {
+  overflow-wrap: anywhere;
+  font-size: clamp(30px, 6vw, 44px);
+}
+
+.trophy-hero__metal {
+  margin-top: 4px;
+  color: var(--pale-blue);
+  font-weight: 700;
+}
+
+.trophy-hero__progress {
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* dt is the label and dd the number; column-reverse shows the number on top. */
-.stats div {
+.trophy-hero__progress-copy {
+  color: var(--pale-blue);
+  font-size: 14px;
+}
+
+.trophy-hero .bar--on-dark {
+  background: var(--navy-track);
+}
+
+.trophy-hero .bar--on-dark .bar__fill {
+  background: var(--pale-blue);
+}
+
+.trophy-hero__stats {
+  margin: 0;
+  padding-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid rgba(195, 218, 231, 0.32);
+}
+
+.trophy-hero__stats div {
   display: flex;
   flex-direction: column-reverse;
+  gap: 2px;
 }
 
-.stats dt {
-  font-size: 14px;
+.trophy-hero__stats dt {
   color: var(--pale-blue);
+  font-size: 13px;
 }
 
-.stats dd {
+.trophy-hero__stats dd {
   margin: 0;
+  font-size: 26px;
+  line-height: 1.1;
   font-weight: 800;
-  font-size: 28px;
 }
 
 .medal {
@@ -645,32 +706,190 @@
   color: var(--text-secondary);
 }
 
-.trophy-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+.rank-ladder {
+  min-width: 0;
+}
+
+.rank-ladder__heading {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 12px;
 }
 
-.trophy {
-  border-radius: var(--radius);
-  padding: 16px;
+.rank-ladder__heading h2 {
+  font-family: var(--font-body);
+  font-size: 18px;
+}
+
+.rank-ladder__viewport {
+  position: relative;
+  height: min(480px, 62vh);
+  min-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-block: contain;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 34px, #000 calc(100% - 34px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 34px, #000 calc(100% - 34px), transparent 100%);
+}
+
+.rank-ladder__viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.rank-track {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  padding: 28px 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  border: 1.5px dashed var(--text-secondary);
-  background: var(--ground);
+  list-style: none;
 }
 
-.trophy--earned {
-  border: 1.5px solid var(--navy);
+.rank-track__step {
+  position: relative;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 86px;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+.rank-track__step::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  bottom: 0;
+  left: 52px;
+  width: 2px;
+  background: var(--pale-blue);
+}
+
+.rank-track__step:first-child::before {
+  top: 50%;
+}
+
+.rank-track__step:last-child::before {
+  bottom: 50%;
+}
+
+.rank-track__step--reached {
+  color: var(--navy);
+}
+
+.rank-track__step:not(.rank-track__step--reached) {
+  color: var(--text-secondary);
+}
+
+.rank-track__step:not(.rank-track__step--reached) .medal {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+.rank-track__button {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 76px;
+  padding: 8px 14px;
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.rank-track__button:hover {
+  filter: none;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.rank-track__step--current .rank-track__button {
+  border-color: var(--pale-blue);
   background: var(--white);
+  box-shadow: 0 6px 20px rgba(14, 42, 59, 0.08);
+  color: var(--navy);
 }
 
-.trophy--current {
-  border-width: 3px;
+.rank-track__medal {
+  position: relative;
+  z-index: 1;
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+}
+
+.rank-track__medal .medal,
+.rank-track__medal .medal--lg {
+  width: 56px;
+  height: 56px;
+}
+
+.rank-track__medal .medal--lg svg {
+  width: 34px;
+  height: 34px;
+}
+
+.rank-track__details {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rank-track__name {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.rank-track__threshold,
+.rank-track__state {
+  font-size: 13px;
+}
+
+.rank-track__state {
+  font-weight: 700;
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rank-ladder__viewport {
+    scroll-behavior: auto;
+  }
+}
+
+@media (max-width: 400px) {
+  .trophy-hero__identity {
+    gap: 12px;
+  }
+
+  .trophy-hero__stats dt {
+    font-size: 12px;
+  }
+
+  .rank-track__button {
+    grid-template-columns: 60px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .rank-track__state {
+    grid-column: 2;
+    text-align: left;
+  }
 }
 
 /* ---------- Appointments ---------- */

@@ -470,6 +470,20 @@ create trigger test_results_award_goal
 after insert on public.test_results
 for each row execute function public.award_goal_points();
 
+-- Removing a milestone removes its one-time goal reward as well.
+create function public.remove_deleted_goal_points() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  delete from public.point_events
+  where source_type = 'goal_reached' and source_id = old.id;
+  return old;
+end;
+$$;
+
+create trigger case_milestones_remove_goal_points
+after delete on public.case_milestones
+for each row execute function public.remove_deleted_goal_points();
+
 -- Users already in Authentication before this script ran get their row now.
 insert into public.users (id, name, email)
 select id, coalesce(raw_user_meta_data ->> 'name', split_part(email, '@', 1)), email
