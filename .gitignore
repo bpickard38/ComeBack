@@ -5,3 +5,5 @@ dist
 # Supabase CLI cache (made by `supabase link`)
 supabase/.temp
 env.example
+# TypeScript build cache
+*.tsbuildinfo
