@@ -39,7 +39,12 @@ export interface RemoteData {
   /** Which database conversation each message thread is. */
   conversations: Array<{ thread: MessageThread; id: string }>;
   /** What the trainer can assign. Empty for everyone else. */
-  catalog: { injuries: CatalogItem[]; exercises: CatalogItem[] };
+  catalog: {
+    injuries: CatalogItem[];
+    exercises: CatalogItem[];
+    /** Each injury's workout set: injury id to exercise ids, in order. */
+    workoutSets: Record<string, string[]>;
+  };
 }
 
 /** RemoteData plus a few things that only live on this screen. */

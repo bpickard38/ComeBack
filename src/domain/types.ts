@@ -17,8 +17,10 @@ export interface Exercise {
   name: string;
   /** What to do, in plain words, e.g. "3 sets of 12". */
   prescription: string;
-  /** Tutorial video link. null until real videos exist; show a placeholder. */
+  /** Tutorial video link (usually YouTube). null shows a placeholder. */
   videoUrl: string | null;
+  /** One-line how-to from the exercises catalog. */
+  description?: string | null;
 }
 
 /** One active injury on an athlete. caseId is the athlete_injuries row. */

@@ -23,9 +23,16 @@ export function AssignForm({ athletes, initialAthleteId, onClose }: AssignFormPr
   const [injuryId, setInjuryId] = useState('');
   const [exerciseIds, setExerciseIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const { injuries, exercises } = state.catalog;
+  const { injuries, exercises, workoutSets } = state.catalog;
+  const workoutSet = workoutSets[injuryId] ?? [];
   // Picking an injury the athlete already has updates that plan instead of adding a second one.
   const activeNames = athletes.find((a) => a.id === athleteId)?.injuries.map((i) => i.name) ?? [];
+
+  /** Picking an injury ticks its workout set. The trainer can still change it. */
+  function pickInjury(id: string) {
+    setInjuryId(id);
+    if (workoutSets[id]?.length) setExerciseIds(workoutSets[id]);
+  }
 
   function toggleExercise(id: string) {
     setExerciseIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
@@ -60,15 +67,22 @@ export function AssignForm({ athletes, initialAthleteId, onClose }: AssignFormPr
 
       <ChipGroup legend="2. Injury" hint="(trainers only; adds to the athlete's other injuries)">
         {injuries.map((i) => (
-          <Chip key={i.id} pressed={injuryId === i.id} onClick={() => setInjuryId(i.id)}>
+          <Chip key={i.id} pressed={injuryId === i.id} onClick={() => pickInjury(i.id)}>
             {i.name}
             {activeNames.includes(i.name) && <span className="muted normal"> (active)</span>}
           </Chip>
         ))}
       </ChipGroup>
 
-      <ChipGroup legend="3. Exercises" hint="(a tutorial video is attached to each one)">
-        {exercises.map((ex) => {
+      <ChipGroup
+        legend="3. Exercises"
+        hint={
+          workoutSet.length
+            ? '(the workout set for this injury is ticked; each has a tutorial video)'
+            : '(a tutorial video is attached to each one)'
+        }
+      >
+        {orderBySet(exercises, workoutSet).map((ex) => {
           const on = exerciseIds.includes(ex.id);
           return (
             <Chip key={ex.id} pressed={on} onClick={() => toggleExercise(ex.id)}>
@@ -87,6 +101,12 @@ export function AssignForm({ athletes, initialAthleteId, onClose }: AssignFormPr
       </div>
     </form>
   );
+}
+
+/** The injury's workout set first, in its order, then everything else A to Z. */
+function orderBySet<T extends { id: string }>(items: T[], set: string[]): T[] {
+  const rank = (id: string) => (set.includes(id) ? set.indexOf(id) : set.length);
+  return [...items].sort((a, b) => rank(a.id) - rank(b.id));
 }
 
 /** A <fieldset> groups related choices so screen readers announce the group name. */

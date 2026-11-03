@@ -14,6 +14,7 @@ import {
   shouldShowReminder,
 } from "../../domain/reminder";
 import type { Exercise, ExerciseLog } from "../../domain/types";
+import { youtubeEmbedUrl } from "../../domain/video";
 import { formatCalendarDay, formatDay, formatTime, injuryLabel } from "../../format";
 import {
   exerciseById,
@@ -266,9 +267,11 @@ function ExerciseCard({
         </form>
       )}
 
+      {open && exercise.description && <p className="small">{exercise.description}</p>}
+
       {open &&
         (exercise.videoUrl ? (
-          <video className="video" src={exercise.videoUrl} controls />
+          <TutorialVideo url={exercise.videoUrl} name={exercise.name} />
         ) : (
           <div className="video">
             <svg
@@ -288,5 +291,27 @@ function ExerciseCard({
           </div>
         ))}
     </Card>
+  );
+}
+
+/** YouTube links play in YouTube's player; any other link is a plain video file. */
+function TutorialVideo({ url, name }: { url: string; name: string }) {
+  const embed = youtubeEmbedUrl(url);
+  if (!embed) return <video className="video-frame" src={url} controls aria-label={`Tutorial video: ${name}`} />;
+  return (
+    <div className="stack-xs">
+      <iframe
+        className="video-frame"
+        src={embed}
+        title={`Tutorial video: ${name}`}
+        loading="lazy"
+        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+        referrerPolicy="strict-origin-when-cross-origin"
+        allowFullScreen
+      />
+      <a className="small" href={url} target="_blank" rel="noreferrer">
+        Open on YouTube
+      </a>
+    </div>
   );
 }

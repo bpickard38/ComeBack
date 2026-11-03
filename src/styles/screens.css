@@ -500,6 +500,16 @@
   color: var(--pale-blue);
 }
 
+/* A real tutorial: YouTube player or video file, same 16:9 box. */
+.video-frame {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--navy);
+}
+
 /* ---------- Forms ---------- */
 .panel {
   border: 1.5px solid var(--navy);

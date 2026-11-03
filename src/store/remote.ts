@@ -48,7 +48,7 @@ interface PlanRow {
   reps: number | null;
   hold_seconds: number | null;
   active: boolean;
-  exercises: { name: string; video_url: string | null } | null;
+  exercises: { name: string; video_url: string | null; description: string | null } | null;
 }
 interface GoalRow {
   id: string;
@@ -86,18 +86,25 @@ export function prescriptionText(sets: number | null, reps: number | null, hold:
   return parts.join(', ');
 }
 
+/** injury_exercises rows (already in order) to injury id -> exercise ids. */
+export function groupWorkoutSets(list: Array<{ injury_id: string; exercise_id: string }>): Record<string, string[]> {
+  const sets: Record<string, string[]> = {};
+  for (const row of list) (sets[row.injury_id] ??= []).push(row.exercise_id);
+  return sets;
+}
+
 const SENDER_LABEL = { athlete: 'Athlete', trainer: 'Trainer', coach: 'Coach' } as const;
 
 export async function loadAll(profile: Profile): Promise<RemoteData> {
   const isTrainer = profile.role === 'trainer';
   const none = Promise.resolve({ data: [], error: null });
 
-  const [members, users, cases, plans, logs, goals, results, appointments, pointEvents, ranks, conversations, messages, injuries, exerciseCatalog] =
+  const [members, users, cases, plans, logs, goals, results, appointments, pointEvents, ranks, conversations, messages, injuries, exerciseCatalog, injurySets] =
     await Promise.all([
       supabase.from('team_members').select('user_id, role, availability, expected_return, teams(name, sport)'),
       supabase.from('users').select('id, name, role'),
       supabase.from('athlete_injuries').select('id, athlete_id, status, start_date, injuries(name)'),
-      supabase.from('plan_exercises').select('id, athlete_injury_id, sets, reps, hold_seconds, active, exercises(name, video_url)'),
+      supabase.from('plan_exercises').select('id, athlete_injury_id, sets, reps, hold_seconds, active, exercises(name, video_url, description)'),
       supabase.from('exercise_logs').select('athlete_id, plan_exercise_id, logged_at, pain'),
       supabase.from('case_milestones').select('id, athlete_injury_id, baseline, target, milestone_tests(name, description, unit)'),
       supabase.from('test_results').select('case_milestone_id, value, recorded_at, source'),
@@ -111,6 +118,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       supabase.from('messages').select('id, conversation_id, sender_id, body, sent_at, read_at').order('sent_at'),
       isTrainer ? supabase.from('injuries').select('id, name').order('name') : none,
       isTrainer ? supabase.from('exercises').select('id, name').order('name') : none,
+      isTrainer ? supabase.from('injury_exercises').select('injury_id, exercise_id').order('position') : none,
     ]);
 
   const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL }>(users);
@@ -133,6 +141,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     name: p.exercises?.name ?? 'Exercise',
     prescription: prescriptionText(p.sets, p.reps, p.hold_seconds),
     videoUrl: p.exercises?.video_url ?? null,
+    description: p.exercises?.description ?? null,
   }));
 
   const pointEventList: PointEvent[] = rows<{
@@ -255,6 +264,11 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     catalog: {
       injuries: rows<{ id: string; name: string }>(injuries),
       exercises: rows<{ id: string; name: string }>(exerciseCatalog),
+      // Before supabase/workout_sets.sql is run the table doesn't exist; the
+      // form still works, it just doesn't pre-tick a set.
+      workoutSets: injurySets.error
+        ? {}
+        : groupWorkoutSets(rows<{ injury_id: string; exercise_id: string }>(injurySets)),
     },
   };
 }

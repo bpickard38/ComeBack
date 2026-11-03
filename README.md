@@ -60,15 +60,16 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
 ### 2. Create the Supabase project (once per team)
 
 1. At supabase.com, create a new project. Any name and region. Write down the database password.
-2. Open **SQL Editor** and run these six files in order. Paste each file's contents into a new query and click Run.
+2. Open **SQL Editor** and run these seven files in order. Paste each file's contents into a new query and click Run.
    1. `supabase/erd_schema.sql`: the tables, triggers, security rules and catalogs
    2. `supabase/trophy_ledger_sync.sql`: backfills rewards and syncs existing trophy data
    3. `supabase/signup.sql`: roles, teams and join codes
    4. `supabase/live_data.sql`: conversations and plan assignment the screens use
    5. `supabase/multi_injury.sql`: lets an athlete have several active injuries at once
-   6. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
+   6. `supabase/workout_sets.sql`: tutorial videos for every exercise and a workout set per injury
+   7. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
 
-   Already set up? Run `supabase/trophy_ledger_sync.sql` and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too. Re-run `supabase/push.sql` if you use push reminders.
+   Already set up? Run `supabase/trophy_ledger_sync.sql` and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too, then `workout_sets.sql`. Re-run `supabase/push.sql` if you use push reminders.
 3. Under **Authentication > Sign In / Providers**, turn on "Allow new users to sign up". Under Email, turn off "Confirm email" unless you want people to confirm by email first.
 
 ### 3. Connect the app to your project
@@ -178,6 +179,20 @@ What each piece is:
 Without `VITE_VAPID_PUBLIC_KEY` the Reminders card is hidden, so the app works the same without push.
 
 **For demos:** the demo bar's "Preview push reminder" shows the 6 PM notification right away on that device (reminders must be on), so you don't have to wait for 6 PM. To check on the real thing, the queries at the bottom of `push_schedule.sql` show recent runs and what was sent.
+
+## Workout sets and tutorial videos
+
+Each injury in the catalog has a starting workout set (`injury_exercises`). On **Assign**, picking an injury ticks its set; the trainer can add or remove exercises before saving, and new plan exercises start with the set's sets/reps/hold. On **Today**, "Watch tutorial" plays a short how-to video (YouTube's privacy-enhanced player) with a one-line description.
+
+| Injury | Workout set |
+|---|---|
+| Ankle sprain | Ankle alphabet · Double-leg calf raise (3×15) · Banded ankle eversion (3×15) · Single-leg balance (3×30 sec) |
+| ACL reconstruction | Quad sets (3×10, 5 sec hold) · Heel slides (3×10) · Straight leg raise (3×10) · Mini squat (3×10) |
+| Hamstring strain | Glute bridge (3×12) · Bird dog (3×10) · Slider hamstring curl (3×8) · Single-leg Romanian deadlift (3×8) |
+| Shoulder impingement | Scapular squeeze (3×10, 5 sec hold) · Band external rotation (3×15) · Wall slide (3×10) · Prone Y raise (3×10) |
+| Patellar tendinopathy | Spanish squat (5×45 sec) · Eccentric step-down (3×10) · Glute bridge (3×12) · Single-leg balance (3×30 sec) |
+
+Videos are public YouTube clips, 20 to 60 seconds, from physical therapists and clinics (Harvard Health Publishing, Ask Doctor Jo, Baptist Health, Michigan Medicine, MGH Orthopaedics, Hinge Health, NASM, British Elbow & Shoulder Society, E3 Rehab, Rehab My Patient and others). Links are in `supabase/workout_sets.sql`; to swap one, update `exercises.video_url` in Supabase. Sets and prescriptions are sample starting points for a class project, not medical advice.
 
 ## Where things live
 
