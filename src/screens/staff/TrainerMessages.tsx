@@ -65,8 +65,7 @@ export function TrainerMessages() {
             <ChatThread key={open.thread} thread={open.thread} name={open.name} detail={open.detail} onBack={() => setParams({})} />
           ) : (
             <section className="card dm__placeholder">
-              <h2>Your messages</h2>
-              <p className="muted">Pick a conversation to read it or send a message.</p>
+              <p className="muted">Choose a conversation.</p>
             </section>
           )}
         </div>

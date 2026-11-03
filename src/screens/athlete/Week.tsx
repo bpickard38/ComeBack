@@ -35,7 +35,7 @@ export function Week() {
             : `${exercises.length} ${exercises.length === 1 ? 'exercise' : 'exercises'} to work through each day.`}
         </p>
         {expectedCount > 0 && (
-          <div className="stack-sm" aria-label={`${doneCount} of ${expectedCount} exercises logged so far this week`}>
+          <div className="stack-sm">
             <div className="spread strong">
               <span>{doneCount} logged so far</span>
               <span>{percent}%</span>
@@ -83,7 +83,7 @@ export function Week() {
                   ))}
                 </ul>
                 {isToday && (
-                  <Link className="week-day__link" to="/athlete" aria-label="Open today’s exercises to log your work">
+                  <Link className="btn btn--secondary week-day__link" to="/athlete" aria-label="Open today’s exercises to log your work">
                     Open today&rsquo;s exercises <span aria-hidden="true">→</span>
                   </Link>
                 )}

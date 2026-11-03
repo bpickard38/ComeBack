@@ -19,7 +19,6 @@ export function Appointments() {
     <>
       <Card>
         <h1>Appointments</h1>
-        <p className="muted">What to work on before each visit.</p>
       </Card>
 
       {upcoming.length === 0 && (

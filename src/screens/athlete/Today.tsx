@@ -128,18 +128,6 @@ export function Today() {
 
       <RemindersCard />
 
-      <Button
-        variant="link"
-        className="align-center"
-        onClick={() =>
-          notify(
-            "Only your trainer can change your plan, injury or records.",
-            "error",
-          )
-        }
-      >
-        Edit my plan
-      </Button>
     </>
   );
 }
@@ -203,8 +191,7 @@ function ExerciseCard({
       <div className="row">
         <Button aria-expanded={open} onClick={onToggle}>
           <svg
-            width="16"
-            height="16"
+            className="icon icon--sm"
             viewBox="0 0 24 24"
             fill="currentColor"
             aria-hidden="true"
@@ -248,7 +235,9 @@ function ExerciseCard({
                     onChange={() => setPain(n)}
                     autoFocus={i === 0}
                   />
-                  <span>{n}</span>
+                  <span>
+                    {n}
+                  </span>
                 </label>
               ))}
             </div>
@@ -273,21 +262,8 @@ function ExerciseCard({
         (exercise.videoUrl ? (
           <TutorialVideo url={exercise.videoUrl} name={exercise.name} />
         ) : (
-          <div className="video">
-            <svg
-              width="44"
-              height="44"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M10 8l6 4-6 4z" fill="currentColor" />
-            </svg>
-            <div className="strong">Tutorial video: {exercise.name}</div>
-            <div className="small">[VIDEO ATTACHED BY TRAINER]</div>
+          <div className="video" role="status">
+            <div className="strong">Tutorial video unavailable</div>
           </div>
         ))}
     </Card>
@@ -309,7 +285,7 @@ function TutorialVideo({ url, name }: { url: string; name: string }) {
         referrerPolicy="strict-origin-when-cross-origin"
         allowFullScreen
       />
-      <a className="small" href={url} target="_blank" rel="noreferrer">
+      <a className="btn btn--secondary align-start" href={url} target="_blank" rel="noreferrer">
         Open on YouTube
       </a>
     </div>

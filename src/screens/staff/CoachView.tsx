@@ -25,7 +25,7 @@ export function CoachView() {
       <div className="stack-xs">
         <div className="eyebrow">{formatDay(new Date())}</div>
         <h1>Team availability</h1>
-        <p className="muted">Coach view. Shows who can play and when. Injury details stay with the trainer.</p>
+        <p className="muted">Injury details stay with the trainer.</p>
       </div>
 
       <div className="staff-grid">

@@ -1,12 +1,12 @@
 import type { ComponentProps } from 'react';
 
 interface ButtonProps extends ComponentProps<'button'> {
-  /** primary = filled navy, secondary = white with navy border, link = underlined text */
-  variant?: 'primary' | 'secondary' | 'link';
+  /** Primary uses the accent; secondary uses a raised surface. */
+  variant?: 'primary' | 'secondary';
 }
 
 /**
- * A real <button> with the app's styling and a 44px touch target.
+ * A real <button> with the shared styling and a 48px minimum touch target.
  * `...rest` passes along anything else you give it (onClick, aria-pressed,
  * ref, ...). ComponentProps<'button'> means "every prop a <button> accepts".
  */

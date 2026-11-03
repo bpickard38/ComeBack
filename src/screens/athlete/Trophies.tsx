@@ -82,7 +82,7 @@ export function Trophies() {
           <h2 id="rank-ladder-title">Rank ladder</h2>
           <span className="small muted">Rank {status.index + 1} of {ranks.length}</span>
         </div>
-        <div className="rank-ladder__viewport" ref={trackRef} aria-label="Scrollable rank ladder">
+        <div className="rank-ladder__viewport" ref={trackRef}>
           <ol className="rank-track" aria-label="Ranks and point thresholds">
             {ranks.map((item, index) => {
               const achieved = index < status.index;

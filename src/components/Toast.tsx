@@ -64,9 +64,14 @@ export function useToast(): ToastValue {
 export function ToastRegion() {
   const { toast, dismiss } = useToast();
   return (
-    <div className="toast-region" role="status" aria-live="polite">
+    <div
+      className="toast-region"
+      role={toast?.kind === 'error' ? 'alert' : 'status'}
+      aria-live={toast?.kind === 'error' ? 'assertive' : 'polite'}
+      aria-atomic="true"
+    >
       {toast && (
-        <div key={toast.id} className={toast.kind === 'error' ? 'toast toast--error' : 'toast'}>
+        <div key={toast.id} className={toast.kind === 'error' ? 'toast toast--error' : 'toast toast--success'}>
           <span className="toast__text">{toast.text}</span>
           <button type="button" className="toast__close" aria-label="Dismiss message" onClick={dismiss}>
             &times;

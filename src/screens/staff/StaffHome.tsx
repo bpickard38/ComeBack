@@ -31,7 +31,6 @@ function TrainerView() {
         <div className="stack-xs">
           <div className="eyebrow">{formatDay(new Date())}</div>
           <h1>Roster</h1>
-          <p className="muted">Trainer view. You can assign injuries and exercises.</p>
         </div>
         {!assigning && (
           <Button ref={assignButtonRef} variant="primary" onClick={() => setAssigning(true)}>

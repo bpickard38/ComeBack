@@ -39,7 +39,7 @@ export function App() {
     <div className="app">
       <Header />
       <ToastRegion />
-      <main className="main">
+      <main id="main-content" className="main" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<RoleHome />} />
           {/* Nested routes: AthleteLayout draws the tabs, the child fills the rest. */}

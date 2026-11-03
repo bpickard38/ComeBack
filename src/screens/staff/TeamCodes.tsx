@@ -64,7 +64,7 @@ export function TeamCodes() {
     <section className="card" aria-labelledby="team-codes-title">
       <h2 id="team-codes-title">Join codes</h2>
       <p className="muted">
-        Share these so people can join your team after they create an account. Each code only works for its role.
+        Share the matching code after someone creates an account.
       </p>
       {codes.map((c) => (
         <div key={c.teamId} className="panel">
@@ -91,7 +91,7 @@ export function TeamCodes() {
             </div>
           ) : (
             <div>
-              <Button variant="link" onClick={() => setConfirming(c.teamId)}>
+              <Button variant="secondary" onClick={() => setConfirming(c.teamId)}>
                 Make new codes
               </Button>
             </div>

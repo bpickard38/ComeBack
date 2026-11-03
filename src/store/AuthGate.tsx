@@ -59,11 +59,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [userId, attempt]);
 
   if (userId === null) return <SignIn />;
-  if (userId === undefined || loaded?.userId !== userId) return <p className="gate-status">Loading…</p>;
+  if (userId === undefined || loaded?.userId !== userId) {
+    return <p className="gate-status" role="status" aria-live="polite">Loading…</p>;
+  }
 
   if ('error' in loaded) {
     return (
-      <div className="gate-status">
+      <div className="gate-status" role="alert">
         <p>{loaded.error}</p>
         <div className="row">
           <Button variant="primary" onClick={reload}>

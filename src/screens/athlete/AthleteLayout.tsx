@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { TabBar } from "../../components/TabBar";
+import { TabBar, type Tab } from "../../components/TabBar";
 import { athleteThread, unreadIn } from "../../domain/messages";
 import { useAppStore } from "../../store/AppStore";
 
@@ -11,16 +11,13 @@ export function AthleteLayout() {
     athleteThread(profile.id),
     profile.id,
   );
-  const tabs = [
-    { to: "/athlete", label: "Today" },
-    { to: "/athlete/week", label: "Week" },
-    { to: "/athlete/goals", label: "Progress" },
-    { to: "/athlete/trophies", label: "Trophies" },
-    { to: "/athlete/appointments", label: "Appointments" },
-    {
-      to: "/athlete/messages",
-      label: unread > 0 ? `Messages (${unread} new)` : "Messages",
-    },
+  const tabs: Tab[] = [
+    { to: "/athlete", label: "Today", icon: "today" },
+    { to: "/athlete/week", label: "Week", icon: "week" },
+    { to: "/athlete/goals", label: "Progress", icon: "progress" },
+    { to: "/athlete/trophies", label: "Trophies", icon: "trophies" },
+    { to: "/athlete/appointments", label: "Appointments", icon: "appointments" },
+    { to: "/athlete/messages", label: "Messages", icon: "messages", unreadCount: unread },
   ];
 
   return (

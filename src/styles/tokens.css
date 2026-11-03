@@ -1,42 +1,186 @@
 /*
-  Design tokens: every color, font and size the app uses, in one place.
-  Components refer to these with var(--name), so changing a value here
-  restyles the whole app.
+  Shared design system. Components use semantic tokens; primitive values stay here.
+  Dark is the default. Light mode follows the user's operating-system preference.
+  Layout breakpoints: 30rem for narrow screens, 48rem for inbox layout, 60rem for the desktop sidebar.
 */
 :root {
-  /* Colors */
-  --navy: #0e2a3b;
-  --pale-blue: #c3dae7;
-  --ground: #eaf1f6;
-  --text-secondary: #3f5868;
-  --white: #ffffff;
-  --navy-track: #2b4b5f; /* progress bar track on navy cards */
-  --accent: #0b63ce; /* unread dot and Send in messages */
+  color-scheme: dark;
 
-  --warn: #b4490f;
-  --warn-text: #8a3607;
-  --warn-text-strong: #6b2a05;
-  --warn-bg: #fff1e6;
+  /* Primitive neutral palette */
+  --neutral-950: #101418;
+  --neutral-900: #181e24;
+  --neutral-850: #202830;
+  --neutral-800: #29333d;
+  --neutral-600: #6a7783;
+  --neutral-400: #a8b2bc;
+  --neutral-100: #f2f5f7;
 
-  --bronze: #cd7f32;
-  --silver: #c9d3db;
-  --gold: #f2b632;
+  /* Semantic colors: dark theme */
+  --page-bg: var(--neutral-950);
+  --surface: var(--neutral-900);
+  --surface-raised: var(--neutral-850);
+  --surface-high: var(--neutral-800);
+  --text: var(--neutral-100);
+  --text-muted: var(--neutral-400);
+  --border: var(--neutral-600);
+  --border-subtle: var(--border);
+  --accent: #f5d547;
+  --accent-hover: #ffe36a;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --on-accent: #171a1e;
+  --link: var(--accent);
+  --focus-ring: var(--accent);
+  --text-on-inverse: var(--neutral-950);
+  --surface-inverse: var(--neutral-100);
 
-  /* Fonts */
-  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
-  --font-body: Figtree, system-ui, sans-serif;
+  /* Status colors always carry text or an icon as well */
+  --danger: #ff827c;
+  --danger-bg: #351d20;
+  --warning: #f3bf75;
+  --warning-bg: #332719;
+  --success: #79d7a3;
+  --success-bg: #1a3026;
+  --info: #8fc5ff;
+  --info-bg: #1c2b3b;
 
-  /* Sizes */
-  --tap: 44px; /* minimum touch target */
-  --radius: 12px;
-  --radius-sm: 8px;
-  --width-athlete: 520px;
-  --width-staff: 1100px;
-  --gutter: 24px;
+  /* Achievement colors */
+  --metal-bronze: #d69560;
+  --metal-silver: #c6d0d9;
+  --metal-gold: #f5d547;
+  --duration-reduced: 0.01ms;
+
+  /* Typography */
+  --font-family: 'Figtree', system-ui, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+  --font-size-4xl: 2.5rem;
+  --font-size-5xl: 3.5rem;
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-body: 1.5;
+  --line-heading: 1.2;
+  --tracking-tight: -0.025em;
+  --tracking-brand: -0.03em;
+  --tracking-code: 0.08em;
+  --tracking-label: 0.04em;
+  --text-underline-offset: 0.1875rem;
+  --type-page-title: clamp(var(--font-size-2xl), 1.25rem + 1.5vw, var(--font-size-4xl));
+  --type-display: clamp(var(--font-size-3xl), 1.5rem + 3vw, var(--font-size-5xl));
+
+  /* Spacing scale: multiples of 0.25rem */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --gutter: clamp(var(--space-4), 3vw, var(--space-8));
+
+  /* Shape, control, and layout sizes */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-pill: 999px;
+  --target-min: 3rem;
+  --focus-width: 0.25rem;
+  --icon-size-sm: 1rem;
+  --icon-size-md: 1.5rem;
+  --icon-size-lg: 3rem;
+  --icon-size-xl: 2.5rem;
+  --icon-stroke: 0.125rem;
+  --content-max: 96rem;
+  --athlete-content-max: 78rem;
+  --staff-content-max: 78rem;
+  --nav-width: 13rem;
+  --chat-log-height: 60vh;
+  --chat-log-min-height: 17.5rem;
+  --chat-log-max-height: 40rem;
+  --chat-bubble-max: 26.25rem;
+  --rank-ladder-height: 62vh;
+  --rank-ladder-min-height: 17.5rem;
+  --rank-row-min-height: 5.5rem;
+  --avatar-size: 3rem;
+  --avatar-size-sm: 2rem;
+  --avatar-size-lg: 4.5rem;
+  --rank-medal-size: 3.5rem;
+  --medal-size: 3rem;
+  --medal-size-lg: 4.5rem;
+  --progress-height: 0.5rem;
+  --progress-height-lg: 0.75rem;
+  --table-first-column: 8.75rem;
+  --field-date-max: 13.75rem;
+  --text-muted-inverse: #c1c9d0;
+  --track-inverse: #6a7783;
+  --medal-border: color-mix(in srgb, var(--text) 25%, transparent);
+  --viewport-min: 20rem;
+  --column-max: 44rem;
+  --toast-max: 44rem;
+  --sign-in-max: 36rem;
+  --sign-in-margin: clamp(var(--space-8), 8vh, var(--space-16));
+  --gate-min-height: 40vh;
+  --chat-input-max-height: 9rem;
+  --dm-list-min: 17rem;
+  --dm-list-max: 23rem;
+  --dm-placeholder-min-height: 23rem;
+  --field-area-min-height: 7rem;
+  --rank-ladder-max-height: 30rem;
+  --staff-grid-column-min: 26rem;
+  --week-status-max: 8rem;
+  --trophy-padding: clamp(var(--space-5), 5vw, var(--space-8));
+  --measure: 70ch;
+
+  /* Motion and depth */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --shadow-card: 0 0.125rem 0.25rem #00000045, 0 0.75rem 1.5rem #00000024;
+  --shadow-raised: 0 0.25rem 0.5rem #00000055, 0 1rem 2.5rem #00000025;
 }
 
-@media (max-width: 480px) {
+@media (prefers-color-scheme: light) {
   :root {
-    --gutter: 16px;
+    color-scheme: light;
+    --page-bg: #f3f6fa;
+    --surface: #ffffff;
+    --surface-raised: #e9eff6;
+    --surface-high: #dce6f0;
+    --text: #17212b;
+    --text-muted: #485764;
+    --border: #6b7885;
+    --border-subtle: var(--border);
+    --accent: #075dbb;
+    --accent-hover: #034b99;
+    --accent-soft: color-mix(in srgb, var(--accent) 11%, transparent);
+    --on-accent: #ffffff;
+    --link: #0755a6;
+    --focus-ring: #064fa0;
+    --text-on-inverse: #ffffff;
+    --surface-inverse: #17212b;
+    --text-muted-inverse: #c1c9d0;
+    --track-inverse: #586571;
+    --danger: #a82320;
+    --danger-bg: #fff0ef;
+    --warning: #7b4300;
+    --warning-bg: #fff4df;
+    --success: #17633e;
+    --success-bg: #e8f6ee;
+    --info: #174f87;
+    --info-bg: #e9f2fc;
+    --metal-bronze: #9a4f1d;
+    --metal-silver: #687582;
+    --metal-gold: #815b00;
+    --shadow-card: 0 0.125rem 0.25rem #17212b18, 0 0.75rem 1.5rem #17212b0c;
+    --shadow-raised: 0 0.25rem 0.5rem #17212b20, 0 1rem 2.5rem #17212b12;
   }
 }

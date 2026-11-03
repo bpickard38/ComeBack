@@ -103,8 +103,7 @@ export function SignIn() {
   return (
     <main className="main">
       <form className="column card sign-in" onSubmit={submit} noValidate>
-        <h1>Comeback</h1>
-        <p className="muted">{signingUp ? 'Create your account.' : 'Sign in to continue.'}</p>
+        <h1>{signingUp ? 'Create your account' : 'Sign in'}</h1>
 
         {signingUp && (
           <>
@@ -115,6 +114,7 @@ export function SignIn() {
               id="sign-in-name"
               className="field"
               autoComplete="name"
+              required
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -129,6 +129,7 @@ export function SignIn() {
           className="field"
           type="email"
           autoComplete="email"
+          required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -140,6 +141,7 @@ export function SignIn() {
           className="field"
           type="password"
           autoComplete={signingUp ? 'new-password' : 'current-password'}
+          required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
@@ -158,7 +160,9 @@ export function SignIn() {
                     checked={role === r.role}
                     onChange={() => setRole(r.role)}
                   />
-                  <span>{r.label}</span>
+                  <span>
+                    {r.label}
+                  </span>
                 </label>
               ))}
             </div>
@@ -166,26 +170,26 @@ export function SignIn() {
         )}
 
         {error && (
-          <p className="sign-in__error" role="alert">
+          <p id="sign-in-error" className="sign-in__error" role="alert">
             {error}
           </p>
         )}
         {notice && (
-          <p className="sign-in__notice" role="status">
+          <p id="sign-in-notice" className="sign-in__notice" role="status">
             {notice}
           </p>
         )}
 
         <Button type="submit" variant="primary" disabled={busy}>
-          {busy ? 'One moment…' : signingUp ? 'Create account' : 'Sign in'}
+          {busy ? signingUp ? 'Creating account…' : 'Signing in…' : signingUp ? 'Create account' : 'Sign in'}
         </Button>
-        <Button variant="link" onClick={switchMode}>
-          {signingUp ? 'I already have an account' : 'New here? Create an account'}
+        <Button variant="secondary" onClick={switchMode}>
+          {signingUp ? 'I already have an account' : 'Create an account'}
         </Button>
 
         {!signingUp && (
           <div className="stack-sm">
-            <h2 className="label">Try a demo</h2>
+            <h2 className="title">Try a demo</h2>
             {DEMO_ACCOUNTS.map((d) => (
               <Button key={d.email} disabled={busy} onClick={() => signInDemo(d.email)}>
                 {d.label}

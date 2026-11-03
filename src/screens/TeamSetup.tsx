@@ -45,16 +45,16 @@ export function TeamSetup({ profile, onJoined }: TeamSetupProps) {
   return (
     <main className="main">
       <form className="column card sign-in" onSubmit={submit} noValidate>
-        <h1>Hi, {profile.name}</h1>
+        <h1>{isTrainer ? 'Create your team' : 'Join your team'}</h1>
         {isTrainer ? (
           <>
             <p className="muted">
-              Create your team. You'll get one join code for athletes and one for coaches to share with them.
+              Create a team to get separate join codes for athletes and coaches.
             </p>
             <label htmlFor="team-name" className="strong">
               Team name
             </label>
-            <input id="team-name" className="field" value={teamName} onChange={(e) => setTeamName(e.target.value)} />
+            <input id="team-name" className="field" value={teamName} onChange={(e) => setTeamName(e.target.value)} required />
             <label htmlFor="team-sport" className="strong">
               Sport <span className="normal muted">(optional)</span>
             </label>
@@ -67,7 +67,7 @@ export function TeamSetup({ profile, onJoined }: TeamSetupProps) {
         ) : (
           <>
             <p className="muted">
-              Enter the {who} join code from your athletic trainer to join your team.
+              Get the {who} join code from your athletic trainer.
             </p>
             <label htmlFor="join-code" className="strong">
               Join code
@@ -75,6 +75,7 @@ export function TeamSetup({ profile, onJoined }: TeamSetupProps) {
             <input
               id="join-code"
               className="field join-code"
+              required
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}
@@ -90,9 +91,9 @@ export function TeamSetup({ profile, onJoined }: TeamSetupProps) {
           </p>
         )}
         <Button type="submit" variant="primary" disabled={busy}>
-          {busy ? 'One moment…' : isTrainer ? 'Create team' : 'Join team'}
+          {busy ? isTrainer ? 'Creating team…' : 'Joining team…' : isTrainer ? 'Create team' : 'Join team'}
         </Button>
-        <Button variant="link" onClick={() => supabase.auth.signOut()}>
+        <Button variant="secondary" onClick={() => supabase.auth.signOut()}>
           Sign out
         </Button>
       </form>

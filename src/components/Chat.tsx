@@ -97,7 +97,7 @@ export function ChatThread({ thread, name, detail, onBack }: ChatThreadProps) {
           <div className="chat__empty">
             <Avatar name={name} size="lg" />
             <span className="strong">{name}</span>
-            <span className="small muted">No messages yet. Say hello.</span>
+            <span className="small muted">No messages yet.</span>
           </div>
         ) : (
           items.map(({ message: m, showTime, firstInGroup, lastInGroup }) => {

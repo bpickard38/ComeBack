@@ -86,7 +86,6 @@ export function AssignForm({ athletes, initialAthleteId, onClose }: AssignFormPr
           const on = exerciseIds.includes(ex.id);
           return (
             <Chip key={ex.id} pressed={on} onClick={() => toggleExercise(ex.id)}>
-              {on && <span aria-hidden="true">&#10003; </span>}
               {ex.name}
             </Chip>
           );

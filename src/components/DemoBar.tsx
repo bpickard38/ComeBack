@@ -19,49 +19,52 @@ export function DemoBar() {
     const left = (me?.assignedExerciseIds ?? [])
       .filter((id) => !findLog(state.logs, profile.id, id, now))
       .map((id) => exerciseById(state, id).name);
-    if (left.length === 0) return ['All done today', 'Nothing left to log. This is what a reminder looks like.'];
+    if (left.length === 0) return ['All done today', 'You finished today’s exercises.'];
     return [
       `${left.length} ${left.length === 1 ? 'exercise' : 'exercises'} left today`,
-      `${listNames(left)}. A few minutes now keeps your streak going.`,
+      `${listNames(left)}. Log them today to keep your streak going.`,
     ];
   }
 
   return (
     <footer className="demo-bar">
-      <span className="demo-bar__label">Prototype controls</span>
-      {state.role === 'athlete' && (
-        <Button
-          onClick={() => {
-            commands.simulateReminder();
-            dismiss();
-            navigate('/athlete');
-          }}
-        >
-          Simulate end-of-day reminder
-        </Button>
-      )}
-      {state.role === 'athlete' && (
-        <Button
-          onClick={async () => {
-            const result = await previewReminder(...eveningPush());
-            if (!result.ok) notify(result.error, 'error');
-          }}
-        >
-          Preview push reminder
-        </Button>
-      )}
-      <Button aria-pressed={state.offline} onClick={commands.toggleOffline}>
-        {state.offline ? 'Connection: offline' : 'Connection: online'}
-      </Button>
-      {/* Data also refreshes every 30 seconds; this is for showing a change right away. */}
-      <Button
-        onClick={async () => {
-          await commands.reload();
-          notify('Up to date.');
-        }}
-      >
-        Refresh data
-      </Button>
+      <details className="demo-panel">
+        <summary>Preview tools</summary>
+        <div className="demo-panel__controls">
+          {state.role === 'athlete' && (
+            <Button
+              onClick={() => {
+                commands.simulateReminder();
+                dismiss();
+                navigate('/athlete');
+              }}
+            >
+              Simulate end-of-day reminder
+            </Button>
+          )}
+          {state.role === 'athlete' && (
+            <Button
+              onClick={async () => {
+                const result = await previewReminder(...eveningPush());
+                if (!result.ok) notify(result.error, 'error');
+              }}
+            >
+              Preview push reminder
+            </Button>
+          )}
+          <Button aria-pressed={state.offline} onClick={commands.toggleOffline}>
+            {state.offline ? 'Connection: offline' : 'Connection: online'}
+          </Button>
+          <Button
+            onClick={async () => {
+              await commands.reload();
+              notify('Up to date.');
+            }}
+          >
+            Refresh data
+          </Button>
+        </div>
+      </details>
     </footer>
   );
 }

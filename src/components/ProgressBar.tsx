@@ -1,7 +1,7 @@
 interface ProgressBarProps {
   percent: number;
   size?: 'md' | 'lg';
-  /** Lighter colors for use on the navy rank card. */
+  /** Alternate track styling for use on a raised feature surface. */
   onDark?: boolean;
 }
 

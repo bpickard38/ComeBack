@@ -257,14 +257,14 @@ export function AppStoreProvider({ profile, children }: { profile: Profile; chil
 
   if (!state) {
     return loadError ? (
-      <div className="gate-status">
+      <div className="gate-status" role="alert">
         <p>{loadError}</p>
         <Button variant="primary" onClick={reload}>
           Try again
         </Button>
       </div>
     ) : (
-      <p className="gate-status">Loading…</p>
+      <p className="gate-status" role="status" aria-live="polite">Loading…</p>
     );
   }
 

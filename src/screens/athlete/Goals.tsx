@@ -23,8 +23,7 @@ export function Goals() {
       <Card>
         <h1>Your goals</h1>
         <p className="muted">
-          Your trainer set one goal per test. Reach all of them to be cleared for healthy status. Each goal you reach
-          is worth {POINTS_PER_GOAL} points toward your rank and unlocks trophies.
+          Reach every goal to return to healthy status. Each goal earns {POINTS_PER_GOAL} points and unlocks a trophy.
         </p>
         <div className="stack-sm">
           <div className="spread strong">
