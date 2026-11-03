@@ -10,9 +10,9 @@ export interface Tab {
  * browser back button works. NavLink marks the current one with
  * aria-current="page", which the CSS uses for the filled style.
  */
-export function TabBar({ tabs, label }: { tabs: Tab[]; label: string }) {
+export function TabBar({ tabs, label, className = '' }: { tabs: Tab[]; label: string; className?: string }) {
   return (
-    <nav className="tabs" aria-label={label}>
+    <nav className={`tabs ${className}`.trim()} aria-label={label}>
       {tabs.map((t) => (
         // `end` stops "/athlete" from also counting as active on "/athlete/goals".
         <NavLink key={t.to} to={t.to} end className="tabs__tab">

@@ -6,7 +6,7 @@ import { exerciseById, useAppStore } from '../store/AppStore';
 import { Button } from './Button';
 import { useToast } from './Toast';
 
-/** Pale blue strip of demo-only controls. Not part of the real product. */
+/** Demo-only controls, kept at the bottom of the dashboard. */
 export function DemoBar() {
   const { state, commands, profile } = useAppStore();
   const { dismiss, notify } = useToast();
@@ -27,7 +27,7 @@ export function DemoBar() {
   }
 
   return (
-    <div className="demo-bar">
+    <footer className="demo-bar">
       <span className="demo-bar__label">Prototype controls</span>
       {state.role === 'athlete' && (
         <Button
@@ -62,6 +62,6 @@ export function DemoBar() {
       >
         Refresh data
       </Button>
-    </div>
+    </footer>
   );
 }

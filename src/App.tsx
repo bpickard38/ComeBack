@@ -38,7 +38,6 @@ export function App() {
   return (
     <div className="app">
       <Header />
-      <DemoBar />
       <ToastRegion />
       <main className="main">
         <Routes>
@@ -81,6 +80,7 @@ export function App() {
           <Route path="*" element={<RoleHome />} />
         </Routes>
       </main>
+      <DemoBar />
     </div>
   );
 }

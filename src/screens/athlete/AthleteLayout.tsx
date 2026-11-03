@@ -3,7 +3,7 @@ import { TabBar } from "../../components/TabBar";
 import { athleteThread, unreadIn } from "../../domain/messages";
 import { useAppStore } from "../../store/AppStore";
 
-/** Single 520px column with the athlete tabs. <Outlet /> is where the current tab's screen goes. */
+/** Athlete navigation and the active screen. */
 export function AthleteLayout() {
   const { state, profile } = useAppStore();
   const unread = unreadIn(
@@ -13,6 +13,7 @@ export function AthleteLayout() {
   );
   const tabs = [
     { to: "/athlete", label: "Today" },
+    { to: "/athlete/week", label: "Week" },
     { to: "/athlete/goals", label: "Progress" },
     { to: "/athlete/trophies", label: "Trophies" },
     { to: "/athlete/appointments", label: "Appointments" },
@@ -23,9 +24,13 @@ export function AthleteLayout() {
   ];
 
   return (
-    <div className="column">
-      <TabBar tabs={tabs} label="Athlete sections" />
-      <Outlet />
+    <div className="athlete-layout">
+      <aside className="athlete-layout__sidebar">
+        <TabBar tabs={tabs} label="Athlete sections" className="tabs--athlete" />
+      </aside>
+      <section className="athlete-layout__content" aria-label="Athlete dashboard">
+        <Outlet />
+      </section>
     </div>
   );
 }

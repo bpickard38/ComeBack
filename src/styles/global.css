@@ -179,11 +179,14 @@ h2 {
 
 /* Demo controls strip */
 .demo-bar {
-  background: var(--pale-blue);
-  padding: 10px var(--gutter);
+  margin-top: auto;
+  border-top: 1px solid var(--pale-blue);
+  background: var(--ground);
+  padding: 12px var(--gutter);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 12px;
 }
 
@@ -257,6 +260,100 @@ h2 {
 .tabs__tab[aria-current='page'] {
   background: var(--navy);
   color: var(--white);
+}
+
+/* Athlete dashboards use a side navigation on larger screens. */
+.athlete-layout {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+}
+
+.athlete-layout__sidebar {
+  flex: 0 0 200px;
+  position: sticky;
+  top: 20px;
+  padding-right: 20px;
+  border-right: 1px solid var(--pale-blue);
+}
+
+.athlete-layout__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tabs--athlete {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.tabs--athlete .tabs__tab {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  border: 0;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.tabs--athlete .tabs__tab[aria-current='page'] {
+  background: var(--white);
+  color: var(--navy);
+  box-shadow: inset 4px 0 0 var(--navy);
+}
+
+@media (max-width: 800px) {
+  .athlete-layout {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .athlete-layout__sidebar {
+    flex: 0 0 auto;
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+    position: static;
+    padding: 0 0 4px;
+    border-right: 0;
+    border-bottom: 1px solid var(--pale-blue);
+  }
+
+  .athlete-layout__content {
+    width: 100%;
+    max-width: var(--width-athlete);
+    margin-inline: auto;
+  }
+
+  .tabs--athlete {
+    width: max-content;
+    max-width: 100%;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: safe center;
+    gap: 8px;
+    overflow-x: auto;
+  }
+
+  .tabs--athlete .tabs__tab {
+    flex: 0 0 auto;
+    justify-content: center;
+    border: 1.5px solid var(--navy);
+    text-align: center;
+  }
+
+  .tabs--athlete .tabs__tab[aria-current='page'] {
+    background: var(--navy);
+    color: var(--white);
+    box-shadow: none;
+  }
 }
 
 /* Sign-in screen and loading state (see store/AuthGate.tsx) */
