@@ -690,6 +690,28 @@
   gap: 14px;
 }
 
+/* "Add to calendar": a button that opens a row of calendar choices. */
+.add-cal summary {
+  list-style: none;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.add-cal summary::-webkit-details-marker {
+  display: none;
+}
+
+.add-cal-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.add-cal-options a {
+  text-decoration: none;
+}
+
 .line {
   display: flex;
   justify-content: space-between;

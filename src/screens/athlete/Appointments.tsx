@@ -1,4 +1,6 @@
+import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { type CalendarEvent, googleCalendarUrl, icsFile, outlookCalendarUrl } from '../../domain/calendar';
 import { findLog } from '../../domain/logs';
 import { formatDay, formatTime } from '../../format';
 import { exerciseById, testById, useAppStore, useSignedInAthlete } from '../../store/AppStore';
@@ -71,9 +73,57 @@ export function Appointments() {
                 })}
               </div>
             )}
+
+            <AddToCalendar
+              event={{
+                id: ap.id,
+                title: ap.title,
+                location: ap.location,
+                startsAt: ap.startsAt,
+                details: [
+                  ...ap.testIds.map((id) => `Milestone: ${testById(state, id).name}`),
+                  ...ap.exerciseIds.map((id) => `Exercise: ${exerciseById(state, id).name}`),
+                ].join('\n'),
+              }}
+            />
           </div>
         </Card>
       ))}
     </>
+  );
+}
+
+/** Links that open the visit pre-filled in the athlete's own calendar. */
+function AddToCalendar({ event }: { event: CalendarEvent }) {
+  function downloadIcs() {
+    const url = URL.createObjectURL(new Blob([icsFile(event)], { type: 'text/calendar' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${event.title}.ics`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <details className="add-cal">
+      <summary className="btn btn--secondary">Add to calendar</summary>
+      <div className="add-cal-options">
+        <a className="btn btn--secondary" href={googleCalendarUrl(event)} target="_blank" rel="noreferrer">
+          Google
+        </a>
+        <a className="btn btn--secondary" href={outlookCalendarUrl(event)} target="_blank" rel="noreferrer">
+          Outlook
+        </a>
+        <a
+          className="btn btn--secondary"
+          href={outlookCalendarUrl(event, 'outlook.office.com')}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Outlook (school)
+        </a>
+        <Button onClick={downloadIcs}>Apple / other</Button>
+      </div>
+    </details>
   );
 }
