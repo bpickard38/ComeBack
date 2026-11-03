@@ -2,13 +2,11 @@ import { useRef, useState, type FormEvent } from "react";
 import { Badge } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
-import { ChatThread } from "../../components/Chat";
 import { ProgressBar } from "../../components/ProgressBar";
 import { useToast } from "../../components/Toast";
 import { useReturnFocus } from "../../components/useReturnFocus";
 import { availabilityLabel } from "../../domain/availability";
 import { findLog } from "../../domain/logs";
-import { athleteThread, messagesIn } from "../../domain/messages";
 import { isHighPain, PAIN_SCALE } from "../../domain/pain";
 import {
   listNames,
@@ -43,10 +41,6 @@ export function Today() {
   const showReminder =
     left > 0 && (state.reminderSimulated || shouldShowReminder(now, left));
   const leftNames = items.filter((i) => !i.log).map((i) => i.exercise.name);
-  const thread = athleteThread(me.id);
-  const trainerName =
-    messagesIn(state.messages, thread).find((message) => message.from === "Trainer")
-      ?.senderName ?? "Your trainer";
 
   /** Returns true when the log saved, so the card can move keyboard focus. */
   async function markDone(
@@ -102,21 +96,6 @@ export function Today() {
           </div>
         </section>
       )}
-
-      <Card aria-labelledby="trainer-msgs">
-        <h2 id="trainer-msgs" className="title">
-          Your trainer
-        </h2>
-        <p className="small muted">
-          Questions, pain or anything that felt off. Your coach can&rsquo;t see
-          these.
-        </p>
-        <ChatThread
-          thread={thread}
-          name={trainerName}
-          detail="Only you and your trainer see this."
-        />
-      </Card>
 
       {total === 0 && (
         <Card>
