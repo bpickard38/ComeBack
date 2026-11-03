@@ -102,6 +102,7 @@ export async function previewReminder(title: string, body: string): Promise<Resu
   if (!registration || Notification.permission !== 'granted') {
     return { ok: false, error: 'Turn on reminders first (on Today), then try the preview.' };
   }
-  await registration.showNotification(title, { body, icon: '/icon-192.png', tag: 'preview', data: { url: '/athlete' } });
+  // A new tag each time: reusing one swaps out the old preview silently, so a second tap showed nothing.
+  await registration.showNotification(title, { body, icon: '/icon-192.png', tag: `preview-${Date.now()}`, data: { url: '/athlete' } });
   return { ok: true, value: undefined };
 }
