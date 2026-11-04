@@ -4,11 +4,17 @@ Injury rehab tracker that connects college athletes, their athletic trainer and 
 
 ## System Architecture
 
-![ComeBack system architecture](reference/system-architecture.png)
+![ComeBack AI exercise workflow](reference/system-architecture.png)
 
-The React app on Vercel uses Supabase for login and role-scoped rehab data. The **planned** AWS admin portal uses HTML/CSS pages, an Express/Node server, and a separate database for admin audit records. Its server connects to Supabase for authorized reads and approved updates, linking the two apps.
+The React app hosted on Vercel uses Supabase for logins and exercise data. The **planned AI exercise workflow** works as follows:
 
-The **planned** AI automation sends minimal authorized rehab context from the Node server to the external OpenAI API and returns progress summaries for admin review. This is a proposed workflow, not an implemented feature. Existing optional push reminders are omitted from this simplified overview.
+1. A trainer requests an exercise in the React app.
+2. React sends the request to a server-side AI function, which calls the OpenAI API.
+3. OpenAI reads the request and requests a database search through a tool call. The function executes the search against Supabase and returns the result to OpenAI.
+4. If the exercise exists, the workflow reuses it. If it is missing, OpenAI drafts the exercise and requests a create tool call; the function checks trainer authorization, validates the record, and saves it in Supabase.
+5. When the workflow completes, React reloads the full authorized exercise catalog from Supabase so the trainer can see all exercises.
+
+OpenAI selects tool actions; the server-side function performs database operations. The AI function and OpenAI integration are planned. Existing optional push reminders are omitted from this simplified overview.
 
 ## App Summary
 
