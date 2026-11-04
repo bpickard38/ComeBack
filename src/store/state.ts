@@ -10,6 +10,7 @@ import type {
   Role,
   TestResult,
 } from '../domain/types';
+import type { AthleteProgress } from '../domain/progress';
 import type { Rank } from '../domain/rank';
 
 /** A catalog entry the trainer picks from (injuries, exercises). */
@@ -38,6 +39,9 @@ export interface RemoteData {
   messages: Message[];
   /** Which database conversation each message thread is. */
   conversations: Array<{ thread: MessageThread; id: string }>;
+  /** Per-athlete counts for the coach's weekly summary. null for other roles,
+   * or when supabase/weekly_summary.sql hasn't been run yet. */
+  progress: AthleteProgress[] | null;
   /** What the trainer can assign. Empty for everyone else. */
   catalog: {
     injuries: CatalogItem[];

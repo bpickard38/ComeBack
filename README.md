@@ -4,7 +4,7 @@ Injury rehab tracker that connects college athletes, their athletic trainer and 
 
 ## App Summary
 
-When a college athlete gets hurt, the athletic trainer hands them a rehab plan, but the trainer only sees the athlete at scheduled visits and has no way to know whether the exercises are actually getting done in between. Athletes lose track of what they are supposed to do each day, do not know whether they are on pace to return, and have no easy way to tell the trainer when something hurts. Coaches sit in the dark: they want to know who is available for practice and when, but the trainer cannot share medical details with them. Comeback fixes this by giving each role its own view of one shared record. The trainer assigns an injury, exercises and milestone goals; the athlete logs each exercise with a pain rating, tracks milestone tests, and earns points and rank for consistency; the trainer sees completion, pain flags and messages on a roster; and the coach sees only availability (Out, Limited, Cleared) and an expected return date. Every log, result and message is stored in a Supabase database, so all three people see the same data and nothing resets on refresh.
+When a college athlete gets hurt, the athletic trainer hands them a rehab plan, but the trainer only sees the athlete at scheduled visits and has no way to know whether the exercises are actually getting done in between. Athletes lose track of what they are supposed to do each day, do not know whether they are on pace to return, and have no easy way to tell the trainer when something hurts. Coaches sit in the dark: they want to know who is available for practice and when, but the trainer cannot share medical details with them. Comeback fixes this by giving each role its own view of one shared record. The trainer assigns an injury, exercises and milestone goals; the athlete logs each exercise with a pain rating, tracks milestone tests, and earns points and rank for consistency; the trainer sees completion, pain flags and messages on a roster; and the coach sees only availability (Out, Limited, Cleared), an expected return date, and a weekly progress summary in counts (exercises done, goals reached) with no medical details. Every log, result and message is stored in a Supabase database, so all three people see the same data and nothing resets on refresh.
 
 ## ERD
 
@@ -60,16 +60,17 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
 ### 2. Create the Supabase project (once per team)
 
 1. At supabase.com, create a new project. Any name and region. Write down the database password.
-2. Open **SQL Editor** and run these seven files in order. Paste each file's contents into a new query and click Run.
+2. Open **SQL Editor** and run these eight files in order. Paste each file's contents into a new query and click Run.
    1. `supabase/erd_schema.sql`: the tables, triggers, security rules and catalogs
    2. `supabase/trophy_ledger_sync.sql`: backfills rewards and syncs existing trophy data
    3. `supabase/signup.sql`: roles, teams and join codes
    4. `supabase/live_data.sql`: conversations and plan assignment the screens use
    5. `supabase/multi_injury.sql`: lets an athlete have several active injuries at once
    6. `supabase/workout_sets.sql`: tutorial videos for every exercise and a workout set per injury
-   7. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
+   7. `supabase/weekly_summary.sql`: the coach's weekly progress summary (counts only)
+   8. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
 
-   Already set up? Run `supabase/trophy_ledger_sync.sql` and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too, then `workout_sets.sql`. Re-run `supabase/push.sql` if you use push reminders.
+   Already set up? Run `supabase/trophy_ledger_sync.sql` and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too, then `workout_sets.sql` and `weekly_summary.sql`. Re-run `supabase/push.sql` if you use push reminders.
 3. Under **Authentication > Sign In / Providers**, turn on "Allow new users to sign up". Under Email, turn off "Confirm email" unless you want people to confirm by email first.
 
 ### 3. Connect the app to your project
@@ -140,7 +141,7 @@ Use the demo accounts above. To show two roles side by side, sign in to the seco
 1. **Athlete (Maya)**: on Today, tap "Mark done" on the three pending exercises and pick a pain rating for each. The last one ranks her up to Varsity I. Rate one a 7 and message your trainer about it.
 2. **Progress**: log 30 for One-leg balance. The card flips to "Goal reached" and adds 10 points.
 3. **Trainer**: Maya and Devon are flagged for pain and a new message. Open Maya's conversation on the Messages tab and reply (her flag clears once it's read), set Devon to Out with a return date, and open Jordan: he has two active injuries, each with its own plan. Assign him new exercises for one of them (the other stays as is), or mark one cleared.
-4. **Coach**: "Team availability" shows only Out / Limited / Cleared and return dates, no injuries. Message the trainer, then show it under Coach on the trainer's Messages tab.
+4. **Coach**: "Team availability" shows only Out / Limited / Cleared and return dates, no injuries. Below it, "This week's progress" shows each athlete's week % with On track / Behind, days complete, streak, goals reached and last week's %, still with no injury names or pain. Maya's row shows 3 goals improved this week after the retests. Message the trainer, then show it under Coach on the trainer's Messages tab.
 5. **Errors**: set "Connection: offline" and try logging; tap "Edit my plan"; log without a pain rating; save an empty result or message.
 6. **Sign-up**: create a new athlete account and join with the athlete code from the trainer's "Join codes" card. Try the coach code first to show it is refused.
 
@@ -179,6 +180,12 @@ What each piece is:
 Without `VITE_VAPID_PUBLIC_KEY` the Reminders card is hidden, so the app works the same without push.
 
 **For demos:** the demo bar's "Preview push reminder" shows the 6 PM notification right away on that device (reminders must be on), so you don't have to wait for 6 PM. To check on the real thing, the queries at the bottom of `push_schedule.sql` show recent runs and what was sent.
+
+## Weekly progress for coaches
+
+The coach's screen has a "This week's progress" table under availability. Per athlete it shows this week's completion (logs since Monday divided by exercises on the plan times days so far), On track at 80% or more, days where everything was logged, the current streak, goals reached out of goals set, how many goals improved this week, and last week's completion. These are the same rules the trainer's roster uses (`src/domain/week.ts`, `src/domain/streak.ts`), applied to day totals in `src/domain/progress.ts`.
+
+The privacy rule holds: coaches still have no access to `exercise_logs`, plans, injuries or `test_results`. `supabase/weekly_summary.sql` adds one database function, `coach_weekly_summary(p_today)`, that reads those tables on the coach's behalf and returns only counts for athletes on the coach's teams: exercises on the plan, exercises logged per day, and goals set, reached and improved. Injury names, pain ratings and test values never reach the coach's browser. Until that script is run, the table says the summary isn't available yet.
 
 ## Workout sets and tutorial videos
 

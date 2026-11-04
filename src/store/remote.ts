@@ -20,6 +20,7 @@ import type {
   Result,
   TestResult,
 } from '../domain/types';
+import type { AthleteProgress } from '../domain/progress';
 import type { Rank } from '../domain/rank';
 import type { Profile } from './profile';
 import type { RemoteData } from './state';
@@ -97,9 +98,10 @@ const SENDER_LABEL = { athlete: 'Athlete', trainer: 'Trainer', coach: 'Coach' } 
 
 export async function loadAll(profile: Profile): Promise<RemoteData> {
   const isTrainer = profile.role === 'trainer';
+  const isCoach = profile.role === 'coach';
   const none = Promise.resolve({ data: [], error: null });
 
-  const [members, users, cases, plans, logs, goals, results, appointments, pointEvents, ranks, conversations, messages, injuries, exerciseCatalog, injurySets] =
+  const [members, users, cases, plans, logs, goals, results, appointments, pointEvents, ranks, conversations, messages, injuries, exerciseCatalog, injurySets, summary] =
     await Promise.all([
       supabase.from('team_members').select('user_id, role, availability, expected_return, teams(name, sport)'),
       supabase.from('users').select('id, name, role'),
@@ -119,6 +121,8 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       isTrainer ? supabase.from('injuries').select('id, name').order('name') : none,
       isTrainer ? supabase.from('exercises').select('id, name').order('name') : none,
       isTrainer ? supabase.from('injury_exercises').select('injury_id, exercise_id').order('position') : none,
+      // Coaches can't read logs or goals; this function returns only counts.
+      isCoach ? supabase.rpc('coach_weekly_summary', { p_today: dayKey(new Date()) }) : none,
     ]);
 
   const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL }>(users);
@@ -250,6 +254,20 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       };
     });
 
+  // Before supabase/weekly_summary.sql is run the function doesn't exist;
+  // the coach screen then says so instead of showing numbers.
+  const progress: AthleteProgress[] | null =
+    !isCoach || summary.error
+      ? null
+      : rows<{ athlete_id: string; assigned: number; done_by_day: Record<string, number> | null; goals_total: number; goals_reached: number; goals_improved: number }>(summary).map((r) => ({
+          athleteId: r.athlete_id,
+          assigned: Number(r.assigned),
+          doneByDay: r.done_by_day ?? {},
+          goalsTotal: Number(r.goals_total),
+          goalsReached: Number(r.goals_reached),
+          goalsImproved: Number(r.goals_improved),
+        }));
+
   return {
     athletes,
     exercises,
@@ -261,6 +279,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     appointments: appointmentList,
     messages: messageList,
     conversations: conversationList,
+    progress,
     catalog: {
       injuries: rows<{ id: string; name: string }>(injuries),
       exercises: rows<{ id: string; name: string }>(exerciseCatalog),
