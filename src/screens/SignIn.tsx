@@ -39,6 +39,11 @@ export function SignIn() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const signingUp = mode === 'signUp';
+  const formReady = Boolean(
+    email.trim() &&
+      password &&
+      (!signingUp || (name.trim() && role)),
+  );
 
   function switchMode() {
     setMode(signingUp ? 'signIn' : 'signUp');
@@ -102,56 +107,69 @@ export function SignIn() {
 
   return (
     <main className="main">
-      <form className="column card sign-in" onSubmit={submit} noValidate>
+      <form className="column card sign-in sign-in--auth" onSubmit={submit} noValidate>
         <h1>{signingUp ? 'Create your account' : 'Sign in'}</h1>
 
         {signingUp && (
-          <>
+          <div className="sign-in__field-group">
             <label htmlFor="sign-in-name" className="strong">
               Your name
             </label>
             <input
               id="sign-in-name"
-              className="field"
+              className="field sign-in__field"
+              data-filled={name.trim() ? 'true' : 'false'}
               autoComplete="name"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-          </>
+          </div>
         )}
 
-        <label htmlFor="sign-in-email" className="strong">
-          Email
-        </label>
-        <input
-          id="sign-in-email"
-          className="field"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <label htmlFor="sign-in-password" className="strong">
-          Password
-        </label>
-        <input
-          id="sign-in-password"
-          className="field"
-          type="password"
-          autoComplete={signingUp ? 'new-password' : 'current-password'}
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div className="sign-in__field-group">
+          <label htmlFor="sign-in-email" className="strong">
+            Email
+          </label>
+          <input
+            id="sign-in-email"
+            className="field sign-in__field"
+            data-filled={email.trim() ? 'true' : 'false'}
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="sign-in__field-group">
+          <label htmlFor="sign-in-password" className="strong">
+            Password
+          </label>
+          <input
+            id="sign-in-password"
+            className="field sign-in__field"
+            data-filled={password ? 'true' : 'false'}
+            type="password"
+            autoComplete={signingUp ? 'new-password' : 'current-password'}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
 
         {signingUp && (
           <fieldset className="chip-group">
             <legend className="strong">I am a…</legend>
-            <div className="pain-scale">
+            <div
+              className="role-toggle"
+              role="radiogroup"
+              aria-label="Choose your account role"
+              data-selected-index={role ? ROLES.findIndex((r) => r.role === role) : 'none'}
+            >
+              <span className="role-toggle__thumb" aria-hidden="true" />
               {ROLES.map((r) => (
-                <label key={r.role} className="pain-option role-option">
+                <label key={r.role} className="role-toggle__option">
                   <input
                     type="radio"
                     className="visually-hidden"
@@ -160,9 +178,7 @@ export function SignIn() {
                     checked={role === r.role}
                     onChange={() => setRole(r.role)}
                   />
-                  <span>
-                    {r.label}
-                  </span>
+                  <span className="role-toggle__label">{r.label}</span>
                 </label>
               ))}
             </div>
@@ -180,7 +196,12 @@ export function SignIn() {
           </p>
         )}
 
-        <Button type="submit" variant="primary" disabled={busy}>
+        <Button
+          type="submit"
+          variant={formReady ? 'primary' : 'secondary'}
+          className={formReady ? 'sign-in__submit sign-in__submit--ready' : 'sign-in__submit'}
+          disabled={busy}
+        >
           {busy ? signingUp ? 'Creating account…' : 'Signing in…' : signingUp ? 'Create account' : 'Sign in'}
         </Button>
         <Button variant="secondary" onClick={switchMode}>

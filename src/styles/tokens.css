@@ -144,8 +144,9 @@
   --duration-base: 200ms;
   --duration-slow: 320ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --shadow-card: 0 0.125rem 0.25rem #00000045, 0 0.75rem 1.5rem #00000024;
-  --shadow-raised: 0 0.25rem 0.5rem #00000055, 0 1rem 2.5rem #00000025;
+  --shadow-card: 0 0.125rem 0.25rem #00000070, 0 0.75rem 1.5rem #00000045, 0 1px 0 #ffffff0b inset;
+  --shadow-raised: 0 0.25rem 0.5rem #00000080, 0 1rem 2.5rem #00000055, 0 1px 0 #ffffff12 inset;
+  --shadow-sign-in: 0 0.25rem 0.375rem #000000b3, 0 1.5rem 3rem #00000060, 0 1px 0 #ffffff16 inset;
 }
 
 @media (prefers-color-scheme: light) {
@@ -182,5 +183,6 @@
     --metal-gold: #815b00;
     --shadow-card: 0 0.125rem 0.25rem #17212b18, 0 0.75rem 1.5rem #17212b0c;
     --shadow-raised: 0 0.25rem 0.5rem #17212b20, 0 1rem 2.5rem #17212b12;
+    --shadow-sign-in: 0 0.25rem 0.375rem #17212b55, 0 1.5rem 3rem #17212b24;
   }
 }

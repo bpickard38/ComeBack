@@ -528,6 +528,40 @@ h3 {
   margin-block: var(--sign-in-margin);
 }
 
+.sign-in--auth {
+  gap: var(--space-5);
+  box-shadow: var(--shadow-sign-in);
+}
+
+.sign-in__field-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sign-in__field[data-filled='false']:not(:focus) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 0.75rem var(--accent-soft);
+}
+
+.sign-in__field:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.sign-in__field:focus-visible {
+  outline-width: 2px;
+  outline-offset: 1px;
+}
+
+.sign-in__submit {
+  transition: box-shadow var(--duration-base) var(--ease-standard), background-color var(--duration-base) var(--ease-standard);
+}
+
+.sign-in__submit--ready {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 1rem var(--accent-soft), 0 0 1.75rem var(--accent-soft);
+}
+
 .sign-in__error,
 .sign-in__notice {
   padding: var(--space-3) var(--space-4);
