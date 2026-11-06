@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { availabilityLabel } from '../domain/availability';
+import { formatCalendarDay, injuryLabel } from '../format';
 import { turnOffReminders } from '../push';
 import { useAppStore } from '../store/AppStore';
 import { supabase } from '../store/supabase';
@@ -7,7 +9,10 @@ const ROLE_LABEL = { athlete: 'Athlete', trainer: 'Athletic trainer', coach: 'Co
 
 /** Shared app header: brand, signed-in account, and sign out. */
 export function Header() {
-  const { profile } = useAppStore();
+  const { profile, state } = useAppStore();
+  const athlete = profile.role === 'athlete'
+    ? state.athletes.find((item) => item.id === profile.id)
+    : undefined;
 
   async function signOut() {
     // Stop this device's reminders first (needs you signed in), so the next
@@ -28,8 +33,17 @@ export function Header() {
       </Link>
       <div className="account">
         <span className="account__who">
-          {profile.name} <span className="account__role">&middot; {ROLE_LABEL[profile.role]}</span>
+          {profile.name}
+          {profile.role !== 'athlete' && (
+            <span className="account__role">&middot; {ROLE_LABEL[profile.role]}</span>
+          )}
         </span>
+        {athlete && (
+          <span className="account__athlete">
+            {injuryLabel(athlete)} &middot; {availabilityLabel(athlete.availability)}
+            {athlete.expectedReturn && <>; expected back {formatCalendarDay(athlete.expectedReturn)}</>}
+          </span>
+        )}
         <button type="button" className="btn btn--secondary" onClick={signOut}>
           Sign out
         </button>

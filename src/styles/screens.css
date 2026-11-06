@@ -1276,6 +1276,40 @@
   justify-content: space-between;
 }
 
+.today-summary__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.today-summary h1 {
+  margin: 0;
+}
+
+.reminders-inline {
+  display: flex;
+  align-items: center;
+}
+
+.today-exercises {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+}
+
+.exercise-actions {
+  justify-content: flex-end;
+}
+
+@media (min-width: 48rem) {
+  .today-exercises {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (min-width: 30rem) {
   .trophy-hero__identity {
     gap: var(--space-4);

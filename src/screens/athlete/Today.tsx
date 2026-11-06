@@ -5,7 +5,6 @@ import { Card } from "../../components/Card";
 import { ProgressBar } from "../../components/ProgressBar";
 import { useToast } from "../../components/Toast";
 import { useReturnFocus } from "../../components/useReturnFocus";
-import { availabilityLabel } from "../../domain/availability";
 import { findLog } from "../../domain/logs";
 import { isHighPain, PAIN_SCALE } from "../../domain/pain";
 import {
@@ -15,7 +14,7 @@ import {
 } from "../../domain/reminder";
 import type { Exercise, ExerciseLog } from "../../domain/types";
 import { youtubeEmbedUrl } from "../../domain/video";
-import { formatCalendarDay, formatDay, formatTime, injuryLabel } from "../../format";
+import { formatDay, formatTime } from "../../format";
 import {
   exerciseById,
   useAppStore,
@@ -63,18 +62,14 @@ export function Today() {
 
   return (
     <>
-      <Card>
-        <div className="eyebrow">{formatDay(now)}</div>
-        <h1>Today&rsquo;s exercises</h1>
-        <p className="muted">
-          {me.name} &middot; {me.sport} &middot; {injuryLabel(me)}
-        </p>
-        <p className="strong">
-          Status: {availabilityLabel(me.availability)}
-          {me.expectedReturn && (
-            <> &middot; expected back {formatCalendarDay(me.expectedReturn)}</>
-          )}
-        </p>
+      <Card className="today-summary">
+        <div className="today-summary__heading">
+          <div>
+            <div className="eyebrow">{formatDay(now)}</div>
+            <h1>Today</h1>
+          </div>
+          <RemindersCard compact />
+        </div>
         <div className="stack-sm">
           <div className="spread strong">
             <span>
@@ -107,6 +102,7 @@ export function Today() {
         </Card>
       )}
 
+      <div className="today-exercises">
       {items.map(({ exercise, log }) => (
         <ExerciseCard
           key={exercise.id}
@@ -119,14 +115,13 @@ export function Today() {
           onMarkDone={(pain) => markDone(exercise, pain)}
         />
       ))}
+      </div>
 
       {total > 0 && left === 0 && (
         <Card className="card--mist strong">
           All exercises logged for today. Your trainer can see your progress.
         </Card>
       )}
-
-      <RemindersCard />
 
     </>
   );
@@ -188,29 +183,6 @@ function ExerciseCard({
         )}
       </div>
 
-      <div className="row">
-        <Button aria-expanded={open} onClick={onToggle}>
-          <svg
-            className="icon icon--sm"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path d="M7 4l13 8-13 8z" />
-          </svg>
-          {open ? "Hide tutorial" : "Watch tutorial"}
-        </Button>
-        {!log && !rating && (
-          <Button
-            ref={markDoneRef}
-            variant="primary"
-            onClick={() => setRating(true)}
-          >
-            Mark done
-          </Button>
-        )}
-      </div>
-
       {log?.pain !== undefined && (
         <div className="small muted">Pain you reported: {log.pain} of 10</div>
       )}
@@ -266,6 +238,29 @@ function ExerciseCard({
             <div className="strong">Tutorial video unavailable</div>
           </div>
         ))}
+
+      <div className="row exercise-actions">
+        <Button aria-expanded={open} onClick={onToggle}>
+          <svg
+            className="icon icon--sm"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M7 4l13 8-13 8z" />
+          </svg>
+          {open ? "Hide tutorial" : "Watch tutorial"}
+        </Button>
+        {!log && !rating && (
+          <Button
+            ref={markDoneRef}
+            variant="primary"
+            onClick={() => setRating(true)}
+          >
+            Mark done
+          </Button>
+        )}
+      </div>
     </Card>
   );
 }

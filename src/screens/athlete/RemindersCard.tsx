@@ -13,7 +13,7 @@ function hourText(hour: number): string {
 const WHAT_YOU_GET = `A nudge at ${hourText(REMINDER_HOUR)} if exercises are left, and at ${hourText(MISSED_HOUR)} if you missed any yesterday.`;
 
 /** Turn push reminders on or off for this device. Hidden until push is set up (VITE_VAPID_PUBLIC_KEY). */
-export function RemindersCard() {
+export function RemindersCard({ compact = false }: { compact?: boolean }) {
   const { notify } = useToast();
   // undefined while we ask the browser.
   const [status, setStatus] = useState<PushStatus>();
@@ -33,6 +33,26 @@ export function RemindersCard() {
   }
 
   if (status === undefined || status === 'not-configured') return null;
+
+  if (compact) {
+    return (
+      <div className="reminders-inline" aria-label="Exercise notifications">
+        {status === 'on' ? (
+          <Button disabled={busy} onClick={() => toggle(false)}>Notifications on · Turn off</Button>
+        ) : status === 'off' ? (
+          <Button variant="primary" disabled={busy} onClick={() => toggle(true)}>
+            {busy ? 'One moment…' : 'Turn on notifications'}
+          </Button>
+        ) : (
+          <span className="small muted" role="status">
+            {status === 'needs-install' ? 'Install the app to turn on notifications' :
+              status === 'denied' ? 'Notifications blocked in browser settings' :
+              'Notifications unavailable in this browser'}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <Card aria-labelledby="reminders-title">

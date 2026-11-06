@@ -135,7 +135,7 @@ h3 {
   z-index: 2;
   display: flex;
   min-height: var(--target-min);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3) var(--space-6);
@@ -192,7 +192,9 @@ h3 {
 
 .account {
   display: flex;
-  flex-wrap: wrap;
+  min-width: 0;
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
@@ -200,7 +202,8 @@ h3 {
 
 .account__who {
   min-width: 0;
-  overflow-wrap: anywhere;
+  flex: 0 0 auto;
+  white-space: nowrap;
   color: var(--text);
   font-weight: var(--font-weight-semibold);
 }
@@ -208,6 +211,15 @@ h3 {
 .account__role {
   color: var(--text-muted);
   font-weight: var(--font-weight-regular);
+}
+
+.account__athlete {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .main {
@@ -673,16 +685,45 @@ input.join-code {
 
 }
 
-@media (max-width: 30rem) {
+@media (max-width: 48rem) {
   .topbar {
-    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .account__role,
+  .account__athlete {
+    display: none;
   }
 
   .account {
-    width: 100%;
-    justify-content: space-between;
+    gap: var(--space-2);
   }
 
+}
+
+@media (max-width: 30rem) {
+  .topbar {
+    gap: var(--space-1);
+    padding-inline: var(--space-3);
+  }
+
+  .brand {
+    gap: var(--space-1);
+    font-size: var(--font-size-md);
+  }
+
+  .icon--brand {
+    width: var(--space-7);
+    height: var(--space-7);
+  }
+
+  .account {
+    gap: var(--space-1);
+  }
+
+  .account .btn {
+    padding-inline: var(--space-3);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
