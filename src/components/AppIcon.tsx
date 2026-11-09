@@ -4,7 +4,6 @@ export type AppIconName =
   | 'today'
   | 'week'
   | 'progress'
-  | 'trophies'
   | 'appointments'
   | 'messages'
   | 'roster'
@@ -27,11 +26,6 @@ const PATHS: Record<AppIconName, ReactNode> = {
     <>
       <path d="M4 19.5h16M5.5 16l4-4 3 2.5 6-7" />
       <path d="M14.5 7.5h4v4" />
-    </>
-  ),
-  trophies: (
-    <>
-      <path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8M10 17h4" />
     </>
   ),
   appointments: (

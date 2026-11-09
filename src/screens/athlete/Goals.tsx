@@ -5,49 +5,10 @@ import { Card } from '../../components/Card';
 import { ProgressBar } from '../../components/ProgressBar';
 import { useToast } from '../../components/Toast';
 import { useReturnFocus } from '../../components/useReturnFocus';
-import { currentValue, goalPercent, goalsReached, isGoalReached, overallGoalPercent } from '../../domain/goals';
-import { POINTS_PER_GOAL } from '../../domain/points';
+import { currentValue, goalPercent, isGoalReached } from '../../domain/goals';
 import type { MilestoneTest } from '../../domain/types';
 import { formatNumber } from '../../format';
-import { testsFor, useAppStore, useSignedInAthlete } from '../../store/AppStore';
-
-export function Goals() {
-  const { state } = useAppStore();
-  const me = useSignedInAthlete();
-  const tests = testsFor(state, me.id);
-  const met = goalsReached(tests, state.results, me.id);
-  const overall = overallGoalPercent(tests, state.results, me.id);
-
-  return (
-    <>
-      <Card>
-        <h1>Your goals</h1>
-        <p className="muted">
-          Reach every goal to return to healthy status. Each goal earns {POINTS_PER_GOAL} points and unlocks a trophy.
-        </p>
-        <div className="stack-sm">
-          <div className="spread strong">
-            <span>
-              {met} of {tests.length} goals reached
-            </span>
-            <span>{overall}% overall</span>
-          </div>
-          <ProgressBar percent={overall} />
-        </div>
-      </Card>
-
-      {tests.length === 0 && (
-        <Card>
-          <p className="muted">Your trainer hasn&rsquo;t set any goals yet. They&rsquo;ll appear here after your next visit.</p>
-        </Card>
-      )}
-
-      {tests.map((test) => (
-        <GoalCard key={test.id} test={test} athleteId={me.id} />
-      ))}
-    </>
-  );
-}
+import { useAppStore } from '../../store/AppStore';
 
 /** "8 more seconds to go." For "% of healthy leg" the gap is in percentage points. */
 function remainingText(test: MilestoneTest, remaining: number): string {
@@ -55,7 +16,8 @@ function remainingText(test: MilestoneTest, remaining: number): string {
   return `${formatNumber(remaining)} more ${unit} to go.`;
 }
 
-function GoalCard({ test, athleteId }: { test: MilestoneTest; athleteId: string }) {
+/** One recovery milestone: where the athlete is now, the target, and a way to log a new result. */
+export function GoalCard({ test, athleteId }: { test: MilestoneTest; athleteId: string }) {
   const { state, commands } = useAppStore();
   const { notify } = useToast();
   const [open, setOpen] = useState(false);
@@ -84,13 +46,12 @@ function GoalCard({ test, athleteId }: { test: MilestoneTest; athleteId: string 
       notify(saved.error, 'error');
       return;
     }
-    const { result, newlyReached, rankUp } = saved.value;
+    const { result, newlyReached } = saved.value;
     const left = test.target - result.value;
     let text = `Saved: ${test.name} ${formatNumber(result.value)} ${test.unit}. `;
-    if (newlyReached) text += `Goal reached, +${POINTS_PER_GOAL} points.`;
-    else if (left <= 0) text += 'Goal reached.';
+    if (newlyReached) text += 'Milestone reached!';
+    else if (left <= 0) text += 'Milestone reached.';
     else text += `${formatNumber(left)} to go.`;
-    if (rankUp) text += ` Rank up: ${rankUp.name}!`;
     close();
     notify(text);
   }
@@ -102,7 +63,7 @@ function GoalCard({ test, athleteId }: { test: MilestoneTest; athleteId: string 
           <h2 className="title">{test.name}</h2>
           <div className="muted">{test.description}</div>
         </div>
-        <Badge tone={met ? 'solid' : 'outline'}>{met ? 'Goal reached' : `${percent}% there`}</Badge>
+        <Badge tone={met ? 'solid' : 'outline'}>{met ? 'Reached' : `${percent}% there`}</Badge>
       </div>
 
       <div className="big-stat">
@@ -112,7 +73,7 @@ function GoalCard({ test, athleteId }: { test: MilestoneTest; athleteId: string 
         </span>
       </div>
       <ProgressBar percent={percent} size="lg" />
-      <div className="strong">{met ? 'Goal reached.' : remainingText(test, test.target - current)}</div>
+      <div className="strong">{met ? 'Milestone reached.' : remainingText(test, test.target - current)}</div>
       <div className="small muted">
         Week 1: {test.baseline} &rarr; this week: {formatNumber(current)} ({change >= 0 ? 'up' : 'down'}{' '}
         {formatNumber(Math.abs(change))})

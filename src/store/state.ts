@@ -6,12 +6,10 @@ import type {
   Message,
   MessageThread,
   MilestoneTest,
-  PointEvent,
   Role,
   TestResult,
 } from '../domain/types';
 import type { AthleteProgress } from '../domain/progress';
-import type { Rank } from '../domain/rank';
 
 /** A catalog entry the trainer picks from (injuries, exercises). */
 export interface CatalogItem {
@@ -32,8 +30,6 @@ export interface RemoteData {
   /** Each athlete's goals. */
   tests: MilestoneTest[];
   logs: ExerciseLog[];
-  pointEvents: PointEvent[];
-  ranks: Rank[];
   results: TestResult[];
   appointments: Appointment[];
   messages: Message[];

@@ -18,7 +18,6 @@ erDiagram
     CASE_MILESTONES ||--o{ APPOINTMENT_TESTS : "focus test"
     APPOINTMENTS ||--o{ APPOINTMENT_EXERCISES : "focuses on"
     PLAN_EXERCISES ||--o{ APPOINTMENT_EXERCISES : "focus exercise"
-    USERS ||--o{ POINT_EVENTS : "earns"
     CONVERSATIONS ||--o{ CONVERSATION_MEMBERS : "includes"
     USERS ||--o{ CONVERSATION_MEMBERS : "joins"
     CONVERSATIONS ||--o{ MESSAGES : "contains"
@@ -125,20 +124,6 @@ erDiagram
     APPOINTMENT_EXERCISES {
         uuid appointment_id PK,FK
         uuid plan_exercise_id PK,FK
-    }
-    RANKS {
-        int id PK
-        text name "Starter I ... All-conference III"
-        text metal "bronze | silver | gold"
-        int min_points
-    }
-    POINT_EVENTS {
-        uuid id PK
-        uuid athlete_id FK
-        text source_type "exercise_log | goal_reached | prior"
-        uuid source_id "UNIQUE with source_type"
-        int points "1 per exercise, 10 per goal"
-        timestamptz created_at
     }
     CONVERSATIONS {
         uuid id PK

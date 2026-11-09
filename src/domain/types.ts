@@ -37,8 +37,6 @@ export interface Athlete {
   injuries: AthleteInjury[];
   /** Plan exercises from all active injuries together. */
   assignedExerciseIds: string[];
-  /** Exercises logged before this app's history starts. Each counts 1 point. */
-  priorExerciseCount: number;
   priorBestStreak: number;
   /** Set by the trainer. The only rehab status the coach can see. */
   availability: Availability;
@@ -52,14 +50,6 @@ export interface ExerciseLog {
   loggedAt: string;
   /** Pain the athlete felt, 0 (none) to 10 (worst). Missing on older logs. */
   pain?: number;
-}
-
-/** A persisted points ledger entry created by the database. */
-export interface PointEvent {
-  athleteId: string;
-  sourceType: 'exercise_log' | 'goal_reached' | 'prior';
-  sourceId: string | null;
-  points: number;
 }
 
 /** A test as one athlete's goal. id is the case_milestones row. */

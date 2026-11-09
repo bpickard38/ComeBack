@@ -13,12 +13,10 @@
 */
 import { createContext, useCallback, useContext, useEffect, useReducer, useRef, useState, type Dispatch, type ReactNode } from 'react';
 import { Button } from '../components/Button';
-import { parseResultValue } from '../domain/goals';
+import { isGoalReached, parseResultValue } from '../domain/goals';
 import { normalizeAvailability } from '../domain/availability';
 import { ALREADY_LOGGED, createLog } from '../domain/logs';
 import { athleteThread, unreadIn } from '../domain/messages';
-import { pointsFromEvents } from '../domain/points';
-import { rankUp, type Rank } from '../domain/rank';
 import type {
   Athlete,
   Availability,
@@ -60,12 +58,6 @@ export function testById(state: AppState, id: string): MilestoneTest {
 }
 
 function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Profile, reload: () => Promise<void>) {
-  /** The new rank if these changes push the athlete over a threshold, else null. */
-  function rankUpFrom(athleteId: string, pointsEarned: number): Rank | null {
-    const before = pointsFromEvents(athleteId, state.pointEvents).total;
-    return rankUp(before, before + pointsEarned, state.ranks);
-  }
-
   return {
     toggleOffline: () => dispatch({ type: 'setOffline', offline: !state.offline }),
     simulateReminder: () => dispatch({ type: 'simulateReminder' }),
@@ -75,7 +67,7 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       athleteId: string,
       exerciseId: string,
       pain: number | undefined,
-    ): Promise<Result<{ log: ExerciseLog; rankUp: Rank | null }>> {
+    ): Promise<Result<{ log: ExerciseLog }>> {
       const athlete = state.athletes.find((a) => a.id === athleteId);
       const name = state.exercises.find((e) => e.id === exerciseId)?.name ?? 'this exercise';
       if (!athlete) return { ok: false, error: 'Athlete not found.' };
@@ -88,14 +80,14 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       const saved = await remote.insertLog(log);
       if (!saved.ok) return { ok: false, error: `Could not save your log for ${name}. ${saved.error}` };
       dispatch({ type: 'addLog', log });
-      return { ok: true, value: { log, rankUp: rankUpFrom(athleteId, 1) } };
+      return { ok: true, value: { log } };
     },
 
     async recordResult(
       athleteId: string,
       testId: string,
       raw: string,
-    ): Promise<Result<{ result: TestResult; newlyReached: boolean; rankUp: Rank | null }>> {
+    ): Promise<Result<{ result: TestResult; newlyReached: boolean }>> {
       const athlete = state.athletes.find((a) => a.id === athleteId);
       const test = state.tests.find((t) => t.id === testId);
       if (!athlete || !test) return { ok: false, error: 'Test not found.' };
@@ -109,21 +101,11 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
         recordedAt: new Date().toISOString(),
         source: 'athlete',
       };
+      const wasReached = isGoalReached(test, state.results, athleteId);
       const saved = await remote.insertResult(result, profile.id);
       if (!saved.ok) return { ok: false, error: `Could not save your result. ${saved.error}` };
       dispatch({ type: 'addResult', result });
-      const alreadyAwarded = state.pointEvents.some(
-        (event) => event.sourceType === 'goal_reached' && event.sourceId === testId,
-      );
-      const earnsGoalPoint = parsed.value >= test.target && !alreadyAwarded;
-      return {
-        ok: true,
-        value: {
-          result,
-          newlyReached: earnsGoalPoint,
-          rankUp: rankUpFrom(athleteId, earnsGoalPoint ? 10 : 0),
-        },
-      };
+      return { ok: true, value: { result, newlyReached: !wasReached && parsed.value >= test.target } };
     },
 
     /** input.injury is an injury id from state.catalog. */

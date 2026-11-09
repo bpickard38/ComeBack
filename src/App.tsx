@@ -6,12 +6,9 @@ import { ToastRegion } from './components/Toast';
 import type { Role } from './domain/types';
 import { homeFor } from './routes';
 import { AthleteLayout } from './screens/athlete/AthleteLayout';
-import { Appointments } from './screens/athlete/Appointments';
-import { Goals } from './screens/athlete/Goals';
-import { Messages } from './screens/athlete/Messages';
+import { Progress } from './screens/athlete/Progress';
 import { Today } from './screens/athlete/Today';
-import { Week } from './screens/athlete/Week';
-import { Trophies } from './screens/athlete/Trophies';
+import { Trainer } from './screens/athlete/Trainer';
 import { StaffHome } from './screens/staff/StaffHome';
 import { StaffLayout } from './screens/staff/StaffLayout';
 import { TrainerMessages } from './screens/staff/TrainerMessages';
@@ -52,11 +49,14 @@ export function App() {
             }
           >
             <Route index element={<Today />} />
-            <Route path="week" element={<Week />} />
-            <Route path="goals" element={<Goals />} />
-            <Route path="trophies" element={<Trophies />} />
-            <Route path="appointments" element={<Appointments />} />
-            <Route path="messages" element={<Messages />} />
+            <Route path="progress" element={<Progress />} />
+            <Route path="trainer" element={<Trainer />} />
+            {/* Old addresses from before the three-tab layout, so saved links still work. */}
+            <Route path="week" element={<Navigate to="/athlete" replace />} />
+            <Route path="goals" element={<Navigate to="/athlete/progress" replace />} />
+            <Route path="trophies" element={<Navigate to="/athlete/progress" replace />} />
+            <Route path="appointments" element={<Navigate to="/athlete/trainer" replace />} />
+            <Route path="messages" element={<Navigate to="/athlete/trainer" replace />} />
           </Route>
           <Route
             path="/staff"

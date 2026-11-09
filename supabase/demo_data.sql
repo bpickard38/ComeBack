@@ -47,8 +47,6 @@ begin
   where ai.athlete_id = u.id and u.email like 'bpickard38+demo-%';
   delete from public.appointments ap using auth.users u
   where ap.athlete_id = u.id and u.email like 'bpickard38+demo-%';
-  delete from public.point_events pe using auth.users u
-  where pe.athlete_id = u.id and u.email like 'bpickard38+demo-%';
   delete from public.conversations c using auth.users u
   where c.athlete_id = u.id and u.email like 'bpickard38+demo-%';
 
@@ -69,23 +67,23 @@ begin
   -- pain: what they reported on those days
   for a in
     select * from (values
-      ('bpickard38+demo-athlete@gmail.com', 'Maya Torres', 'Ankle sprain', 'limited', 14, 48,
+      ('bpickard38+demo-athlete@gmail.com', 'Maya Torres', 'Ankle sprain', 'limited', 14,
         array['Ankle alphabet', 'Double-leg calf raise', 'Banded ankle eversion', 'Single-leg balance'],
         array[2, 3, 3, 3], array[null, 15, 12, null]::int[], array[null, null, null, 30]::int[],
         array[4, 4, 1], array[2, 1, 1]),
-      ('bpickard38+demo-jordan@gmail.com', 'Jordan Reyes', 'ACL reconstruction', 'out', 75, 30,
+      ('bpickard38+demo-jordan@gmail.com', 'Jordan Reyes', 'ACL reconstruction', 'out', 75,
         array['Heel slides', 'Quad sets', 'Straight leg raise', 'Mini squat'],
         array[3, 3, 3, 3], array[15, 10, 12, 10], array[null, 5, null, null]::int[],
         array[4, 4, 2], array[3, 3, 2]),
-      ('bpickard38+demo-devon@gmail.com', 'Devon Clarke', 'Shoulder impingement', 'limited', 10, 12,
+      ('bpickard38+demo-devon@gmail.com', 'Devon Clarke', 'Shoulder impingement', 'limited', 10,
         array['Band external rotation', 'Scapular squeeze', 'Wall slide'],
         array[3, 3, 3], array[12, 15, 10], array[null, null, null]::int[],
         array[3, 1, 0], array[4, 6, 0]),
-      ('bpickard38+demo-priya@gmail.com', 'Priya Nair', 'Hamstring strain', 'cleared', null, 70,
+      ('bpickard38+demo-priya@gmail.com', 'Priya Nair', 'Hamstring strain', 'cleared', null,
         array['Glute bridge', 'Slider hamstring curl', 'Bird dog'],
         array[3, 3, 3], array[12, 8, 10], array[null, null, null]::int[],
         array[3, 3, 3], array[0, 1, 0])
-    ) as t(email, name, injury, availability, back_in_days, prior, exercises, sets, reps, holds, done, pain)
+    ) as t(email, name, injury, availability, back_in_days, exercises, sets, reps, holds, done, pain)
   loop
     select id into v_athlete from auth.users where email = a.email;
     continue when v_athlete is null; -- account doesn't exist: skip
@@ -117,10 +115,6 @@ begin
         values (v_plan[i], v_athlete, (v_at at time zone tz)::date, v_at, 'app', a.pain[d + 1]);
       end loop;
     end loop;
-
-    -- Exercises done before the app: 1 point each.
-    insert into public.point_events (athlete_id, source_type, source_id, points)
-    values (v_athlete, 'prior', null, a.prior);
   end loop;
 
   -- ---------- Jordan's second injury (athletes can have several) ----------

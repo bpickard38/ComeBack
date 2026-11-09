@@ -685,6 +685,64 @@ input.join-code {
 
 }
 
+/*
+ * Phones and tablets: athlete tabs become an app-style bar fixed to the
+ * bottom of the screen, icon over label, all three the same width.
+ */
+@media (max-width: 59.99rem) {
+  .app:has(.athlete-layout) {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  .athlete-layout__sidebar {
+    position: fixed;
+    z-index: 10;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: 0 0 env(safe-area-inset-bottom);
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 0;
+    background: var(--surface);
+  }
+
+  .tabs--athlete {
+    overflow: visible;
+    gap: 0;
+    padding: 0;
+  }
+
+  .tabs--athlete .tabs__tab {
+    position: relative;
+    min-height: var(--bottom-nav-height);
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: var(--font-size-xs);
+  }
+
+  .tabs--athlete .tabs__tab[aria-current='page'] {
+    background: transparent;
+    color: var(--accent);
+  }
+
+  .tabs--athlete .nav-icon {
+    width: var(--space-6);
+    height: var(--space-6);
+  }
+
+  /* Unread count sits on the corner of the icon, like a notification dot. */
+  .tabs--athlete .tabs__count {
+    position: absolute;
+    top: var(--space-1);
+    left: calc(50% + var(--space-2));
+  }
+}
+
 @media (max-width: 48rem) {
   .topbar {
     gap: var(--space-2);

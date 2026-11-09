@@ -18,7 +18,7 @@ OpenAI selects tool actions; the server-side function performs database operatio
 
 ## App Summary
 
-When a college athlete gets hurt, the athletic trainer hands them a rehab plan, but the trainer only sees the athlete at scheduled visits and has no way to know whether the exercises are actually getting done in between. Athletes lose track of what they are supposed to do each day, do not know whether they are on pace to return, and have no easy way to tell the trainer when something hurts. Coaches sit in the dark: they want to know who is available for practice and when, but the trainer cannot share medical details with them. Comeback fixes this by giving each role its own view of one shared record. The trainer assigns an injury, exercises and milestone goals; the athlete logs each exercise with a pain rating, tracks milestone tests, and earns points and rank for consistency; the trainer sees completion, pain flags and messages on a roster; and the coach sees only availability (Out, Limited, Cleared), an expected return date, and a weekly progress summary in counts (exercises done, goals reached) with no medical details. Every log, result and message is stored in a Supabase database, so all three people see the same data and nothing resets on refresh.
+When a college athlete gets hurt, the athletic trainer hands them a rehab plan, but the trainer only sees the athlete at scheduled visits and has no way to know whether the exercises are actually getting done in between. Athletes lose track of what they are supposed to do each day, do not know whether they are on pace to return, and have no easy way to tell the trainer when something hurts. Coaches sit in the dark: they want to know who is available for practice and when, but the trainer cannot share medical details with them. Comeback fixes this by giving each role its own view of one shared record. The trainer assigns an injury, exercises and milestone goals; the athlete logs each exercise with a pain rating, and tracks milestone tests on a road-to-recovery view; the trainer sees completion, pain flags and messages on a roster; and the coach sees only availability (Out, Limited, Cleared), an expected return date, and a weekly progress summary in counts (exercises done, goals reached) with no medical details. Every log, result and message is stored in a Supabase database, so all three people see the same data and nothing resets on refresh.
 
 ## ERD
 
@@ -39,7 +39,6 @@ Core entities and how they relate:
 | `exercise_logs` | One row each time an athlete marks an exercise done, with a pain rating. Unique per exercise per day. | 1 `plan_exercise` : many logs |
 | `milestone_tests` / `case_milestones` / `test_results` | Tests like "One-leg balance", the target set for one case, and each measured value. | 1 milestone : many results |
 | `appointments` | Upcoming visits, with the tests and exercises to focus on. | 1 case : many appointments |
-| `point_events` / `ranks` | 1 point per exercise logged, 10 per goal reached, awarded by database triggers. Rank thresholds live in `ranks`. | 1 athlete : many point events |
 | `conversations` / `messages` | One thread per athlete with the trainer, and one coach-to-trainer thread. | 1 conversation : many messages |
 
 ## Tech Stack
@@ -49,9 +48,9 @@ Core entities and how they relate:
 | Frontend | React 19 + TypeScript, built with Vite | Smallest setup that still gives component structure and type checking. Vite starts in seconds and hot-reloads. |
 | Routing | react-router-dom | Separate URLs for athlete and staff screens, so a role can be sent to its own home. |
 | State | React Context + `useReducer` (`src/store`) | No extra library to learn. Loading from and saving to the database lives in one file (`remote.ts`), so the screens never talk to Supabase directly. |
-| Business rules | Plain TypeScript functions in `src/domain`, tested with Vitest | Points, streaks, rank and week-completion are pure functions with tests, so we can change thresholds without touching the UI. |
+| Business rules | Plain TypeScript functions in `src/domain`, tested with Vitest | Streaks, goal progress and week-completion are pure functions with tests, so we can change thresholds without touching the UI. |
 | Backend + database | Supabase (hosted PostgreSQL, Auth, auto-generated REST API) | Backend as a service. Zero server code to write or host, a free tier that covers a class project, and a dashboard where we can see every table and row. Row level security in the database enforces who can see what (a coach can never read an athlete's injury or pain). |
-| Automatic rules | PostgreSQL triggers in `supabase/erd_schema.sql` | Points are awarded in the database when a log or result is inserted, so they are correct no matter which screen made the change. |
+| Automatic rules | PostgreSQL triggers in `supabase/erd_schema.sql` | New logins get their `users` row from the database itself, so it exists no matter how someone signed up. |
 | Hosting | Vercel (`vercel.json` routes every path to `index.html`) | Free static hosting with a public URL for demos and phone testing. |
 | Styling | Plain CSS with variables (`src/styles/tokens.css`) | No UI library. Everything is readable and editable by a team still learning to code. |
 
@@ -74,17 +73,16 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
 ### 2. Create the Supabase project (once per team)
 
 1. At supabase.com, create a new project. Any name and region. Write down the database password.
-2. Open **SQL Editor** and run these eight files in order. Paste each file's contents into a new query and click Run.
+2. Open **SQL Editor** and run these seven files in order. Paste each file's contents into a new query and click Run.
    1. `supabase/erd_schema.sql`: the tables, triggers, security rules and catalogs
-   2. `supabase/trophy_ledger_sync.sql`: backfills rewards and syncs existing trophy data
-   3. `supabase/signup.sql`: roles, teams and join codes
-   4. `supabase/live_data.sql`: conversations and plan assignment the screens use
-   5. `supabase/multi_injury.sql`: lets an athlete have several active injuries at once
-   6. `supabase/workout_sets.sql`: tutorial videos for every exercise and a workout set per injury
-   7. `supabase/weekly_summary.sql`: the coach's weekly progress summary (counts only)
-   8. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
+   2. `supabase/signup.sql`: roles, teams and join codes
+   3. `supabase/live_data.sql`: conversations and plan assignment the screens use
+   4. `supabase/multi_injury.sql`: lets an athlete have several active injuries at once
+   5. `supabase/workout_sets.sql`: tutorial videos for every exercise and a workout set per injury
+   6. `supabase/weekly_summary.sql`: the coach's weekly progress summary (counts only)
+   7. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
 
-   Already set up? Run `supabase/trophy_ledger_sync.sql` and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too, then `workout_sets.sql` and `weekly_summary.sql`. Re-run `supabase/push.sql` if you use push reminders.
+   Already set up? Run `supabase/remove_trophies.sql` once (after deploying the app version without trophies) and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too, then `workout_sets.sql` and `weekly_summary.sql`. Re-run `supabase/push.sql` if you use push reminders.
 3. Under **Authentication > Sign In / Providers**, turn on "Allow new users to sign up". Under Email, turn off "Confirm email" unless you want people to confirm by email first.
 
 ### 3. Connect the app to your project
@@ -111,13 +109,13 @@ Sign up as a trainer to create a team and get join codes, or use the demo accoun
 
 ## Verifying the Vertical Slice
 
-The button is **Mark done** on the athlete's Today screen. It inserts a row into the `exercise_logs` table, the database trigger adds a point to `point_events`, and the Today screen updates from the saved data.
+The button is **Mark done** on the athlete's Today screen. It inserts a row into the `exercise_logs` table and the Today screen updates from the saved data.
 
 1. Sign in as the demo athlete Maya Torres (`bpickard38+demo-athlete@gmail.com`, password below). You land on **Today**, which shows a header card like **"0 of 3 done"** and one card per assigned exercise.
 2. On the first exercise card, click **Mark done**. A pain scale appears. Pick a number from 0 to 10, then click **Log it**.
 3. Watch the UI change: the card's badge flips from "Not done" to "Logged [time]" and shows the pain you picked, a toast confirms "Logged: [exercise] ... Your trainer can see it", and the header now reads **"1 of 3 done"** with the progress bar moved.
 4. Refresh the page (F5 or Cmd+R). The header still says **1 of 3 done** and the exercise still shows as logged, because the page reloaded the row from Supabase.
-5. To see the row itself, open Supabase **Table Editor > exercise_logs**. The newest row has Maya's `athlete_id`, today's `log_date` and your pain rating. **point_events** has a matching row worth 1 point.
+5. To see the row itself, open Supabase **Table Editor > exercise_logs**. The newest row has Maya's `athlete_id`, today's `log_date` and your pain rating.
 6. To see it from the other side, sign in as the trainer (`bpickard38+demo-trainer@gmail.com`) in a private window. The roster shows Maya's today count as 1 of 3.
 
 What happens under the hood: `Today.tsx` calls `commands.logExercise` in `src/store/AppStore.tsx`, which checks the business rules (not already logged today, pain rating present, not offline) and then calls `insertLog` in `src/store/remote.ts`, which runs `supabase.from('exercise_logs').insert(...)`. If the insert succeeds, the new log is added to app state and the screen re-renders. On the next page load, `remote.ts` reads `exercise_logs` back from Supabase, so the log is still there.
@@ -152,8 +150,8 @@ If the accounts ever get deleted, sign up again in the app with the same emails,
 
 Use the demo accounts above. To show two roles side by side, sign in to the second one in a private browser window. Changes show up for the others within 30 seconds, or right away with "Refresh data".
 
-1. **Athlete (Maya)**: on Today, tap "Mark done" on the three pending exercises and pick a pain rating for each. The last one ranks her up to Varsity I. Rate one a 7 and message your trainer about it.
-2. **Progress**: log 30 for One-leg balance. The card flips to "Goal reached" and adds 10 points.
+1. **Athlete (Maya)**: on Today, tap "Mark done" on the three pending exercises and pick a pain rating for each. Rate one a 7 and message your trainer about it.
+2. **Progress**: log 30 for One-leg balance. The milestone flips to "Reached", its stop on the recovery path turns green, and the summary bar moves.
 3. **Trainer**: Maya and Devon are flagged for pain and a new message. Open Maya's conversation on the Messages tab and reply (her flag clears once it's read), set Devon to Out with a return date, and open Jordan: he has two active injuries, each with its own plan. Assign him new exercises for one of them (the other stays as is), or mark one cleared.
 4. **Coach**: "Team availability" shows only Out / Limited / Cleared and return dates, no injuries. Below it, "This week's progress" shows each athlete's week % with On track / Behind, days complete, streak, goals reached and last week's %, still with no injury names or pain. Maya's row shows 3 goals improved this week after the retests. Message the trainer, then show it under Coach on the trainer's Messages tab.
 5. **Errors**: set "Connection: offline" and try logging; tap "Edit my plan"; log without a pain rating; save an empty result or message.
@@ -219,13 +217,13 @@ Videos are public YouTube clips, 20 to 60 seconds, from physical therapists and 
 
 | Folder | What is in it |
 |---|---|
-| `src/domain` | Rules as plain functions (points, streaks, rank, week %), with tests. No React. |
+| `src/domain` | Rules as plain functions (streaks, goals, week %), with tests. No React. |
 | `src/data` | Sample data (`seed.ts`) used by the tests |
 | `src/store` | Sign-in gate, loading from and saving to Supabase (`remote.ts`), app state, and the commands screens call |
 | `supabase` | Database setup scripts (run in order, see above), and the `send-reminders` Edge Function in `functions/` |
 | `public` | Files served as-is: the service worker (`sw.js`), app manifest and icons |
 | `scripts` | `push-secrets.mjs`, which makes the push reminder keys and secrets |
-| `src/components` | Reusable pieces: Button, Card, ProgressBar, Toast, TabBar, trophy icons |
+| `src/components` | Reusable pieces: Button, Card, ProgressBar, Toast, TabBar, app icons |
 | `src/screens` | Athlete and staff screens |
 | `src/styles` | `tokens.css` (colors, fonts, sizes), `global.css`, `screens.css` |
 | `reference` | The ERD (`erd.mmd`, `erd.png`) and the original clickable prototype |

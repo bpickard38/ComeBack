@@ -7,8 +7,6 @@ import { createSeed, TESTS } from '../data/seed';
 import { addDays, daysThisWeek, startOfWeek } from './dates';
 import { goalPercent, isGoalReached, overallGoalPercent, parseResultValue } from './goals';
 import { createLog } from './logs';
-import { pointsFor, POINTS_PER_GOAL } from './points';
-import { RANKS, rankIndex, rankStatus, rankUp } from './rank';
 import { listNames, missedYesterday, shouldShowReminder } from './reminder';
 import { bestStreak, currentStreak } from './streak';
 import { normalizeAvailability } from './availability';
@@ -27,7 +25,6 @@ const athlete: Athlete = {
   sport: 'Soccer',
   injuries: [{ caseId: 'c1', name: 'Ankle sprain' }],
   assignedExerciseIds: ['e1', 'e2'],
-  priorExerciseCount: 10,
   priorBestStreak: 1,
   availability: 'limited',
   expectedReturn: null,
@@ -101,31 +98,7 @@ describe('logging exercises', () => {
   });
 });
 
-describe('rank', () => {
-  it('59 points is Starter III, 60 is Varsity I', () => {
-    expect(RANKS[rankIndex(59)].name).toBe('Starter III');
-    expect(RANKS[rankIndex(60)].name).toBe('Varsity I');
-  });
-
-  it('starts at Starter I and tops out at All-conference III', () => {
-    expect(RANKS[rankIndex(0)].name).toBe('Starter I');
-    expect(RANKS[rankIndex(10_000)].name).toBe('All-conference III');
-  });
-
-  it('reports points to the next rank', () => {
-    const s = rankStatus(57);
-    expect(s.next?.name).toBe('Varsity I');
-    expect(s.pointsToNext).toBe(3);
-    expect(rankStatus(270).next).toBeNull();
-  });
-
-  it('detects a rank up only when a threshold is crossed', () => {
-    expect(rankUp(59, 60)?.name).toBe('Varsity I');
-    expect(rankUp(60, 61)).toBeNull();
-  });
-});
-
-describe('points and goals', () => {
+describe('goals', () => {
   const test = TESTS[0]; // One-leg balance, target 30
   const result = (value: number, daysAgo: number): TestResult => ({
     athleteId: athlete.id,
@@ -133,17 +106,6 @@ describe('points and goals', () => {
     value,
     recordedAt: addDays(TODAY, -daysAgo).toISOString(),
     source: 'athlete',
-  });
-
-  it('counts 1 point per exercise including prior ones', () => {
-    expect(pointsFor(athlete, fullDays(1), TESTS, []).total).toBe(12);
-  });
-
-  it('adds 10 points for each goal reached', () => {
-    const before = pointsFor(athlete, [], TESTS, [result(22, 7)]);
-    const after = pointsFor(athlete, [], TESTS, [result(22, 7), result(30, 0)]);
-    expect(after.goalsReached).toBe(1);
-    expect(after.total - before.total).toBe(POINTS_PER_GOAL);
   });
 
   it('uses the latest result, not the best one', () => {
@@ -241,12 +203,9 @@ describe('seed data', () => {
     expect(isGoalReached(TESTS[0], [...seed.results, entered], 'a1')).toBe(true);
   });
 
-  it("puts Maya at 57 points, 3 short of Varsity I, with a 2-day streak", () => {
+  it('gives Maya a 2-day streak', () => {
     const seed = createSeed(TODAY);
     const maya = seed.athletes[0];
-    const points = pointsFor(maya, seed.logs, TESTS, seed.results);
-    expect(points.total).toBe(57);
-    expect(rankStatus(points.total).pointsToNext).toBe(3);
     expect(currentStreak(maya, seed.logs, TODAY)).toBe(2);
   });
 });

@@ -55,7 +55,7 @@ export function formatNumber(n: number): string {
   return String(Math.round(n * 100) / 100);
 }
 
-/** "1 point", "3 points" */
+/** "1 day", "3 days" */
 export function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
 }

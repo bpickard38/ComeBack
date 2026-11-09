@@ -175,32 +175,6 @@ create table public.appointment_exercises (
   primary key (appointment_id, plan_exercise_id)
 );
 
--- ---------- Gamification ----------
-
--- The rank ladder. Change thresholds here without touching anyone's points.
-create table public.ranks (
-  id int primary key,
-  name text not null unique,
-  metal text not null check (metal in ('bronze', 'silver', 'gold')),
-  min_points int not null unique check (min_points >= 0)
-);
-
--- The points ledger. Totals are added up from here, never stored, so they
--- can't drift. Rows are created automatically (see section 3).
-create table public.point_events (
-  id uuid primary key default gen_random_uuid(),
-  athlete_id uuid not null references public.users (id) on delete cascade,
-  source_type text not null check (source_type in ('exercise_log', 'goal_reached', 'prior')),
-  -- The log or case milestone that earned the points. Empty only for 'prior'
-  -- (exercises done before the app).
-  source_id uuid,
-  points int not null, -- 1 per exercise, 10 per goal
-  created_at timestamptz not null default now(),
-  check (source_type = 'prior' or source_id is not null),
-  -- A log or goal can only award points once.
-  unique (source_type, source_id)
-);
-
 -- ---------- Messaging ----------
 
 create table public.conversations (
@@ -234,26 +208,8 @@ create index on public.exercise_logs (athlete_id, log_date);
 create index on public.case_milestones (athlete_injury_id);
 create index on public.test_results (case_milestone_id);
 create index on public.appointments (athlete_id, starts_at);
-create index on public.point_events (athlete_id);
 create index on public.conversation_members (user_id);
 create index on public.messages (conversation_id, sent_at);
-
--- ---------- Derived: points and rank ----------
-
--- Points total and current rank per athlete, added up from the ledger.
--- security_invoker means it obeys the same security rules as point_events.
-create view public.athlete_points with (security_invoker = true) as
-select
-  pe.athlete_id,
-  sum(pe.points)::int as total_points,
-  (
-    select r.name from public.ranks r
-    where r.min_points <= sum(pe.points)
-    order by r.min_points desc
-    limit 1
-  ) as rank_name
-from public.point_events pe
-group by pe.athlete_id;
 
 -- =====================================================================
 -- 2. HELPER FUNCTIONS for the security rules
@@ -415,75 +371,6 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
--- Logging an exercise earns 1 point. Done here, not by the app, so nobody
--- can give themselves points.
-create function public.award_exercise_point() returns trigger
-language plpgsql security definer set search_path = '' as $$
-begin
-  insert into public.point_events (athlete_id, source_type, source_id, points)
-  values (new.athlete_id, 'exercise_log', new.id, 1)
-  on conflict (source_type, source_id) do nothing;
-  return new;
-end;
-$$;
-
-create trigger exercise_logs_award_point
-after insert on public.exercise_logs
-for each row execute function public.award_exercise_point();
-
--- If the trainer deletes a log, its point goes too.
-create function public.remove_exercise_point() returns trigger
-language plpgsql security definer set search_path = '' as $$
-begin
-  delete from public.point_events where source_type = 'exercise_log' and source_id = old.id;
-  return old;
-end;
-$$;
-
-create trigger exercise_logs_remove_point
-after delete on public.exercise_logs
-for each row execute function public.remove_exercise_point();
-
--- A result that meets the target earns 10 points, once per goal.
--- source_id is the case milestone, so the unique rule stops a second award.
-create function public.award_goal_points() returns trigger
-language plpgsql security definer set search_path = '' as $$
-declare
-  v_target numeric;
-  v_athlete uuid;
-begin
-  select cm.target, ai.athlete_id into v_target, v_athlete
-  from public.case_milestones cm
-  join public.athlete_injuries ai on ai.id = cm.athlete_injury_id
-  where cm.id = new.case_milestone_id;
-
-  if new.value >= v_target then
-    insert into public.point_events (athlete_id, source_type, source_id, points)
-    values (v_athlete, 'goal_reached', new.case_milestone_id, 10)
-    on conflict (source_type, source_id) do nothing;
-  end if;
-  return new;
-end;
-$$;
-
-create trigger test_results_award_goal
-after insert on public.test_results
-for each row execute function public.award_goal_points();
-
--- Removing a milestone removes its one-time goal reward as well.
-create function public.remove_deleted_goal_points() returns trigger
-language plpgsql security definer set search_path = '' as $$
-begin
-  delete from public.point_events
-  where source_type = 'goal_reached' and source_id = old.id;
-  return old;
-end;
-$$;
-
-create trigger case_milestones_remove_goal_points
-after delete on public.case_milestones
-for each row execute function public.remove_deleted_goal_points();
-
 -- Users already in Authentication before this script ran get their row now.
 insert into public.users (id, name, email)
 select id, coalesce(raw_user_meta_data ->> 'name', split_part(email, '@', 1)), email
@@ -505,19 +392,17 @@ revoke all on
   public.athlete_injuries, public.exercises, public.plan_exercises,
   public.exercise_logs, public.milestone_tests, public.case_milestones,
   public.test_results, public.appointments, public.appointment_tests,
-  public.appointment_exercises, public.ranks, public.point_events,
-  public.conversations, public.conversation_members, public.messages,
-  public.athlete_points
+  public.appointment_exercises,
+  public.conversations, public.conversation_members, public.messages
 from anon;
 
 grant select, insert, update, delete on
   public.teams, public.injuries, public.athlete_injuries, public.exercises,
   public.plan_exercises, public.exercise_logs, public.milestone_tests,
   public.case_milestones, public.test_results, public.appointments,
-  public.appointment_tests, public.appointment_exercises, public.point_events,
+  public.appointment_tests, public.appointment_exercises,
   public.conversations, public.conversation_members
 to authenticated;
-grant select on public.ranks, public.athlete_points to authenticated;
 
 -- Some tables only allow changing certain columns:
 -- people may edit their own name and phone, but not their role or email.
@@ -547,8 +432,6 @@ alter table public.test_results enable row level security;
 alter table public.appointments enable row level security;
 alter table public.appointment_tests enable row level security;
 alter table public.appointment_exercises enable row level security;
-alter table public.ranks enable row level security;
-alter table public.point_events enable row level security;
 alter table public.conversations enable row level security;
 alter table public.conversation_members enable row level security;
 alter table public.messages enable row level security;
@@ -605,8 +488,6 @@ create policy "Trainer edits exercises" on public.exercises for update to authen
 create policy "Read tests" on public.milestone_tests for select to authenticated using (true);
 create policy "Trainer adds tests" on public.milestone_tests for insert to authenticated with check (private.is_trainer());
 create policy "Trainer edits tests" on public.milestone_tests for update to authenticated using (private.is_trainer()) with check (private.is_trainer());
-
-create policy "Read ranks" on public.ranks for select to authenticated using (true);
 
 -- ---------- Rehab plan: athlete reads own, trainer manages ----------
 -- Coaches get no policy here, so they can't see injuries or plans at all.
@@ -763,22 +644,6 @@ create policy "Trainer removes appointment exercises" on public.appointment_exer
   for delete to authenticated
   using (private.is_trainer_of(private.appointment_athlete(appointment_id)));
 
--- ---------- Points ----------
--- Exercise and goal points are added by the triggers in section 3. The only
--- thing a person adds by hand is a trainer entering "prior" points.
-
-create policy "Read points" on public.point_events
-  for select to authenticated
-  using (private.can_see_athlete(athlete_id));
-
-create policy "Trainer adds prior points" on public.point_events
-  for insert to authenticated
-  with check (source_type = 'prior' and private.is_trainer_of(athlete_id));
-
-create policy "Trainer removes prior points" on public.point_events
-  for delete to authenticated
-  using (source_type = 'prior' and private.is_trainer_of(athlete_id));
-
 -- ---------- Messaging ----------
 -- Who can talk to whom is decided by membership: a coach is only ever added
 -- to coach_trainer conversations, so they can only message the trainer.
@@ -827,20 +692,9 @@ create policy "Mark read" on public.messages
   with check (private.is_conversation_member(conversation_id));
 
 -- =====================================================================
--- 5. CATALOG DATA (from src/domain/rank.ts and src/data/seed.ts)
+-- 5. CATALOG DATA (from src/data/seed.ts)
 -- No people or health records: add those through the app or Table Editor.
 -- =====================================================================
-
-insert into public.ranks (id, name, metal, min_points) values
-  (1, 'Starter I', 'bronze', 0),
-  (2, 'Starter II', 'bronze', 20),
-  (3, 'Starter III', 'bronze', 40),
-  (4, 'Varsity I', 'silver', 60),
-  (5, 'Varsity II', 'silver', 90),
-  (6, 'Varsity III', 'silver', 120),
-  (7, 'All-conference I', 'gold', 160),
-  (8, 'All-conference II', 'gold', 210),
-  (9, 'All-conference III', 'gold', 270);
 
 insert into public.injuries (name, body_region) values
   ('Ankle sprain', 'Ankle'),

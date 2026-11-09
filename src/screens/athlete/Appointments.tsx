@@ -3,28 +3,27 @@ import { Card } from '../../components/Card';
 import { type CalendarEvent, googleCalendarUrl, icsFile, outlookCalendarUrl } from '../../domain/calendar';
 import { findLog } from '../../domain/logs';
 import { formatDay, formatTime } from '../../format';
+import type { Appointment } from '../../domain/types';
 import { exerciseById, testById, useAppStore, useSignedInAthlete } from '../../store/AppStore';
 
+/** Visits that haven't started yet, soonest first. */
+export function upcomingAppointments(appointments: Appointment[], athleteId: string, now: Date): Appointment[] {
+  return appointments
+    .filter((a) => a.athleteId === athleteId && new Date(a.startsAt) >= now)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+/** The athlete's upcoming visits in full. Shown on the Trainer tab. */
 export function Appointments() {
   const { state } = useAppStore();
   const me = useSignedInAthlete();
   const now = new Date();
-
-  // Only visits that haven't started yet, soonest first.
-  const upcoming = state.appointments
-    .filter((a) => a.athleteId === me.id && new Date(a.startsAt) >= now)
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const upcoming = upcomingAppointments(state.appointments, me.id, now);
 
   return (
     <>
-      <Card>
-        <h1>Appointments</h1>
-      </Card>
-
       {upcoming.length === 0 && (
-        <Card>
-          <p className="muted">No upcoming appointments. Your trainer will add your next visit here.</p>
-        </Card>
+        <p className="muted">No upcoming appointments. Your trainer will add your next visit here.</p>
       )}
 
       {upcoming.map((ap) => (

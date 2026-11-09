@@ -691,300 +691,96 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Rank and achievement progress */
-.trophy-page {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-8);
-}
-
-.trophy-hero {
-  --rank-accent: var(--accent);
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  overflow: hidden;
-  padding: var(--trophy-padding);
-  border: 1px solid var(--border-subtle);
-  border-left: var(--space-1) solid var(--rank-accent);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-raised);
-}
-
-.trophy-hero--bronze {
-  --rank-accent: var(--metal-bronze);
-}
-
-.trophy-hero--silver {
-  --rank-accent: var(--metal-silver);
-}
-
-.trophy-hero--gold {
-  --rank-accent: var(--metal-gold);
-}
-
-.trophy-hero__identity {
+/* Progress tab: road to recovery */
+.milestone-bar {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-}
-
-.trophy-hero__title {
-  min-width: 0;
-}
-
-.trophy-hero__eyebrow {
-  color: var(--text-muted);
-}
-
-.trophy-hero__title h1 {
-  overflow-wrap: anywhere;
-  font-size: var(--type-display);
-}
-
-.trophy-hero__metal {
-  color: var(--text-muted);
-  font-weight: var(--font-weight-semibold);
-}
-
-.trophy-hero__progress {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.trophy-hero__progress-copy {
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.trophy-hero__stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-4) 0 0;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.trophy-hero__stats div {
-  display: flex;
-  flex-direction: column-reverse;
   gap: var(--space-1);
 }
 
-.trophy-hero__stats dt {
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.trophy-hero__stats dd {
-  margin: 0;
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  line-height: var(--line-heading);
-  font-variant-numeric: tabular-nums;
-}
-
-.medal {
-  display: flex;
-  width: var(--medal-size);
-  height: var(--medal-size);
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--medal-border);
-  border-radius: 50%;
-  color: var(--text-on-inverse);
-}
-
-.medal--lg {
-  width: var(--medal-size-lg);
-  height: var(--medal-size-lg);
-}
-
-.trophy-icon {
-  width: var(--icon-size-md);
-  height: var(--icon-size-md);
-  stroke-width: var(--icon-stroke);
-}
-
-.trophy-icon--large {
-  width: var(--icon-size-xl);
-  height: var(--icon-size-xl);
-}
-
-.medal--bronze {
-  background: var(--metal-bronze);
-}
-
-.medal--silver {
-  background: var(--metal-silver);
-}
-
-.medal--gold {
-  background: var(--metal-gold);
-}
-
-.medal--locked {
+.milestone-bar__seg {
+  height: var(--progress-height-lg);
+  flex: 1 1 0;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
   background: var(--surface-high);
+}
+
+.milestone-bar__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.milestone-bar__seg--reached .milestone-bar__fill {
+  background: var(--success);
+}
+
+.milestone-bar__finish {
+  padding-left: var(--space-1);
   color: var(--text-muted);
-}
-
-.rank-ladder {
-  min-width: 0;
-}
-
-.rank-ladder__heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-
-.rank-ladder__heading h2 {
   font-size: var(--font-size-lg);
+  line-height: 1;
 }
 
-.rank-ladder__viewport {
-  position: relative;
-  height: min(var(--rank-ladder-height), var(--rank-ladder-max-height));
-  min-height: var(--rank-ladder-min-height);
-  overflow: auto;
-  overscroll-behavior-block: contain;
-  scroll-snap-type: y proximity;
-  scroll-behavior: smooth;
+.milestone-bar__finish--reached {
+  color: var(--success);
 }
 
-.rank-track {
-  position: relative;
+/* Milestones as stops on a vertical path, ending at return to play. */
+.recovery-path {
   display: flex;
   flex-direction: column;
+  gap: var(--space-4);
   margin: 0;
-  padding: var(--space-4) 0;
+  padding: 0;
   list-style: none;
 }
 
-.rank-track__step {
+.recovery-path__step {
   position: relative;
-  width: 100%;
-  min-width: 0;
-  min-height: var(--rank-row-min-height);
-  padding: var(--space-1) var(--space-2);
-  color: var(--text-muted);
-  scroll-snap-align: center;
+  display: grid;
+  grid-template-columns: var(--space-8) minmax(0, 1fr);
+  gap: var(--space-3);
 }
 
-.rank-track__step::before {
+/* The line joining this stop to the next one. */
+.recovery-path__step:not(:last-child)::before {
   position: absolute;
-  z-index: 0;
-  top: 0;
-  bottom: 0;
-  left: var(--space-10);
-  width: 1px;
-  background: var(--border);
+  top: var(--space-8);
+  bottom: calc(-1 * var(--space-4));
+  left: calc(var(--space-8) / 2 - 1px);
+  width: 2px;
+  background: var(--border-subtle);
   content: '';
 }
 
-.rank-track__step:first-child::before {
-  top: 50%;
+.recovery-path__step--reached:not(:last-child)::before {
+  background: var(--success);
 }
 
-.rank-track__step:last-child::before {
-  bottom: 50%;
-}
-
-.rank-track__step--reached {
-  color: var(--text);
-}
-
-.rank-track__step:not(.rank-track__step--reached) .medal {
-  border-color: var(--border);
-  background: var(--surface-high);
-  color: var(--text-muted);
-}
-
-.rank-track__button {
-  position: relative;
+.recovery-path__marker {
   z-index: 1;
   display: grid;
-  width: 100%;
-  min-height: var(--rank-row-min-height);
-  grid-template-columns: var(--space-12) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: inherit;
-  text-align: left;
-}
-
-.rank-track__step--current .rank-track__button {
-  background: var(--surface-high);
-  box-shadow: var(--shadow-card);
-  color: var(--text);
-}
-
-@media (hover: hover) {
-  .rank-track__button:hover {
-    background: var(--surface-raised);
-  }
-}
-
-.rank-track__medal {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  width: var(--space-12);
-  height: var(--space-12);
-  place-items: center;
-}
-
-.rank-track__medal .medal,
-.rank-track__medal .medal--lg {
-  width: var(--rank-medal-size);
-  height: var(--rank-medal-size);
-}
-
-.rank-track__medal .medal--lg svg {
   width: var(--space-8);
   height: var(--space-8);
-}
-
-.rank-track__details {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.rank-track__name {
-  font-weight: var(--font-weight-bold);
-  line-height: var(--line-heading);
-}
-
-.rank-track__threshold,
-.rank-track__state {
+  place-items: center;
+  margin-top: var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
   font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
 }
 
-.rank-track__state {
-  grid-column: 2;
-  font-weight: var(--font-weight-semibold);
-  text-align: left;
+.recovery-path__step--reached .recovery-path__marker {
+  border-color: var(--success);
+  background: var(--success-bg);
+  color: var(--success);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .rank-ladder__viewport {
-    scroll-snap-type: none;
-  }
-}
 
 /* Appointments */
 .appt-head {
@@ -1311,24 +1107,6 @@
 }
 
 @media (min-width: 30rem) {
-  .trophy-hero__identity {
-    gap: var(--space-4);
-  }
-
-  .trophy-hero__stats {
-    gap: var(--space-4);
-  }
-
-  .rank-track__button {
-    grid-template-columns: var(--space-12) minmax(0, 1fr) auto;
-    gap: var(--space-3);
-  }
-
-  .rank-track__state {
-    grid-column: auto;
-    text-align: right;
-  }
-
   .week-exercise {
     grid-template-columns: var(--target-min) minmax(0, 1fr) auto;
   }
@@ -1340,5 +1118,62 @@
 
   .appt-body {
     padding-inline: var(--space-5);
+  }
+}
+
+/* Trainer tab: upcoming visits folded into one row above the chat. */
+.appt-drawer {
+  gap: 0;
+}
+
+.appt-drawer__summary {
+  display: flex;
+  min-height: var(--target-min);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  cursor: pointer;
+  list-style: none;
+}
+
+.appt-drawer__summary::-webkit-details-marker {
+  display: none;
+}
+
+.appt-drawer__summary::after {
+  color: var(--accent);
+  font-size: var(--font-size-xl);
+  content: '+';
+}
+
+.appt-drawer[open] > .appt-drawer__summary::after {
+  content: '−';
+}
+
+.appt-drawer__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+}
+
+/* Today tab: next visit, links to the Trainer tab. */
+.next-visit {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  color: inherit;
+  text-decoration: none;
+}
+
+.next-visit__arrow {
+  color: var(--accent);
+  font-size: var(--font-size-2xl);
+  line-height: 1;
+}
+
+@media (hover: hover) {
+  .next-visit:hover {
+    background: var(--surface-raised);
   }
 }

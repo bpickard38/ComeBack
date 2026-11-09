@@ -16,12 +16,10 @@ import type {
   Message,
   MessageThread,
   MilestoneTest,
-  PointEvent,
   Result,
   TestResult,
 } from '../domain/types';
 import type { AthleteProgress } from '../domain/progress';
-import type { Rank } from '../domain/rank';
 import type { Profile } from './profile';
 import type { RemoteData } from './state';
 import { supabase } from './supabase';
@@ -101,7 +99,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   const isCoach = profile.role === 'coach';
   const none = Promise.resolve({ data: [], error: null });
 
-  const [members, users, cases, plans, logs, goals, results, appointments, pointEvents, ranks, conversations, messages, injuries, exerciseCatalog, injurySets, summary] =
+  const [members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary] =
     await Promise.all([
       supabase.from('team_members').select('user_id, role, availability, expected_return, teams(name, sport)'),
       supabase.from('users').select('id, name, role'),
@@ -114,8 +112,6 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
         .from('appointments')
         .select('id, athlete_id, starts_at, location, title, appointment_tests(case_milestone_id, note), appointment_exercises(plan_exercise_id)')
         .neq('status', 'cancelled'),
-      supabase.from('point_events').select('athlete_id, source_type, source_id, points'),
-      supabase.from('ranks').select('name, min_points, metal').order('min_points'),
       supabase.from('conversations').select('id, kind, athlete_id'),
       supabase.from('messages').select('id, conversation_id, sender_id, body, sent_at, read_at').order('sent_at'),
       isTrainer ? supabase.from('injuries').select('id, name').order('name') : none,
@@ -148,27 +144,6 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     description: p.exercises?.description ?? null,
   }));
 
-  const pointEventList: PointEvent[] = rows<{
-    athlete_id: string;
-    source_type: PointEvent['sourceType'];
-    source_id: string | null;
-    points: number;
-  }>(pointEvents).map((event) => ({
-    athleteId: event.athlete_id,
-    sourceType: event.source_type,
-    sourceId: event.source_id,
-    points: Number(event.points),
-  }));
-  const priorPoints = new Map<string, number>();
-  for (const event of pointEventList.filter((entry) => entry.sourceType === 'prior')) {
-    priorPoints.set(event.athleteId, (priorPoints.get(event.athleteId) ?? 0) + event.points);
-  }
-  const rankList: Rank[] = rows<{ name: string; min_points: number; metal: string }>(ranks).map((rank) => ({
-    name: rank.name,
-    minPoints: Number(rank.min_points),
-    metal: (rank.metal[0].toUpperCase() + rank.metal.slice(1)) as Rank['metal'],
-  }));
-
   const athletes: Athlete[] = [];
   for (const m of rows<MemberRow>(members)) {
     if (m.role !== 'athlete' || athletes.some((a) => a.id === m.user_id)) continue;
@@ -181,7 +156,6 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       assignedExerciseIds: planRows
         .filter((p) => p.active && current.some((c) => c.id === p.athlete_injury_id))
         .map((p) => p.id),
-      priorExerciseCount: priorPoints.get(m.user_id) ?? 0,
       priorBestStreak: 0,
       availability: m.availability ?? 'cleared',
       expectedReturn: m.expected_return,
@@ -273,8 +247,6 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     exercises,
     tests,
     logs: logList,
-    pointEvents: pointEventList,
-    ranks: rankList,
     results: resultList,
     appointments: appointmentList,
     messages: messageList,

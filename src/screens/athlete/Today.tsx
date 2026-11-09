@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { Badge } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
@@ -20,6 +21,7 @@ import {
   useAppStore,
   useSignedInAthlete,
 } from "../../store/AppStore";
+import { upcomingAppointments } from "./Appointments";
 import { RemindersCard } from "./RemindersCard";
 
 export function Today() {
@@ -41,6 +43,7 @@ export function Today() {
   const showReminder =
     left > 0 && (state.reminderSimulated || shouldShowReminder(now, left));
   const leftNames = items.filter((i) => !i.log).map((i) => i.exercise.name);
+  const nextVisit = upcomingAppointments(state.appointments, me.id, now)[0];
 
   /** Returns true when the log saved, so the card can move keyboard focus. */
   async function markDone(
@@ -52,10 +55,9 @@ export function Today() {
       notify(result.error, "error");
       return false;
     }
-    const { log, rankUp } = result.value;
+    const { log } = result.value;
     let text = `Logged: ${exercise.name} at ${formatTime(log.loggedAt)}, pain ${log.pain}. Your trainer can see it.`;
     if (isHighPain(log.pain)) text += " They\u2019ll follow up about the pain.";
-    if (rankUp) text += ` Rank up: ${rankUp.name}!`;
     notify(text);
     return true;
   }
@@ -121,6 +123,21 @@ export function Today() {
         <Card className="card--mist strong">
           All exercises logged for today. Your trainer can see your progress.
         </Card>
+      )}
+
+      {nextVisit && (
+        <Link to="/athlete/trainer" className="card next-visit">
+          <span className="stack-xs">
+            <span className="eyebrow">Next appointment</span>
+            <span className="strong">
+              {formatDay(nextVisit.startsAt)} &middot; {formatTime(nextVisit.startsAt)}
+            </span>
+            <span className="muted">
+              {nextVisit.title} &middot; {nextVisit.location}
+            </span>
+          </span>
+          <span className="next-visit__arrow" aria-hidden="true">&rsaquo;</span>
+        </Link>
       )}
 
     </>

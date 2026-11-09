@@ -3,7 +3,10 @@ import { TabBar, type Tab } from "../../components/TabBar";
 import { athleteThread, unreadIn } from "../../domain/messages";
 import { useAppStore } from "../../store/AppStore";
 
-/** Athlete navigation and the active screen. */
+/**
+ * Athlete navigation and the active screen. Three tabs: on phones they sit in
+ * a bar along the bottom of the screen, on wide screens in a left sidebar.
+ */
 export function AthleteLayout() {
   const { state, profile } = useAppStore();
   const unread = unreadIn(
@@ -13,11 +16,8 @@ export function AthleteLayout() {
   );
   const tabs: Tab[] = [
     { to: "/athlete", label: "Today", icon: "today" },
-    { to: "/athlete/week", label: "Week", icon: "week" },
-    { to: "/athlete/goals", label: "Progress", icon: "progress" },
-    { to: "/athlete/trophies", label: "Trophies", icon: "trophies" },
-    { to: "/athlete/appointments", label: "Appointments", icon: "appointments" },
-    { to: "/athlete/messages", label: "Messages", icon: "messages", unreadCount: unread },
+    { to: "/athlete/progress", label: "Progress", icon: "progress" },
+    { to: "/athlete/trainer", label: "Trainer", icon: "messages", unreadCount: unread },
   ];
 
   return (
