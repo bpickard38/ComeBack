@@ -105,6 +105,27 @@
   gap: var(--space-5);
 }
 
+.card--coach {
+  box-shadow: var(--shadow-raised);
+}
+
+.card--coach-status {
+  box-shadow: var(--shadow-raised), var(--shadow-inset-card);
+}
+
+.coach-card__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+}
+
+.coach-card__head h2 {
+  font-size: var(--font-size-lg);
+}
+
 /* Badges, progress, and notices */
 .badge {
   display: inline-flex;
@@ -132,6 +153,54 @@
   border-color: var(--warning);
   background: var(--warning-bg);
   color: var(--warning);
+}
+
+/* Coach statuses use semantic color while staying plain text. */
+.status-text {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.status-text--danger {
+  color: var(--danger);
+}
+
+.status-text--caution,
+.status-text--behind {
+  color: var(--warning);
+}
+
+.status-text--cleared,
+.status-text--on-track {
+  color: var(--success);
+}
+
+.status-text--info,
+.coach-date {
+  color: var(--info);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.coach-improved {
+  color: var(--success);
+  font-weight: var(--font-weight-semibold);
+}
+
+.coach-progress-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.coach-progress-key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .bar {
@@ -893,6 +962,14 @@
   gap: var(--space-5);
 }
 
+.staff-grid--coach {
+  gap: var(--space-6);
+}
+
+.staff-grid--coach > .stack-sm {
+  gap: var(--space-5);
+}
+
 .table-head {
   display: flex;
   justify-content: space-between;
@@ -958,6 +1035,12 @@
 .week thead th {
   border-top: 0;
   background: var(--surface-raised);
+}
+
+.week--coach thead th {
+  position: relative;
+  z-index: 1;
+  box-shadow: inset 0 -1px 0 var(--border-subtle), var(--shadow-table-head);
 }
 
 .week th:first-child {

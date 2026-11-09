@@ -10,17 +10,7 @@ import { useAppStore } from '../../store/AppStore';
 export function StaffLayout() {
   const { state, profile } = useAppStore();
   if (state.role === 'coach') {
-    const tabs: Tab[] = [{ to: '/staff', label: 'Availability', icon: 'availability' }];
-    return (
-      <div className="staff-layout">
-        <aside className="staff-layout__sidebar">
-          <TabBar tabs={tabs} label="Coach sections" className="tabs--staff" />
-        </aside>
-        <section className="staff-layout__content" aria-label="Coach workspace">
-          <Outlet />
-        </section>
-      </div>
-    );
+    return <Outlet />;
   }
 
   // How many conversations have something you haven't read, shown on the tab.
