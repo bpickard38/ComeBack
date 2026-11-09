@@ -31,25 +31,37 @@ export function Progress() {
         </div>
 
         {tests.length > 0 && (
-          <div className="stack-sm">
-            <div className="spread strong">
-              <span>
-                {met} of {tests.length} milestones reached
-              </span>
-              <span>{overall}%</span>
+          <div className="recovery-meter">
+            <div className="recovery-meter__headline">
+              <span className="recovery-meter__pct">{overall}%</span>
+              <span className="muted">of the way to return to play</span>
             </div>
-            {/* One segment per milestone, filled by how close that milestone is. The text above says the numbers. */}
-            <div className="milestone-bar" aria-hidden="true">
-              {tests.map((test) => {
-                const percent = goalPercent(test, currentValue(test, state.results, me.id));
-                const reached = isGoalReached(test, state.results, me.id);
-                return (
-                  <div key={test.id} className={`milestone-bar__seg${reached ? ' milestone-bar__seg--reached' : ''}`}>
-                    <div className="milestone-bar__fill" style={{ width: `${reached ? 100 : percent}%` }} />
-                  </div>
-                );
-              })}
-              <span className={`milestone-bar__finish${allMet ? ' milestone-bar__finish--reached' : ''}`}>&#9873;</span>
+            {/* The number above says the same thing, so the bar is hidden from screen readers. */}
+            <div className="recovery-meter__track" aria-hidden="true">
+              <div className="recovery-meter__fill" style={{ width: `${overall}%` }} />
+            </div>
+
+            <div className="stack-xs">
+              <div className="small strong">
+                {met} of {tests.length} milestones reached
+              </div>
+              <ul className="milestone-chips">
+                {tests.map((test) => {
+                  const reached = isGoalReached(test, state.results, me.id);
+                  const percent = goalPercent(test, currentValue(test, state.results, me.id));
+                  return (
+                    <li key={test.id} className={`milestone-chip${reached ? ' milestone-chip--reached' : ''}`}>
+                      {reached && (
+                        <span className="milestone-chip__mark" aria-hidden="true">
+                          ✓
+                        </span>
+                      )}
+                      <span>{test.name}</span>
+                      <span className="milestone-chip__pct">{reached ? 'Reached' : `${percent}%`}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </div>
         )}

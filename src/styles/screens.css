@@ -691,41 +691,92 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Progress tab: road to recovery */
-.milestone-bar {
+/* Progress tab: one bar for overall recovery, a chip per milestone. */
+.recovery-meter {
   display: flex;
-  align-items: center;
-  gap: var(--space-1);
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
-.milestone-bar__seg {
+.recovery-meter__headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+
+.recovery-meter__pct {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.recovery-meter__track {
   height: var(--progress-height-lg);
-  flex: 1 1 0;
   overflow: hidden;
   border-radius: var(--radius-pill);
   background: var(--surface-high);
 }
 
-.milestone-bar__fill {
+.recovery-meter__fill {
   height: 100%;
+  min-width: var(--progress-height-lg);
   border-radius: inherit;
   background: var(--accent);
   transition: width var(--duration-base) var(--ease-standard);
 }
 
-.milestone-bar__seg--reached .milestone-bar__fill {
-  background: var(--success);
+.milestone-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.milestone-bar__finish {
-  padding-left: var(--space-1);
+.milestone-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
+}
+
+.milestone-chip__mark {
+  display: grid;
+  width: var(--space-5);
+  height: var(--space-5);
+  place-items: center;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.milestone-chip__pct {
   color: var(--text-muted);
-  font-size: var(--font-size-lg);
-  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
-.milestone-bar__finish--reached {
+.milestone-chip--reached {
+  padding-left: var(--space-1);
+  border-color: var(--success);
+  background: var(--success-bg);
+}
+
+.milestone-chip--reached .milestone-chip__mark {
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--surface);
+}
+
+.milestone-chip--reached .milestone-chip__pct {
   color: var(--success);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* Milestones as stops on a vertical path, ending at return to play. */
