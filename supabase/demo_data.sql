@@ -175,9 +175,14 @@ begin
       end loop;
     end loop;
 
-    -- Three upcoming visits: what to work on before each one.
+    -- Four upcoming visits: what to work on before each one. Dates are
+    -- relative, so after a reset there's always one tomorrow (handy for
+    -- trying "Add to calendar") and more over the next two weeks.
     for a in
       select * from (values
+        (1, 'Rehab check-in',
+          array['One-leg balance'], array['Retest: aim for 25 sec'],
+          array['Ankle alphabet']),
         (2, 'Weekly check-in',
           array['One-leg balance'], array['Retest: aim for 25 sec'],
           array['Single-leg balance', 'Banded ankle eversion']),
