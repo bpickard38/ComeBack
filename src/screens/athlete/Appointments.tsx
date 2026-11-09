@@ -3,15 +3,8 @@ import { Card } from '../../components/Card';
 import { type CalendarEvent, googleCalendarUrl, icsFile, outlookCalendarUrl } from '../../domain/calendar';
 import { findLog } from '../../domain/logs';
 import { formatDay, formatTime } from '../../format';
-import type { Appointment } from '../../domain/types';
+import { upcomingAppointments } from '../../domain/appointments';
 import { exerciseById, testById, useAppStore, useSignedInAthlete } from '../../store/AppStore';
-
-/** Visits that haven't started yet, soonest first. */
-export function upcomingAppointments(appointments: Appointment[], athleteId: string, now: Date): Appointment[] {
-  return appointments
-    .filter((a) => a.athleteId === athleteId && new Date(a.startsAt) >= now)
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-}
 
 /** The athlete's upcoming visits in full. Shown on the Trainer tab. */
 export function Appointments() {

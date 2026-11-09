@@ -13,7 +13,7 @@ import { normalizeAvailability } from './availability';
 import { chatItems, inboxOrder, TIME_GAP_MINUTES, unreadIn } from './messages';
 import { highestRecentPain, validatePain } from './pain';
 import type { Athlete, ExerciseLog, Message, MessageThread, TestResult } from './types';
-import { validateAssignment, validateMessage } from './validation';
+import { validateAppointment, validateAssignment, validateMessage, type AppointmentInput } from './validation';
 import { weekCompletion, weekStatus } from './week';
 
 // A fixed "today" so tests don't depend on when they run: Wed Oct 7 2026, 2 PM.
@@ -185,6 +185,41 @@ describe('validation', () => {
 
   it('rejects blank messages', () => {
     expect(validateMessage('   ')).toEqual({ ok: false, error: 'Write a message first.' });
+  });
+
+  describe('appointments', () => {
+    const visit: AppointmentInput = {
+      athleteId: 'a1',
+      title: ' Rehab check-in ',
+      date: '2026-10-08',
+      time: '15:30',
+      location: ' Training room ',
+      testIds: [],
+      exerciseIds: [],
+    };
+
+    it('accepts a future visit and trims the text', () => {
+      const result = validateAppointment(visit, TODAY);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.title).toBe('Rehab check-in');
+      expect(result.value.location).toBe('Training room');
+      expect(new Date(result.value.startsAt).getTime()).toBe(new Date(2026, 9, 8, 15, 30).getTime());
+    });
+
+    it('needs a title, a date and a time', () => {
+      expect(validateAppointment({ ...visit, title: '  ' }, TODAY).ok).toBe(false);
+      expect(validateAppointment({ ...visit, date: '' }, TODAY).ok).toBe(false);
+      expect(validateAppointment({ ...visit, time: '' }, TODAY).ok).toBe(false);
+    });
+
+    it('rejects a time that has already passed', () => {
+      // TODAY is Oct 7 at 2 PM, so 1 PM the same day is in the past.
+      expect(validateAppointment({ ...visit, date: '2026-10-07', time: '13:00' }, TODAY)).toEqual({
+        ok: false,
+        error: 'Pick a time that hasn’t passed yet.',
+      });
+    });
   });
 });
 

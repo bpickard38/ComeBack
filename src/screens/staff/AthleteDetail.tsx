@@ -9,8 +9,9 @@ import { isHighPain } from '../../domain/pain';
 import type { Athlete, Availability } from '../../domain/types';
 import { formatTime, formatWeekday, injuryLabel } from '../../format';
 import { exerciseById, useAppStore } from '../../store/AppStore';
+import { AppointmentScheduler } from './AppointmentScheduler';
 
-/** Trainer's view of one athlete: coach-facing status, a link to messages, and this week's log. */
+/** Trainer's view of one athlete: coach-facing status, appointments, a link to messages, and this week's log. */
 export function AthleteDetail({ athlete }: { athlete: Athlete }) {
   const { state, profile } = useAppStore();
 
@@ -24,6 +25,7 @@ export function AthleteDetail({ athlete }: { athlete: Athlete }) {
       </div>
       {state.role === 'trainer' && <InjuryList athlete={athlete} />}
       <AvailabilityEditor athlete={athlete} />
+      {state.role === 'trainer' && <AppointmentScheduler athlete={athlete} />}
       {/* The conversation itself lives on the Messages tab. */}
       <Link to={`/staff/messages?with=${athlete.id}`} className="btn btn--secondary align-start strong">
         {unreadIn(state.messages, athleteThread(athlete.id), profile.id) > 0

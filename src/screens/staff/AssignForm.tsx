@@ -109,7 +109,7 @@ function orderBySet<T extends { id: string }>(items: T[], set: string[]): T[] {
 }
 
 /** A <fieldset> groups related choices so screen readers announce the group name. */
-function ChipGroup({ legend, hint, children }: { legend: string; hint?: string; children: ReactNode }) {
+export function ChipGroup({ legend, hint, children }: { legend: string; hint?: string; children: ReactNode }) {
   return (
     <fieldset className="chip-group">
       <legend className="strong">
@@ -120,7 +120,7 @@ function ChipGroup({ legend, hint, children }: { legend: string; hint?: string; 
   );
 }
 
-function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: ReactNode }) {
+export function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button type="button" className="chip" aria-pressed={pressed} onClick={onClick}>
       {children}

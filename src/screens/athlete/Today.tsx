@@ -21,7 +21,7 @@ import {
   useAppStore,
   useSignedInAthlete,
 } from "../../store/AppStore";
-import { upcomingAppointments } from "./Appointments";
+import { upcomingAppointments } from "../../domain/appointments";
 import { RemindersCard } from "./RemindersCard";
 
 export function Today() {

@@ -20,6 +20,7 @@ import type {
   TestResult,
 } from '../domain/types';
 import type { AthleteProgress } from '../domain/progress';
+import type { ValidAppointment } from '../domain/validation';
 import type { Profile } from './profile';
 import type { RemoteData } from './state';
 import { supabase } from './supabase';
@@ -343,4 +344,53 @@ export async function assignPlan(athleteId: string, injuryId: string, exerciseId
     p_exercises: exerciseIds,
   });
   return error ? { ok: false, error: error.message } : { ok: true, value: undefined };
+}
+
+/**
+ * Books a visit, then attaches the milestones and exercises to focus on.
+ * If attaching fails, the visit is removed again so nothing is half-saved.
+ */
+export async function insertAppointment(visit: ValidAppointment, trainerId: string): Promise<Result> {
+  const { data, error } = await supabase
+    .from('appointments')
+    .insert({
+      athlete_id: visit.athleteId,
+      trainer_id: trainerId,
+      title: visit.title,
+      starts_at: visit.startsAt,
+      location: visit.location || null,
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: error.message };
+
+  const [tests, exercises] = await Promise.all([
+    visit.testIds.length
+      ? supabase.from('appointment_tests').insert(visit.testIds.map((id) => ({ appointment_id: data.id, case_milestone_id: id })))
+      : Promise.resolve({ error: null }),
+    visit.exerciseIds.length
+      ? supabase
+          .from('appointment_exercises')
+          .insert(visit.exerciseIds.map((id) => ({ appointment_id: data.id, plan_exercise_id: id })))
+      : Promise.resolve({ error: null }),
+  ]);
+  const attachError = tests.error ?? exercises.error;
+  if (attachError) {
+    await supabase.from('appointments').delete().eq('id', data.id);
+    return { ok: false, error: attachError.message };
+  }
+  return { ok: true, value: undefined };
+}
+
+/** Cancels rather than deletes, so the visit stays in the record. */
+export async function cancelAppointment(appointmentId: string): Promise<Result> {
+  const { data, error } = await supabase
+    .from('appointments')
+    .update({ status: 'cancelled' })
+    .eq('id', appointmentId)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  // Security rules turn a forbidden update into "0 rows changed", not an error.
+  if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can cancel the appointment.' };
+  return { ok: true, value: undefined };
 }

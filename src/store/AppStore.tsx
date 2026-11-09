@@ -28,7 +28,14 @@ import type {
   Result,
   TestResult,
 } from '../domain/types';
-import { validateAssignment, validateMessage, type AssignmentInput } from '../domain/validation';
+import {
+  validateAppointment,
+  validateAssignment,
+  validateMessage,
+  type AppointmentInput,
+  type AssignmentInput,
+  type ValidAppointment,
+} from '../domain/validation';
 import type { Profile } from './profile';
 import { reducer, type Action } from './reducer';
 import * as remote from './remote';
@@ -118,6 +125,27 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       if (!saved.ok) return saved;
       await reload(); // new plan exercises get ids from the database
       return valid;
+    },
+
+    /** Trainer books a visit. The athlete sees it on Today and the Trainer tab. */
+    async scheduleAppointment(input: AppointmentInput): Promise<Result<ValidAppointment>> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can schedule appointments.' };
+      const valid = validateAppointment(input, new Date());
+      if (!valid.ok) return valid;
+      if (state.offline) return { ok: false, error: `Could not schedule the appointment. ${OFFLINE_ERROR}` };
+      const saved = await remote.insertAppointment(valid.value, profile.id);
+      if (!saved.ok) return { ok: false, error: `Could not schedule the appointment. ${saved.error}` };
+      await reload(); // the new visit gets its id from the database
+      return valid;
+    },
+
+    async cancelAppointment(appointmentId: string): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can cancel appointments.' };
+      if (state.offline) return { ok: false, error: `Could not cancel the appointment. ${OFFLINE_ERROR}` };
+      const saved = await remote.cancelAppointment(appointmentId);
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
     },
 
     /** Marks one of the athlete's injuries cleared; its exercises leave their list. */

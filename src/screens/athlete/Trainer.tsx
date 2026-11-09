@@ -2,7 +2,8 @@ import { ChatThread } from '../../components/Chat';
 import { athleteThread, messagesIn } from '../../domain/messages';
 import { formatDay, formatTime } from '../../format';
 import { useAppStore, useSignedInAthlete } from '../../store/AppStore';
-import { Appointments, upcomingAppointments } from './Appointments';
+import { upcomingAppointments } from '../../domain/appointments';
+import { Appointments } from './Appointments';
 
 /**
  * Everything between the athlete and their trainer: upcoming visits (folded
