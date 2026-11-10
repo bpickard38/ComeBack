@@ -25,7 +25,14 @@ export function Trainer() {
       <details className="card appt-drawer">
         <summary className="appt-drawer__summary">
           <span className="stack-xs">
-            <span className="eyebrow">Upcoming appointments{upcoming.length > 0 && ` (${upcoming.length})`}</span>
+            <span className="appt-drawer__heading">
+              <span className="eyebrow">Upcoming appointments</span>
+              {upcoming.length > 0 && (
+                <span className="appt-count" aria-label={`${upcoming.length} upcoming appointments`}>
+                  {upcoming.length}
+                </span>
+              )}
+            </span>
             <span className="strong">
               {next ? `Next: ${formatDay(next.startsAt)} · ${formatTime(next.startsAt)}` : 'Nothing scheduled'}
             </span>

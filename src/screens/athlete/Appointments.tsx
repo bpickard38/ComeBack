@@ -22,13 +22,16 @@ export function Appointments() {
       {upcoming.map((ap) => (
         <Card key={ap.id} className="card--flush">
           <div className="appt-head">
-            <span className="strong">
-              {formatDay(ap.startsAt)} &middot; {formatTime(ap.startsAt)}
+            <div className="appt-head__when">
+              <span className="appt-head__date">{formatDay(ap.startsAt)}</span>
+              <span className="appt-head__time">{formatTime(ap.startsAt)}</span>
+            </div>
+            <span className="appt-head__location">
+              {ap.location || 'Location to be confirmed'}
             </span>
-            <span>{ap.location}</span>
           </div>
           <div className="appt-body">
-            <h2 className="title">{ap.title}</h2>
+            <h2 className="appt-title">{ap.title}</h2>
 
             {ap.testIds.length > 0 && (
               <div className="stack-sm">
@@ -36,9 +39,9 @@ export function Appointments() {
                 {ap.testIds.map((id) => {
                   const test = testById(state, id);
                   return (
-                    <div key={id} className="line">
-                      <span>{test.name}</span>
-                      <span className="strong">{ap.testNotes?.[id] ?? `Target ${test.target} ${test.unit}`}</span>
+                    <div key={id} className="appt-detail-row">
+                      <span className="appt-detail-row__name">{test.name}</span>
+                      <span className="appt-detail-row__value">{ap.testNotes?.[id] ?? `Target ${test.target} ${test.unit}`}</span>
                     </div>
                   );
                 })}
@@ -52,11 +55,11 @@ export function Appointments() {
                   const ex = exerciseById(state, id);
                   const done = Boolean(findLog(state.logs, me.id, id, now));
                   return (
-                    <div key={id} className="line">
-                      <span>
+                    <div key={id} className="appt-detail-row">
+                      <span className="appt-detail-row__name">
                         {ex.name} <span className="muted">&middot; {ex.prescription}</span>
                       </span>
-                      <span className={done ? 'strong nowrap' : 'strong nowrap warn-text'}>
+                      <span className={`appt-status ${done ? 'appt-status--done' : 'appt-status--pending'}`}>
                         {done ? 'Done today' : 'Not done today'}
                       </span>
                     </div>
