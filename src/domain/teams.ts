@@ -15,6 +15,19 @@ export function aboutThread(teamId: string, athleteId: string): MessageThread {
   return `about:${teamId}:${athleteId}`;
 }
 
+/**
+ * What the trainer calls the coach conversation about one athlete:
+ * "Coach Mike - Devon". With no coach on the team yet it's "Coach - Devon",
+ * and with several, "Coaches - Devon".
+ */
+export function coachChatLabel(coachNames: string[], athleteName: string): string {
+  const first = (name: string) => name.trim().split(/\s+/)[0] ?? '';
+  // Someone who signed up as "Coach Lee" shouldn't become "Coach Coach".
+  const coach = coachNames.length === 1 ? first(coachNames[0].replace(/^coach\s+/i, '')) : '';
+  const who = coachNames.length > 1 ? 'Coaches' : coach ? `Coach ${coach}` : 'Coach';
+  return `${who} - ${first(athleteName)}`;
+}
+
 /** The team being looked at: the chosen one if you're still on it, otherwise the first. */
 export function currentTeam(teams: Team[], selectedId: string | null): Team | undefined {
   return teams.find((t) => t.id === selectedId) ?? teams[0];

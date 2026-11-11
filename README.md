@@ -73,7 +73,7 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
 ### 2. Create the Supabase project (once per team)
 
 1. At supabase.com, create a new project. Any name and region. Write down the database password.
-2. Open **SQL Editor** and run these ten files in order. Paste each file's contents into a new query and click Run.
+2. Open **SQL Editor** and run these eleven files in order. Paste each file's contents into a new query and click Run.
    1. `supabase/erd_schema.sql`: the tables, triggers, security rules and catalogs
    2. `supabase/signup.sql`: roles, teams and join codes
    3. `supabase/live_data.sql`: conversations and plan assignment the screens use
@@ -83,7 +83,8 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
    7. `supabase/athlete_notes.sql`: private trainer notes on player profiles
    8. `supabase/coach_athlete_chat.sql`: the private trainer and coach conversation about one athlete
    9. `supabase/recovery_pace.sql`: the recovery percentage behind the coach's recovery bar
-   10. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
+   10. `supabase/profile_photos.sql`: profile photos (a storage bucket and where each person's photo is)
+   11. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
 
    Already set up? Run `supabase/remove_trophies.sql` once (after deploying the app version without trophies) and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too, then `workout_sets.sql` and `weekly_summary.sql`. Re-run `supabase/push.sql` if you use push reminders.
 3. Under **Authentication > Sign In / Providers**, turn on "Allow new users to sign up". Under Email, turn off "Confirm email" unless you want people to confirm by email first.
@@ -159,7 +160,7 @@ Use the demo accounts above. To show two roles side by side, sign in to the seco
 3. **Trainer**: Maya and Devon are flagged for pain and a new message. Open Maya's conversation on the Messages tab and reply (her flag clears once it's read), set Devon to Out with a return date, and open Jordan: he has two active injuries, each with its own plan. Assign him new exercises for one of them (the other stays as is), or mark one cleared.
 4. **Coach**: "Team availability" shows only Out / Limited / Cleared and return dates, no injuries. Below it, "This week's progress" shows each athlete's week % with On track / Behind, days complete, streak, goals reached and last week's %, still with no injury names or pain. Maya's row shows 3 goals improved this week after the retests. Message the trainer, then show it under Coach on the trainer's Messages tab. The Recovery column shows Maya's bar with the practice mark and the dates she is on pace for; log a better milestone result as Maya and both dates move earlier.
 5. **Errors**: set "Connection: offline" and try logging; tap "Edit my plan"; log without a pain rating; save an empty result or message.
-6. **Player profile**: as the trainer, pick Jordan on the roster and press "Open Jordan Reyes's profile". Show both injuries with their dates, exercises and milestone tests, add a trainer note and save it, then switch the chat to "Coaches, about Jordan" and send a message. As the coach, pick Jordan under "Message the trainer about" and reply; as Jordan, show that the conversation is nowhere to be seen.
+6. **Player profile**: as the trainer, pick Jordan on the roster and press "Open Jordan Reyes's profile". Show both injuries with their dates, exercises and milestone tests, add a trainer note and save it, then switch the chat to "Coach Lee - Jordan" and send a message. As the coach, press Message on Jordan's Status row (or type his name under "Message the trainer about") and reply; as Jordan, show that the conversation is nowhere to be seen.
 7. **Several teams**: as the trainer, press "New team", name it and create it. The app switches to the new, empty roster with its own join codes; press "Demo Soccer" to go back. (Running `demo_data.sql` again removes teams the demo trainer made.)
 8. **Sign-up**: create a new athlete account and join with the athlete code from the trainer's "Join codes" card. Try the coach code first to show it is refused.
 
@@ -215,33 +216,63 @@ The coach's Status table has a Recovery column, and the trainer sees the same ba
 - A cleared athlete shows 100%. An athlete at 100% who isn't cleared shows "Waiting on the trainer to clear".
 - "Expected back" is still the trainer's own estimate, set by hand, and sits beside the projected dates.
 
-Coaches can't read milestones or results. `supabase/recovery_pace.sql` adds `coach_recovery()`, which hands back one percentage and the rehab start day per athlete and nothing else. Until it is run, the coach's column says "Not available yet"; the trainer's bar works without it.
+The coach's Status card lists only athletes to plan around: anyone not fully available, anyone still in rehab, and anyone cleared in the last 14 days. Healthy athletes are counted underneath instead of listed.
+
+Coaches can't read milestones or results. `supabase/recovery_pace.sql` adds `coach_recovery()`, which hands back one percentage, the rehab start day and the day the last injury was cleared per athlete, and nothing else. Until it is run, the coach's column says "Not available yet"; the trainer's bar works without it.
+
+## The trainer's roster
+
+The roster lists everyone on the team, healthy athletes included. An athlete is **injured** while they have an injury the trainer hasn't cleared, and **healthy** otherwise.
+
+- **All / Injured / Healthy** buttons above the roster filter it, each with a count. "All" lists injured athletes first.
+- With **Injured** picked, **Practicing / Not practicing** narrows it further. Practicing means at or past the practice mark on the recovery bar (75% of the way through their milestone tests). An injured athlete with no milestone tests goes by the trainer's status instead: Limited counts as practicing, Out doesn't (`src/domain/roster.ts`).
+
+## Join links and QR codes
+
+A brand-new team shows its "Join" card on the roster. Once the first athlete has joined, the card moves behind the **Join codes** button next to "Assign injury and exercises".
+
+For athletes and for coaches the card has:
+
+- the **join code**, as before;
+- a **join link** with **Share link** (the phone's share sheet: group chats, WhatsApp, SportsYou and so on), **Copy link**, **WhatsApp** and **Text** buttons;
+- a **QR code** of the same link to scan off the trainer's screen.
+
+Opening the link takes someone to the sign-up screen with the right account type already picked. After they create an account, or sign in to one they already have, they're added to the team without typing the code. Someone already signed in is added straight away. The link carries the join code, so "Make new codes" turns off old links and QR codes too, and a code for athletes still refuses a coach account.
+
+The QR code is drawn by `qrcode-generator`, the one dependency added for this.
+
+## Profile photos
+
+An athlete can add a photo of themselves at the bottom of their Trainer tab. It's cropped to a square and shrunk in the browser before upload. Their trainer sees it at the top of the player profile; until the athlete adds one, the profile shows an empty outline.
+
+`supabase/profile_photos.sql` adds a public Storage bucket called `avatars` and an `avatar_path` column on `users`. People can only write to their own folder. Because the bucket is public, anyone who has a photo's full address can open it; the address isn't listed anywhere. Until the script is run nobody has a photo and adding one says it isn't set up.
 
 ## Player profiles for trainers
 
 On the roster, "Open profile" on an athlete takes the trainer to that athlete's own page (`/staff/athletes/<id>`). It gathers what a trainer wants before treating someone:
 
 - **Recovery**: the recovery bar and projected dates the coach sees (above), with the status and "Expected back" date the trainer sets for the coach.
+- **Plan and progress**: everything about the athlete's rehab the trainer can change, without going back to the roster. Add an injury or exercises; change an exercise's sets, reps and hold, or remove it; record a milestone test result; move a test's goal; mark an injury cleared; schedule or cancel appointments.
 - **At a glance**: the status the coach sees, today's and this week's exercise counts, streak, email and phone.
 - **Injury history**: every injury on file, active and cleared, with start and cleared dates, how long it took, the exercises prescribed and where each milestone test started, stands and should end.
 - **Pain reported**: ratings of 5 or more from the last 14 days, with the exercise and time.
 - **Appointments**: upcoming and past visits.
 - **Trainer notes**: free text for anything the app doesn't track (past surgeries, allergies). `supabase/athlete_notes.sql` adds the `athlete_notes` table; only trainers on a team with the athlete can read or write it. Until the script is run, the card says notes aren't available.
-- **Chat**: beside all of that, two buttons switch between the private conversation with the athlete and a private conversation with the team's coaches about that athlete.
+- **Chat**: beside all of that, two buttons switch between the private conversation with the athlete and a private conversation with the team's coaches about that athlete. The second is labelled with the coach's and athlete's first names, such as "Coach Mike - Devon" ("Coach - Devon" until a coach has joined the team).
 
 ### Coach conversations about one athlete
 
 Each team still has one coach and trainer conversation for everything. On top of that, every athlete can have their own: the team's trainers and coaches, talking about that athlete only. The athlete is never a member, so they can't read it. `supabase/coach_athlete_chat.sql` adds the `coach_athlete` conversation kind and the `coach_athlete_conversation(p_team, p_athlete)` function, which creates the conversation the first time a trainer or coach opens it; a trigger adds staff who join the team later.
 
-- **Trainer**: opens it from the athlete's profile ("Coaches, about Maya"). Once it has messages it also shows under Coach on the Messages tab, and the roster flags "New coach message".
-- **Coach**: picks an athlete under "Message the trainer about" on their home screen.
+- **Trainer**: opens it from the athlete's profile ("Coach Lee - Maya"). Once it has messages it also shows under Coach on the Messages tab, and the roster flags "New coach message".
+- **Coach**: types an athlete's name under "Message the trainer about" (the three closest names drop down), or presses **Message** on that athlete's Status row. "Whole team" goes back to the team conversation. The chat is titled "Trainer - Devon" or "Trainer - Team".
 
 It is only messages. Coaches get no new access to injuries, logs, results or trainer notes, so what they learn is whatever the trainer chooses to write.
 
 ### Finding an athlete
 
-- **On a team's roster**: "Search <team name>" narrows that team's roster by name as you type.
-- **Across teams**: a trainer with two or more teams also gets "Search all your athletes" at the top of the trainer screens. Click into it to list everyone on every team with their team name, or type to narrow it down. Picking someone switches to their team and opens their profile.
+- **On a team's roster**: the slim "Search team" box beside the Join codes and Assign buttons narrows that team's roster by name as you type.
+- **Across teams**: a trainer with two or more teams also gets a "Search all teams" box at the top of the trainer screens. Nothing is listed until you type; then the three closest names drop down, with their team, and change with each letter. Picking someone switches to their team and opens their profile.
 
 Both match any part of a first or last name, ignore capitals and accents, and list names that start with what you typed first (`src/domain/search.ts`).
 

@@ -6,9 +6,11 @@
 -- The coach's recovery bar shows how far each athlete is through their
 -- milestone tests, and the app projects "back to practice" and "back to
 -- play" dates from how fast they're getting there. Coaches can't read
--- milestones or test results, so this function hands back only two things
--- per athlete: one percentage (0 to 100) and the day their rehab started.
--- No injury names, test names or test values.
+-- milestones or test results, so this function hands back only three things
+-- per athlete: one percentage (0 to 100), the day their rehab started, and
+-- the day their last injury was cleared (so the coach's Status list can keep
+-- someone on it for a while after they're back). No injury names, test names
+-- or test values.
 --
 -- The percentage is worked out the same way as the athlete's own Progress
 -- tab (src/domain/goals.ts): each milestone's progress from its starting
@@ -17,11 +19,16 @@
 
 begin;
 
-create or replace function public.coach_recovery()
+-- Dropped first because the columns it returns have changed since the first
+-- version, and Postgres won't change those in place.
+drop function if exists public.coach_recovery();
+
+create function public.coach_recovery()
 returns table (
   athlete_id uuid,
   started date,
-  percent int
+  percent int,
+  cleared_on date
 )
 language sql stable security definer set search_path = '' as $$
   with visible as (
@@ -64,7 +71,10 @@ language sql stable security definer set search_path = '' as $$
     (select min(ai.start_date) from public.athlete_injuries ai
       where ai.athlete_id = v.athlete_id and ai.status = 'active') as started,
     -- null when the trainer hasn't set any milestones.
-    (select round(avg(s.pct))::int from scored s where s.athlete_id = v.athlete_id) as percent
+    (select round(avg(s.pct))::int from scored s where s.athlete_id = v.athlete_id) as percent,
+    -- The most recent day an injury was marked cleared; null if none ever was.
+    (select max(ai.cleared_at)::date from public.athlete_injuries ai
+      where ai.athlete_id = v.athlete_id and ai.status = 'cleared') as cleared_on
   from visible v;
 $$;
 

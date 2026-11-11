@@ -26,7 +26,7 @@ import { overallGoalPercent } from '../domain/goals';
 import type { AthleteProgress } from '../domain/progress';
 import type { RecoveryStatus } from '../domain/recovery';
 import { aboutThread, coachThread } from '../domain/teams';
-import type { ValidAppointment, ValidTeam } from '../domain/validation';
+import type { ValidAppointment, ValidPrescription, ValidTeam } from '../domain/validation';
 import type { Profile } from './profile';
 import type { RemoteData } from './state';
 import { supabase } from './supabase';
@@ -101,6 +101,9 @@ export function groupWorkoutSets(list: Array<{ injury_id: string; exercise_id: s
   return sets;
 }
 
+/** Storage bucket for profile photos (see supabase/profile_photos.sql). */
+const PHOTO_BUCKET = 'avatars';
+
 const SENDER_LABEL = { athlete: 'Athlete', trainer: 'Trainer', coach: 'Coach' } as const;
 
 export async function loadAll(profile: Profile): Promise<RemoteData> {
@@ -108,7 +111,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   const isCoach = profile.role === 'coach';
   const none = Promise.resolve({ data: [], error: null });
 
-  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary, notes, coachRecovery] =
+  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary, notes, coachRecovery, photos] =
     await Promise.all([
       // Only the teams you're on come back (row level security).
       supabase.from('teams').select('id, name, sport').order('name'),
@@ -135,6 +138,9 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       isTrainer ? supabase.from('athlete_notes').select('athlete_id, body, updated_by, updated_at') : none,
       // Coaches can't read milestones; this function returns one percentage per athlete.
       isCoach ? supabase.rpc('coach_recovery') : none,
+      // Asked for on its own: before supabase/profile_photos.sql is run the
+      // column doesn't exist, and that mustn't stop everything else loading.
+      supabase.from('users').select('id, avatar_path'),
     ]);
 
   const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL; email?: string; phone?: string | null }>(users);
@@ -158,13 +164,33 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     prescription: prescriptionText(p.sets, p.reps, p.hold_seconds),
     videoUrl: p.exercises?.video_url ?? null,
     description: p.exercises?.description ?? null,
+    caseId: p.athlete_injury_id,
+    sets: p.sets,
+    reps: p.reps,
+    holdSeconds: p.hold_seconds,
+    active: p.active,
   }));
 
-  const teamList = rows<Team>(teams);
+  const memberRows = rows<MemberRow>(members);
+  const teamList: Team[] = rows<{ id: string; name: string; sport: string | null }>(teams).map((t) => ({
+    ...t,
+    coachNames: memberRows
+      .filter((m) => m.team_id === t.id && m.role === 'coach')
+      .map((m) => userById.get(m.user_id)?.name ?? '')
+      .filter(Boolean),
+  }));
+
+  // Profile photos: a path in the "avatars" storage bucket, turned into a web address.
+  const photoUrl = new Map<string, string>();
+  if (!photos.error) {
+    for (const row of rows<{ id: string; avatar_path: string | null }>(photos)) {
+      if (row.avatar_path) photoUrl.set(row.id, supabase.storage.from(PHOTO_BUCKET).getPublicUrl(row.avatar_path).data.publicUrl);
+    }
+  }
 
   // One entry per athlete, even if they're on two of your teams.
   const athletes: Athlete[] = [];
-  for (const m of rows<MemberRow>(members)) {
+  for (const m of memberRows) {
     if (m.role !== 'athlete') continue;
     const already = athletes.find((a) => a.id === m.user_id);
     if (already) {
@@ -177,6 +203,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       name: userById.get(m.user_id)?.name ?? 'Athlete',
       sport: m.teams?.sport ?? m.teams?.name ?? '',
       teamIds: [m.team_id],
+      photoUrl: photoUrl.get(m.user_id) ?? null,
       email: userById.get(m.user_id)?.email,
       phone: userById.get(m.user_id)?.phone,
       injuries: current.map((c) => ({ caseId: c.id, name: c.injuries?.name ?? 'Injury' })),
@@ -199,6 +226,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     tests.push({
       id: g.id,
       athleteId,
+      caseId: g.athlete_injury_id,
       name: g.milestone_tests?.name ?? 'Test',
       description: g.milestone_tests?.description ?? '',
       unit: g.milestone_tests?.unit ?? '',
@@ -321,9 +349,10 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     ? coachRecovery.error
       ? null
       : Object.fromEntries(
-          rows<{ athlete_id: string; started: string | null; percent: number | null }>(coachRecovery).map((r) => [
+          // cleared_on is missing until the latest recovery_pace.sql is run.
+          rows<{ athlete_id: string; started: string | null; percent: number | null; cleared_on?: string | null }>(coachRecovery).map((r) => [
             r.athlete_id,
-            { percent: r.percent === null ? null : Number(r.percent), started: r.started },
+            { percent: r.percent === null ? null : Number(r.percent), started: r.started, clearedOn: r.cleared_on ?? null },
           ]),
         )
     : Object.fromEntries(
@@ -467,6 +496,63 @@ export async function saveNote(athleteId: string, text: string, trainerId: strin
     .upsert({ athlete_id: athleteId, body: text, updated_by: trainerId, updated_at: updatedAt }, { onConflict: 'athlete_id' });
   return error ? { ok: false, error: error.message } : { ok: true, value: { updatedAt } };
 }
+
+/** Trainer changes where a milestone test needs to get to. */
+export async function updateGoalTarget(testId: string, target: number): Promise<Result> {
+  const { data, error } = await supabase.from('case_milestones').update({ target }).eq('id', testId).select('id');
+  if (error) return { ok: false, error: error.message };
+  // Security rules turn a forbidden update into "0 rows changed", not an error.
+  if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can change their goals.' };
+  return { ok: true, value: undefined };
+}
+
+/** Trainer changes one exercise's sets, reps and hold, or takes it off the plan (active: false). */
+export async function updatePlanExercise(planId: string, change: Partial<ValidPrescription> & { active?: boolean }): Promise<Result> {
+  const { data, error } = await supabase
+    .from('plan_exercises')
+    .update({
+      ...(change.sets !== undefined && { sets: change.sets }),
+      ...(change.reps !== undefined && { reps: change.reps }),
+      ...(change.holdSeconds !== undefined && { hold_seconds: change.holdSeconds }),
+      ...(change.active !== undefined && { active: change.active }),
+    })
+    .eq('id', planId)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can change their plan.' };
+  return { ok: true, value: undefined };
+}
+
+/**
+ * Saves the signed-in person's profile photo. Each upload gets a new file
+ * name so browsers don't keep showing the old picture; the last one is removed.
+ */
+export async function savePhoto(userId: string, photo: Blob): Promise<Result> {
+  const bucket = supabase.storage.from(PHOTO_BUCKET);
+  const path = `${userId}/${Date.now()}.jpg`;
+  const previous = await supabase.from('users').select('avatar_path').eq('id', userId).maybeSingle();
+  if (previous.error) return { ok: false, error: PHOTOS_NOT_SET_UP };
+  const uploaded = await bucket.upload(path, photo, { contentType: 'image/jpeg', cacheControl: '31536000' });
+  if (uploaded.error) return { ok: false, error: uploaded.error.message };
+  const { error } = await supabase.from('users').update({ avatar_path: path }).eq('id', userId);
+  if (error) {
+    await bucket.remove([path]);
+    return { ok: false, error: error.message };
+  }
+  if (previous.data?.avatar_path) await bucket.remove([previous.data.avatar_path]);
+  return { ok: true, value: undefined };
+}
+
+export async function removePhoto(userId: string): Promise<Result> {
+  const previous = await supabase.from('users').select('avatar_path').eq('id', userId).maybeSingle();
+  if (previous.error) return { ok: false, error: PHOTOS_NOT_SET_UP };
+  const { error } = await supabase.from('users').update({ avatar_path: null }).eq('id', userId);
+  if (error) return { ok: false, error: error.message };
+  if (previous.data?.avatar_path) await supabase.storage.from(PHOTO_BUCKET).remove([previous.data.avatar_path]);
+  return { ok: true, value: undefined };
+}
+
+const PHOTOS_NOT_SET_UP = 'Profile photos aren’t set up yet. Ask whoever set up the database to run the profile photos script.';
 
 /** Trainer marks one injury (an athlete_injuries row) as cleared. */
 export async function clearInjury(caseId: string): Promise<Result> {

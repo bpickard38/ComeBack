@@ -5,6 +5,7 @@ import type { Athlete } from '../../domain/types';
 import { weekCompletion, weekStatus } from '../../domain/week';
 import { injuryLabel } from '../../format';
 import { aboutThread } from '../../domain/teams';
+import { isInjured } from '../../domain/roster';
 import { useAppStore, useTeam } from '../../store/AppStore';
 
 interface RosterProps {
@@ -49,16 +50,23 @@ export function Roster({ athletes, selectedId, onSelect }: RosterProps) {
             <span className="stack-xs">
               <span className="roster-row__name">{a.name}</span>
               <span className="small muted">
-                {a.sport} &middot; {injuryLabel(a)}
+                {a.sport} &middot; {isInjured(a) ? injuryLabel(a) : 'Healthy'}
               </span>
               {flags.length > 0 && <span className="small strong warn-text">{flags.join(' · ')}</span>}
             </span>
-            <span className="roster-row__stats">
-              <span className="small">
-                {doneOnDay(a, state.logs, now)}/{a.assignedExerciseIds.length} today &middot; {week}% week
+            {a.assignedExerciseIds.length === 0 ? (
+              // Nothing assigned, so there's no "today" or "week" to be behind on.
+              <span className="roster-row__stats">
+                <span className="small strong">{isInjured(a) ? 'No exercises assigned' : 'No rehab plan'}</span>
               </span>
-              <span className={status === 'Behind' ? 'small strong warn-text' : 'small strong'}>{status}</span>
-            </span>
+            ) : (
+              <span className="roster-row__stats">
+                <span className="small">
+                  {doneOnDay(a, state.logs, now)}/{a.assignedExerciseIds.length} today &middot; {week}% week
+                </span>
+                <span className={status === 'Behind' ? 'small strong warn-text' : 'small strong'}>{status}</span>
+              </span>
+            )}
           </button>
         );
       })}

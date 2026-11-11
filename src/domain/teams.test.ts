@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { aboutThread, athletesOnTeam, coachThread, currentTeam, teamThreads } from './teams';
+import { aboutThread, athletesOnTeam, coachChatLabel, coachThread, currentTeam, teamThreads } from './teams';
 import type { Athlete, Team } from './types';
 import { validateTeam } from './validation';
 
-const soccer: Team = { id: 'soccer', name: 'Women\'s Soccer', sport: 'Soccer' };
-const track: Team = { id: 'track', name: 'Track and Field', sport: null };
+const soccer: Team = { id: 'soccer', name: 'Women\'s Soccer', sport: 'Soccer', coachNames: [] };
+const track: Team = { id: 'track', name: 'Track and Field', sport: null, coachNames: [] };
 
 function athlete(id: string, teamIds: string[]): Athlete {
   return {
@@ -69,6 +69,25 @@ describe('teamThreads', () => {
 
   it('gives each team a different coach thread', () => {
     expect(coachThread('soccer')).not.toBe(coachThread('track'));
+  });
+});
+
+describe('coachChatLabel', () => {
+  it('uses the coach\'s and the athlete\'s first names', () => {
+    expect(coachChatLabel(['Mike Johnson'], 'Devon Clarke')).toBe('Coach Mike - Devon');
+  });
+
+  it('does not double up when the name already starts with Coach', () => {
+    expect(coachChatLabel(['Coach Lee'], 'Devon Clarke')).toBe('Coach Lee - Devon');
+  });
+
+  it('is just Coach when the team has no coach yet, or the name is blank', () => {
+    expect(coachChatLabel([], 'Devon Clarke')).toBe('Coach - Devon');
+    expect(coachChatLabel(['  '], 'Devon Clarke')).toBe('Coach - Devon');
+  });
+
+  it('says Coaches when there are several', () => {
+    expect(coachChatLabel(['Mike Johnson', 'Coach Lee'], 'Devon Clarke')).toBe('Coaches - Devon');
   });
 });
 

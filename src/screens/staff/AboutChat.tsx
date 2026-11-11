@@ -11,7 +11,8 @@ interface AboutChatProps {
   team: Team;
   /** Who you're talking to, e.g. "Coach" or the trainer's name. */
   name: string;
-  detail: string;
+  /** Small line under the name. */
+  detail?: string;
   /** Shows a back arrow (phones only) that calls this. */
   onBack?: () => void;
 }

@@ -21,6 +21,8 @@ export interface RecoveryStatus {
   percent: number | null;
   /** The day their oldest active injury started, "YYYY-MM-DD". null with no active injury. */
   started: string | null;
+  /** The day their most recent injury was cleared, "YYYY-MM-DD". Missing if none was, or it isn't known. */
+  clearedOn?: string | null;
 }
 
 export interface RecoveryPace {

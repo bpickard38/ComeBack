@@ -3,9 +3,11 @@ import { Card } from '../../components/Card';
 import { ChatThread } from '../../components/Chat';
 import { RecoveryBar } from '../../components/RecoveryBar';
 import { AVAILABILITY_OPTIONS, availabilityLabel } from '../../domain/availability';
-import { messagesIn, unreadIn } from '../../domain/messages';
+import { unreadIn } from '../../domain/messages';
 import { lastWeek, thisWeek, weekStatus, type AthleteProgress } from '../../domain/progress';
 import { PRACTICE_PERCENT, recoveryPace } from '../../domain/recovery';
+import { onCoachStatus } from '../../domain/roster';
+import { searchAthletes } from '../../domain/search';
 import type { Athlete, Availability, Team } from '../../domain/types';
 import { ON_TRACK_PERCENT } from '../../domain/week';
 import { formatCalendarDay } from '../../format';
@@ -23,18 +25,38 @@ const ORDER: Record<Availability, number> = { out: 0, limited: 1, cleared: 2 };
  * pain and test numbers stay with the trainer.
  */
 export function CoachView() {
-  const { state } = useAppStore();
-  // A coach on several teams sees one at a time, each with its own trainer chat.
-  const { team, athletes: teamAthletes } = useTeam();
-  const athletes = [...teamAthletes].sort((a, b) => ORDER[a.availability] - ORDER[b.availability]);
-  const thread = coachThread(team?.id ?? '');
-  // Use the trainer's name once they've written; until then, a generic one.
-  const trainerName =
-    messagesIn(state.messages, thread).find((m) => m.from === 'Trainer')?.senderName ?? 'Trainer';
-
+  // A coach on several teams sees one at a time, each with its own trainer chats.
+  const { team } = useTeam();
   return (
     <div className="column column--staff">
       <TeamSwitcher />
+      {/* key: switching teams starts back on the whole-team conversation */}
+      {team && <CoachTeam key={team.id} team={team} />}
+    </div>
+  );
+}
+
+function CoachTeam({ team }: { team: Team }) {
+  const { state } = useAppStore();
+  const { athletes: teamAthletes } = useTeam();
+  // Which athlete the chat is about; '' is the whole-team conversation.
+  const [aboutId, setAboutId] = useState('');
+  const now = new Date();
+
+  // Status is for athletes the coach has to plan around: hurt now, or cleared
+  // in the last couple of weeks. Before the recovery script is run there's no
+  // way to tell, so everyone is listed.
+  const listed = teamAthletes.filter((a) => state.recovery === null || onCoachStatus(a, state.recovery[a.id], now));
+  const athletes = [...listed].sort((a, b) => ORDER[a.availability] - ORDER[b.availability]);
+  const healthy = teamAthletes.length - listed.length;
+
+  /** From a Status row: open the trainer conversation about that athlete. */
+  function messageAbout(athleteId: string) {
+    setAboutId(athleteId);
+    document.getElementById('coach-chat')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  return (
       <div className="staff-grid staff-grid--coach">
         <div className="stack-sm">
           <Card className="card--flush card--coach card--coach-status" aria-label="Availability">
@@ -42,17 +64,22 @@ export function CoachView() {
               <h2>Status</h2>
             </div>
             {athletes.length === 0 ? (
-              <p className="muted pad">No athletes on the roster yet.</p>
+              <p className="muted pad">
+                {teamAthletes.length === 0 ? 'No athletes on the roster yet.' : 'Nobody is injured or recently cleared.'}
+              </p>
             ) : (
               <div className="table-wrap table-wrap--flush">
                 <table className="week week--coach">
-                  <caption className="visually-hidden">Team availability</caption>
+                  <caption className="visually-hidden">Athletes who are injured or were recently cleared</caption>
                   <thead>
                     <tr>
                       <th scope="col">Athlete</th>
                       <th scope="col">Status</th>
                       <th scope="col">Recovery</th>
                       <th scope="col">Expected back</th>
+                      <th scope="col">
+                        <span className="visually-hidden">Message the trainer</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -75,11 +102,28 @@ export function CoachView() {
                               ? <span className="coach-date">{formatCalendarDay(a.expectedReturn)}</span>
                               : <StatusText tone="caution">Not set</StatusText>}
                         </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn--secondary"
+                            aria-pressed={aboutId === a.id}
+                            aria-label={`Message the trainer about ${a.name}`}
+                            onClick={() => messageAbout(a.id)}
+                          >
+                            Message
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            )}
+            {healthy > 0 && (
+              <p className="small muted pad">
+                {healthy} healthy {healthy === 1 ? 'athlete isn’t' : 'athletes aren’t'} listed. Search for anyone by name to
+                message the trainer about them.
+              </p>
             )}
             <p className="small muted pad">
               Recovery fills as the athlete passes their trainer's tests: {PRACTICE_PERCENT}% is back to practice (the mark on the
@@ -99,10 +143,8 @@ export function CoachView() {
           <WeeklyProgress athletes={athletes} progress={state.progress} />
         </div>
 
-        {/* key starts over on the whole-team conversation when you switch teams */}
-        {team && <CoachChat key={team.id} team={team} athletes={athletes} trainerName={trainerName} />}
+        <CoachChat team={team} athletes={teamAthletes} aboutId={aboutId} onPick={setAboutId} />
       </div>
-    </div>
   );
 }
 
@@ -115,52 +157,106 @@ function RecoveryCell({ athlete }: { athlete: Athlete }) {
   return pace ? <RecoveryBar pace={pace} cleared={cleared} /> : <span className="muted">No milestones set</span>;
 }
 
+/** How many names show under the search box at once; typing more narrows it. */
+const MAX_RESULTS = 3;
+
 /**
  * The coach's messages with the trainer: one conversation for the whole
- * team, plus a private one about each athlete, picked from a list. The
- * athlete can't see the one about them.
+ * team, plus a private one about each athlete. The coach finds an athlete by
+ * typing their name (or presses Message on a Status row) and that athlete's
+ * conversation opens. The athlete can't see the one about them.
  */
-function CoachChat({ team, athletes, trainerName }: { team: Team; athletes: Athlete[]; trainerName: string }) {
+function CoachChat({
+  team,
+  athletes,
+  aboutId,
+  onPick,
+}: {
+  team: Team;
+  athletes: Athlete[];
+  aboutId: string;
+  onPick: (athleteId: string) => void;
+}) {
   const { state, profile } = useAppStore();
-  const [aboutId, setAboutId] = useState(''); // '' is the whole-team conversation
+  const [query, setQuery] = useState('');
   const about = athletes.find((a) => a.id === aboutId);
   const unread = (athleteId: string) => unreadIn(state.messages, aboutThread(team.id, athleteId), profile.id);
   const teamUnread = unreadIn(state.messages, coachThread(team.id), profile.id);
-  const newLabel = (count: number) => (count > 0 ? ` (${count} new)` : '');
   // Conversations with something new, other than the one on screen.
   const waiting = athletes.filter((a) => a.id !== aboutId && unread(a.id) > 0);
 
+  const typed = query.trim();
+  const matches = typed ? searchAthletes(athletes, typed) : [];
+
+  function pick(athleteId: string) {
+    onPick(athleteId);
+    setQuery('');
+  }
+
   return (
-    <div className="stack-sm">
+    <div id="coach-chat" className="stack-sm">
       <div className="stack-xs">
         <label htmlFor="coach-chat-about" className="strong">
           Message the trainer about
         </label>
-        <select id="coach-chat-about" className="field" value={about ? about.id : ''} onChange={(e) => setAboutId(e.target.value)}>
-          <option value="">The whole team{newLabel(about ? teamUnread : 0)}</option>
-          {athletes.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-              {newLabel(a.id === aboutId ? 0 : unread(a.id))}
-            </option>
-          ))}
-        </select>
+        <div className="row">
+          <div className="athlete-search">
+            <input
+              id="coach-chat-about"
+              type="search"
+              className="field field--slim"
+              placeholder="Athlete name"
+              autoComplete="off"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+            />
+            {typed && (
+              <div className="card card--flush athlete-search__results">
+                {matches.slice(0, MAX_RESULTS).map((a) => (
+                  <button key={a.id} type="button" className="roster-row" onClick={() => pick(a.id)}>
+                    <span className="roster-row__name">{a.name}</span>
+                    {unread(a.id) > 0 && <span className="small strong warn-text">{unread(a.id)} new</span>}
+                  </button>
+                ))}
+                {/* Read out by screen readers as the list changes. */}
+                <p className="small muted athlete-search__status" role="status">
+                  {matches.length === 0
+                    ? `No athletes match "${typed}"`
+                    : matches.length > MAX_RESULTS
+                      ? `${matches.length - MAX_RESULTS} more. Keep typing to narrow it down.`
+                      : matches.length === 1
+                        ? '1 match'
+                        : `${matches.length} matches`}
+                </p>
+              </div>
+            )}
+          </div>
+          <button type="button" className="chip" aria-pressed={!about} onClick={() => pick('')}>
+            Whole team
+            {about && teamUnread > 0 && <span className="warn-text"> &middot; {teamUnread} new</span>}
+          </button>
+          {about && (
+            <span className="chip" aria-current="true">
+              {about.name}
+            </span>
+          )}
+        </div>
         {waiting.length > 0 && (
-          <p className="small strong warn-text" role="status">
-            New from the trainer about {waiting.map((a) => a.name).join(', ')}
-          </p>
+          <div className="row small" role="status">
+            <span className="strong warn-text">New from the trainer about</span>
+            {waiting.map((a) => (
+              <button key={a.id} type="button" className="chip chip--slim" onClick={() => pick(a.id)}>
+                {a.name} ({unread(a.id)})
+              </button>
+            ))}
+          </div>
         )}
       </div>
       {about ? (
-        <AboutChat
-          key={about.id}
-          athlete={about}
-          team={team}
-          name={trainerName}
-          detail={`Athletic Trainer, about ${about.name}. ${about.name.split(' ')[0]} can't see this.`}
-        />
+        <AboutChat key={about.id} athlete={about} team={team} name={`Trainer - ${about.name.split(' ')[0]}`} detail="Athletic Trainer" />
       ) : (
-        <ChatThread thread={coachThread(team.id)} name={trainerName} detail="Athletic Trainer" />
+        <ChatThread thread={coachThread(team.id)} name="Trainer - Team" detail="Athletic Trainer" />
       )}
     </div>
   );

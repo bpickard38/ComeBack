@@ -820,10 +820,128 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Profile photos: a real picture fills the circle; the empty one is a quiet outline. */
+.avatar--xl {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.avatar--photo {
+  object-fit: cover;
+}
+
+.avatar--empty {
+  color: var(--text-muted);
+}
+
+.avatar--empty svg {
+  width: 62%;
+  height: 62%;
+}
+
+.profile-head,
+.photo-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Trainer's plan editor: a name, a few small number boxes and buttons, wrapping on phones. */
+.edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.edit-row__name {
+  flex: 1 1 11rem;
+  align-self: center;
+}
+
+.field--number {
+  width: 5.5rem;
+  font-size: var(--font-size-md);
+}
+
+/* What happened to a join link, across the top of the app until dismissed. */
+.join-notice {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-3) var(--gutter) 0;
+}
+
+.join-notice--problem {
+  border-color: var(--warning);
+}
+
 /* Athlete search: the box stays a comfortable width; results reuse the roster rows as links. */
-.athlete-search__field {
-  flex: 1 1 16rem;
-  max-width: 28rem;
+.athlete-search {
+  position: relative;
+  max-width: 20rem;
+}
+
+/* The few closest names drop down over the page instead of pushing it around. */
+.athlete-search__results {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  width: min(26rem, 90vw);
+  box-shadow: var(--shadow-table-head);
+}
+
+.athlete-search__status {
+  margin: 0;
+  padding: var(--space-2) var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* A search box the height of a button, for sitting in a row of them. */
+.field--slim {
+  width: 100%;
+  max-width: 14rem;
+  font-size: var(--font-size-md);
+}
+
+.page-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.chip--slim {
+  padding-block: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+/* Join codes: athletes and coaches side by side when there's room. */
+.invite-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
+  gap: var(--space-4);
+}
+
+.invite {
+  align-items: flex-start;
+}
+
+.invite__link {
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.qr {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
 }
 
 a.roster-row {

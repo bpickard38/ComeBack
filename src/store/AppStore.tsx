@@ -35,9 +35,11 @@ import {
   validateAppointment,
   validateAssignment,
   validateMessage,
+  validatePrescription,
   validateTeam,
   type AppointmentInput,
   type AssignmentInput,
+  type PrescriptionInput,
   type TeamInput,
   type ValidAppointment,
 } from '../domain/validation';
@@ -151,7 +153,8 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
         testId,
         value: parsed.value,
         recordedAt: new Date().toISOString(),
-        source: 'athlete',
+        // A trainer can record a result for the athlete, e.g. after a retest.
+        source: state.role === 'trainer' ? 'trainer' : 'athlete',
       };
       const wasReached = isGoalReached(test, state.results, athleteId);
       const saved = await remote.insertResult(result, profile.id);
@@ -170,6 +173,51 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       if (!saved.ok) return saved;
       await reload(); // new plan exercises get ids from the database
       return valid;
+    },
+
+    /** Trainer moves the goal for one milestone test. */
+    async setGoalTarget(testId: string, raw: string): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change a goal.' };
+      const test = state.tests.find((t) => t.id === testId);
+      if (!test) return { ok: false, error: 'Test not found.' };
+      const parsed = parseResultValue(raw, `the ${test.name} goal`);
+      if (!parsed.ok) return parsed;
+      if (state.offline) return { ok: false, error: `Could not save the goal. ${OFFLINE_ERROR}` };
+      const saved = await remote.updateGoalTarget(testId, parsed.value);
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
+    },
+
+    /** Trainer changes one exercise's sets, reps and hold. */
+    async setPrescription(planId: string, input: PrescriptionInput): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change the plan.' };
+      const valid = validatePrescription(input);
+      if (!valid.ok) return valid;
+      if (state.offline) return { ok: false, error: `Could not save the plan. ${OFFLINE_ERROR}` };
+      const saved = await remote.updatePlanExercise(planId, valid.value);
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
+    },
+
+    /** Trainer takes one exercise off the athlete's daily list. Its past logs stay. */
+    async removeExercise(planId: string): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change the plan.' };
+      if (state.offline) return { ok: false, error: `Could not save the plan. ${OFFLINE_ERROR}` };
+      const saved = await remote.updatePlanExercise(planId, { active: false });
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
+    },
+
+    /** The signed-in person's own profile photo. Pass null to remove it. */
+    async setPhoto(photo: Blob | null): Promise<Result> {
+      if (state.offline) return { ok: false, error: `Could not save your photo. ${OFFLINE_ERROR}` };
+      const saved = photo ? await remote.savePhoto(profile.id, photo) : await remote.removePhoto(profile.id);
+      if (!saved.ok) return { ok: false, error: `Could not save your photo. ${saved.error}` };
+      await reload();
+      return saved;
     },
 
     /** Trainer books a visit. The athlete sees it on Today and the Trainer tab. */

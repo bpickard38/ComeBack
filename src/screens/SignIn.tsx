@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Button } from '../components/Button';
 import type { Role } from '../domain/types';
+import { pendingJoin } from '../store/pendingJoin';
 import { supabase } from '../store/supabase';
 
 const ROLES: Array<{ role: Role; label: string }> = [
@@ -30,11 +31,13 @@ const MIN_PASSWORD = 6;
  * code (see TeamSetup and supabase/signup.sql).
  */
 export function SignIn() {
-  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
+  // Came from a join link: most people need an account, and the link says which kind.
+  const [invite] = useState(pendingJoin);
+  const [mode, setMode] = useState<'signIn' | 'signUp'>(invite ? 'signUp' : 'signIn');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role | null>(null);
+  const [role, setRole] = useState<Role | null>(invite?.role ?? null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -109,6 +112,12 @@ export function SignIn() {
     <main className="main">
       <form className="column card sign-in sign-in--auth" onSubmit={submit} noValidate>
         <h1>{signingUp ? 'Create your account' : 'Sign in'}</h1>
+        {invite && (
+          <p className="sign-in__notice" role="status">
+            You've been invited to a team. {signingUp ? 'Create an account' : 'Sign in'} and you'll be added to it
+            automatically, no join code needed.
+          </p>
+        )}
 
         {signingUp && (
           <div className="sign-in__field-group">

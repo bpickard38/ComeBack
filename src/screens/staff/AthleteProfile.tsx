@@ -4,6 +4,7 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { ChatThread } from '../../components/Chat';
+import { ProfilePhoto } from '../../components/ProfilePhoto';
 import { RecoveryBar } from '../../components/RecoveryBar';
 import { useToast } from '../../components/Toast';
 import { upcomingAppointments } from '../../domain/appointments';
@@ -21,13 +22,14 @@ import { athleteThread, unreadIn } from '../../domain/messages';
 import { PAIN_ALERT_LEVEL } from '../../domain/pain';
 import { PRACTICE_PERCENT, recoveryPace } from '../../domain/recovery';
 import { bestStreak, currentStreak } from '../../domain/streak';
-import { aboutThread } from '../../domain/teams';
+import { aboutThread, coachChatLabel } from '../../domain/teams';
 import type { Appointment, Athlete, InjuryRecord, Team } from '../../domain/types';
 import { weekCompletion, weekStatus } from '../../domain/week';
 import { formatCalendarDay, formatDay, formatNumber, formatSentAt, formatTime, plural } from '../../format';
 import { useAppStore, useTeam } from '../../store/AppStore';
 import { AboutChat } from './AboutChat';
 import { AvailabilityEditor } from './AthleteDetail';
+import { PlanEditor } from './PlanEditor';
 
 /**
  * Everything the trainer has on one athlete, on one page: status, every
@@ -47,9 +49,13 @@ export function AthleteProfile() {
   return (
     <>
       <div className="page-head">
-        <div className="stack-xs">
-          <div className="eyebrow">Player profile &middot; {team.name}</div>
-          <h1>{athlete.name}</h1>
+        <div className="profile-head">
+          {/* Their own photo once they add one; an empty outline until then. */}
+          <ProfilePhoto url={athlete.photoUrl} size="xl" />
+          <div className="stack-xs">
+            <div className="eyebrow">Player profile &middot; {team.name}</div>
+            <h1>{athlete.name}</h1>
+          </div>
         </div>
         <Link to="/staff" className="btn btn--secondary">
           Back to roster
@@ -59,6 +65,7 @@ export function AthleteProfile() {
       <div className="staff-grid">
         <div className="stack-sm">
           <Recovery athlete={athlete} />
+          <PlanEditor athlete={athlete} />
           <Overview athlete={athlete} />
           <InjuryHistory athlete={athlete} />
           <PainReports athlete={athlete} />
@@ -94,7 +101,7 @@ function Recovery({ athlete }: { athlete: Athlete }) {
       {pace ? (
         <RecoveryBar pace={pace} cleared={cleared} />
       ) : (
-        <p>No milestone tests are set, so there's no recovery bar yet. Assign an injury with milestones from the roster.</p>
+        <p>No milestone tests are set, so there's no recovery bar yet.</p>
       )}
       <AvailabilityEditor athlete={athlete} />
     </Card>
@@ -257,7 +264,7 @@ function PainReports({ athlete }: { athlete: Athlete }) {
   );
 }
 
-/** Upcoming and past visits. Booking stays on the roster, next to the plan. */
+/** Upcoming and past visits. Booking is under Plan and progress. */
 function Visits({ athlete }: { athlete: Athlete }) {
   const { state } = useAppStore();
   const now = new Date();
@@ -267,7 +274,7 @@ function Visits({ athlete }: { athlete: Athlete }) {
   return (
     <Card aria-labelledby="profile-visits">
       <h2 id="profile-visits">Appointments</h2>
-      {upcoming.length === 0 && past.length === 0 && <p className="muted">No appointments yet. Schedule one from the roster.</p>}
+      {upcoming.length === 0 && past.length === 0 && <p className="muted">No appointments yet. Schedule one under Plan and progress.</p>}
       <VisitList title="Upcoming" visits={upcoming} />
       <VisitList title="Past" visits={past} />
     </Card>
@@ -361,6 +368,8 @@ function ProfileChat({ athlete, team }: { athlete: Athlete; team: Team }) {
   const threads = { athlete: athleteThread(athlete.id), coach: aboutThread(team.id, athlete.id) };
   const unread = (thread: typeof threads.athlete) => unreadIn(state.messages, thread, profile.id);
   const firstName = athlete.name.split(' ')[0];
+  // "Coach Mike - Devon": the team's coach, talking about this athlete.
+  const coachLabel = coachChatLabel(team.coachNames, athlete.name);
 
   return (
     <div className="stack-sm">
@@ -370,19 +379,14 @@ function ProfileChat({ athlete, team }: { athlete: Athlete; team: Team }) {
           {unread(threads.athlete) > 0 && <span className="warn-text"> &middot; {unread(threads.athlete)} new</span>}
         </button>
         <button type="button" className="chip" aria-pressed={withCoach} onClick={() => setWithCoach(true)}>
-          Coaches, about {firstName}
+          {coachLabel}
           {unread(threads.coach) > 0 && <span className="warn-text"> &middot; {unread(threads.coach)} new</span>}
         </button>
       </div>
       {withCoach ? (
-        <AboutChat
-          athlete={athlete}
-          team={team}
-          name="Coach"
-          detail={`About ${athlete.name}. ${firstName} can't see this. Coaches see status only, so keep medical details out.`}
-        />
+        <AboutChat athlete={athlete} team={team} name={coachLabel} />
       ) : (
-        <ChatThread thread={threads.athlete} name={athlete.name} detail="Only you two see this." />
+        <ChatThread thread={threads.athlete} name={athlete.name} />
       )}
     </div>
   );

@@ -7,6 +7,8 @@ interface TeamSetupProps {
   profile: Profile;
   /** Called once they're on a team, so AuthGate loads again and opens the app. */
   onJoined: () => void;
+  /** Why a join link they followed didn't work, if one didn't. */
+  problem?: string;
 }
 
 /**
@@ -15,13 +17,13 @@ interface TeamSetupProps {
  * The checks happen in the database: create_team and join_team in
  * supabase/signup.sql.
  */
-export function TeamSetup({ profile, onJoined }: TeamSetupProps) {
+export function TeamSetup({ profile, onJoined, problem = '' }: TeamSetupProps) {
   const isTrainer = profile.role === 'trainer';
   const [teamName, setTeamName] = useState('');
   const [sport, setSport] = useState('');
   const [school, setSchool] = useState('');
   const [code, setCode] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(problem);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent) {

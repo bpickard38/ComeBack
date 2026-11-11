@@ -3,7 +3,7 @@ import { Avatar, ChatThread } from '../../components/Chat';
 import { athleteThread, inboxOrder, lastMessage, unreadIn } from '../../domain/messages';
 import type { MessageThread } from '../../domain/types';
 import { formatAgo } from '../../format';
-import { aboutThread, coachThread } from '../../domain/teams';
+import { aboutThread, coachChatLabel, coachThread } from '../../domain/teams';
 import { useAppStore, useTeam } from '../../store/AppStore';
 import { AboutChat } from './AboutChat';
 
@@ -61,7 +61,7 @@ export function TrainerMessages() {
         {
           thread,
           param: `about-${a.id}`,
-          name: `Coach, about ${a.name}`,
+          name: coachChatLabel(team?.coachNames ?? [], a.name),
           detail: `${firstName} can't see this. Coaches see status only, so keep medical details out.`,
           about: { id: a.id, name: a.name },
         },

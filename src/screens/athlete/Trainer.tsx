@@ -4,6 +4,7 @@ import { formatDay, formatTime } from '../../format';
 import { useAppStore, useSignedInAthlete } from '../../store/AppStore';
 import { upcomingAppointments } from '../../domain/appointments';
 import { Appointments } from './Appointments';
+import { PhotoCard } from './PhotoCard';
 
 /**
  * Everything between the athlete and their trainer: upcoming visits (folded
@@ -44,6 +45,9 @@ export function Trainer() {
       </details>
 
       <ChatThread thread={thread} name={trainerName} detail="Athletic trainer. Your coach can’t see these." />
+
+      {/* What the trainer sees of you, so it lives with the rest of the trainer tab. */}
+      <PhotoCard />
     </>
   );
 }

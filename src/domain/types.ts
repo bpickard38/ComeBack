@@ -21,6 +21,14 @@ export interface Exercise {
   videoUrl: string | null;
   /** One-line how-to from the exercises catalog. */
   description?: string | null;
+  /** The injury (athlete_injuries row) this exercise was prescribed for. */
+  caseId?: string;
+  /** The prescription as numbers, for the trainer to edit. null means not used. */
+  sets?: number | null;
+  reps?: number | null;
+  holdSeconds?: number | null;
+  /** false once the trainer takes it off the plan. */
+  active?: boolean;
 }
 
 /** One active injury on an athlete. caseId is the athlete_injuries row. */
@@ -61,6 +69,8 @@ export interface Team {
   id: string;
   name: string;
   sport: string | null;
+  /** Names of the coaches on this team. */
+  coachNames: string[];
 }
 
 export interface Athlete {
@@ -69,6 +79,8 @@ export interface Athlete {
   sport: string;
   /** Every team this athlete is on (usually one). */
   teamIds: string[];
+  /** Profile photo the athlete uploaded, as a web address. Missing until they add one. */
+  photoUrl?: string | null;
   /** Contact details, loaded for trainers only. */
   email?: string;
   phone?: string | null;
@@ -95,6 +107,8 @@ export interface ExerciseLog {
 export interface MilestoneTest {
   id: string;
   athleteId: string;
+  /** The injury (athlete_injuries row) this goal belongs to. */
+  caseId?: string;
   name: string;
   /** Plain-language explanation shown to the athlete. */
   description: string;
