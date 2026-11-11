@@ -766,6 +766,60 @@
   border-color: var(--text);
 }
 
+/* Recovery bar: milestone progress with a mark where practice starts. */
+.recovery-bar {
+  display: flex;
+  min-width: 12rem;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.recovery-bar__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.recovery-bar__track {
+  position: relative;
+  height: var(--progress-height);
+  border-radius: var(--radius-pill);
+  background: var(--surface-high);
+}
+
+.recovery-bar__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+/* A tick that pokes out above and below the track at the practice point. */
+.recovery-bar__mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text);
+}
+
+.recovery-bar__dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.recovery-bar__dates dt {
+  color: var(--text-muted);
+}
+
+.recovery-bar__dates dd {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
 /* Athlete search: the box stays a comfortable width; results reuse the roster rows as links. */
 .athlete-search__field {
   flex: 1 1 16rem;

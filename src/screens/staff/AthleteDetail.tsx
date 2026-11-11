@@ -73,8 +73,8 @@ function InjuryList({ athlete }: { athlete: Athlete }) {
   );
 }
 
-/** What the coach sees about this athlete. Only the trainer can change it. */
-function AvailabilityEditor({ athlete }: { athlete: Athlete }) {
+/** What the coach sees about this athlete. Only the trainer can change it. Also on the player profile. */
+export function AvailabilityEditor({ athlete }: { athlete: Athlete }) {
   const { commands } = useAppStore();
   const { notify } = useToast();
   const dateId = `return-${athlete.id}`;

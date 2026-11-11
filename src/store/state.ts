@@ -13,6 +13,7 @@ import type {
   TestResult,
 } from '../domain/types';
 import type { AthleteProgress } from '../domain/progress';
+import type { RecoveryStatus } from '../domain/recovery';
 
 /** A catalog entry the trainer picks from (injuries, exercises). */
 export interface CatalogItem {
@@ -46,6 +47,10 @@ export interface RemoteData {
   /** Trainer notes by athlete id. null for other roles, or when
    * supabase/athlete_notes.sql hasn't been run yet. */
   notes: Record<string, AthleteNote> | null;
+  /** Milestone progress and rehab start day by athlete id, for the recovery
+   * bar. For a coach it comes from the database as a percentage only; null
+   * when supabase/recovery_pace.sql hasn't been run yet. */
+  recovery: Record<string, RecoveryStatus> | null;
   /** Per-athlete counts for the coach's weekly summary. null for other roles,
    * or when supabase/weekly_summary.sql hasn't been run yet. */
   progress: AthleteProgress[] | null;

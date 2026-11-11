@@ -73,7 +73,7 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
 ### 2. Create the Supabase project (once per team)
 
 1. At supabase.com, create a new project. Any name and region. Write down the database password.
-2. Open **SQL Editor** and run these nine files in order. Paste each file's contents into a new query and click Run.
+2. Open **SQL Editor** and run these ten files in order. Paste each file's contents into a new query and click Run.
    1. `supabase/erd_schema.sql`: the tables, triggers, security rules and catalogs
    2. `supabase/signup.sql`: roles, teams and join codes
    3. `supabase/live_data.sql`: conversations and plan assignment the screens use
@@ -82,7 +82,8 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
    6. `supabase/weekly_summary.sql`: the coach's weekly progress summary (counts only)
    7. `supabase/athlete_notes.sql`: private trainer notes on player profiles
    8. `supabase/coach_athlete_chat.sql`: the private trainer and coach conversation about one athlete
-   9. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
+   9. `supabase/recovery_pace.sql`: the recovery percentage behind the coach's recovery bar
+   10. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
 
    Already set up? Run `supabase/remove_trophies.sql` once (after deploying the app version without trophies) and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too, then `workout_sets.sql` and `weekly_summary.sql`. Re-run `supabase/push.sql` if you use push reminders.
 3. Under **Authentication > Sign In / Providers**, turn on "Allow new users to sign up". Under Email, turn off "Confirm email" unless you want people to confirm by email first.
@@ -156,7 +157,7 @@ Use the demo accounts above. To show two roles side by side, sign in to the seco
 1. **Athlete (Maya)**: on Today, tap "Mark done" on the three pending exercises and pick a pain rating for each. Rate one a 7 and message your trainer about it.
 2. **Progress**: log 30 for One-leg balance. The milestone flips to "Reached", its stop on the recovery path turns green, and the summary bar moves.
 3. **Trainer**: Maya and Devon are flagged for pain and a new message. Open Maya's conversation on the Messages tab and reply (her flag clears once it's read), set Devon to Out with a return date, and open Jordan: he has two active injuries, each with its own plan. Assign him new exercises for one of them (the other stays as is), or mark one cleared.
-4. **Coach**: "Team availability" shows only Out / Limited / Cleared and return dates, no injuries. Below it, "This week's progress" shows each athlete's week % with On track / Behind, days complete, streak, goals reached and last week's %, still with no injury names or pain. Maya's row shows 3 goals improved this week after the retests. Message the trainer, then show it under Coach on the trainer's Messages tab.
+4. **Coach**: "Team availability" shows only Out / Limited / Cleared and return dates, no injuries. Below it, "This week's progress" shows each athlete's week % with On track / Behind, days complete, streak, goals reached and last week's %, still with no injury names or pain. Maya's row shows 3 goals improved this week after the retests. Message the trainer, then show it under Coach on the trainer's Messages tab. The Recovery column shows Maya's bar with the practice mark and the dates she is on pace for; log a better milestone result as Maya and both dates move earlier.
 5. **Errors**: set "Connection: offline" and try logging; tap "Edit my plan"; log without a pain rating; save an empty result or message.
 6. **Player profile**: as the trainer, pick Jordan on the roster and press "Open Jordan Reyes's profile". Show both injuries with their dates, exercises and milestone tests, add a trainer note and save it, then switch the chat to "Coaches, about Jordan" and send a message. As the coach, pick Jordan under "Message the trainer about" and reply; as Jordan, show that the conversation is nowhere to be seen.
 7. **Several teams**: as the trainer, press "New team", name it and create it. The app switches to the new, empty roster with its own join codes; press "Demo Soccer" to go back. (Running `demo_data.sql` again removes teams the demo trainer made.)
@@ -204,10 +205,23 @@ The coach's screen has a "This week's progress" table under availability. Per at
 
 The privacy rule holds: coaches still have no access to `exercise_logs`, plans, injuries or `test_results`. `supabase/weekly_summary.sql` adds one database function, `coach_weekly_summary(p_today)`, that reads those tables on the coach's behalf and returns only counts for athletes on the coach's teams: exercises on the plan, exercises logged per day, and goals set, reached and improved. Injury names, pain ratings and test values never reach the coach's browser. Until that script is run, the table says the summary isn't available yet.
 
+## Recovery bar and projected return dates
+
+The coach's Status table has a Recovery column, and the trainer sees the same bar at the top of each player profile.
+
+- **The bar** is how far the athlete is through their milestone tests: each test's progress from its starting value to its goal, averaged. It is the same number as the athlete's own Progress tab.
+- **75% is back to practice** (the mark on the bar) and **100% is back to play**. The 75 is a guess to tune with real trainers (`PRACTICE_PERCENT` in `src/domain/recovery.ts`).
+- **The dates are projected from pace.** If an athlete is 50% of the way after 20 days, they're on pace for practice on day 30 and play on day 40. A new result that moves the percentage moves both dates; a stall pushes them later every day. Before the first improvement there is no pace, so the bar says "No pace yet".
+- A cleared athlete shows 100%. An athlete at 100% who isn't cleared shows "Waiting on the trainer to clear".
+- "Expected back" is still the trainer's own estimate, set by hand, and sits beside the projected dates.
+
+Coaches can't read milestones or results. `supabase/recovery_pace.sql` adds `coach_recovery()`, which hands back one percentage and the rehab start day per athlete and nothing else. Until it is run, the coach's column says "Not available yet"; the trainer's bar works without it.
+
 ## Player profiles for trainers
 
 On the roster, "Open profile" on an athlete takes the trainer to that athlete's own page (`/staff/athletes/<id>`). It gathers what a trainer wants before treating someone:
 
+- **Recovery**: the recovery bar and projected dates the coach sees (above), with the status and "Expected back" date the trainer sets for the coach.
 - **At a glance**: the status the coach sees, today's and this week's exercise counts, streak, email and phone.
 - **Injury history**: every injury on file, active and cleared, with start and cleared dates, how long it took, the exercises prescribed and where each milestone test started, stands and should end.
 - **Pain reported**: ratings of 5 or more from the last 14 days, with the exercise and time.

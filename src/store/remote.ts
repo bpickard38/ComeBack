@@ -22,7 +22,9 @@ import type {
   Team,
   TestResult,
 } from '../domain/types';
+import { overallGoalPercent } from '../domain/goals';
 import type { AthleteProgress } from '../domain/progress';
+import type { RecoveryStatus } from '../domain/recovery';
 import { aboutThread, coachThread } from '../domain/teams';
 import type { ValidAppointment, ValidTeam } from '../domain/validation';
 import type { Profile } from './profile';
@@ -106,7 +108,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   const isCoach = profile.role === 'coach';
   const none = Promise.resolve({ data: [], error: null });
 
-  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary, notes] =
+  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary, notes, coachRecovery] =
     await Promise.all([
       // Only the teams you're on come back (row level security).
       supabase.from('teams').select('id, name, sport').order('name'),
@@ -131,6 +133,8 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       isCoach ? supabase.rpc('coach_weekly_summary', { p_today: dayKey(new Date()) }) : none,
       // Private trainer notes; nobody else can read the table.
       isTrainer ? supabase.from('athlete_notes').select('athlete_id, body, updated_by, updated_at') : none,
+      // Coaches can't read milestones; this function returns one percentage per athlete.
+      isCoach ? supabase.rpc('coach_recovery') : none,
     ]);
 
   const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL; email?: string; phone?: string | null }>(users);
@@ -310,6 +314,32 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
           goalsImproved: Number(r.goals_improved),
         }));
 
+  // Recovery progress. Trainers and athletes can read the milestones, so
+  // it's worked out here; a coach gets the same percentage from the database.
+  // Before supabase/recovery_pace.sql is run the coach's bar says so.
+  const recovery: Record<string, RecoveryStatus> | null = isCoach
+    ? coachRecovery.error
+      ? null
+      : Object.fromEntries(
+          rows<{ athlete_id: string; started: string | null; percent: number | null }>(coachRecovery).map((r) => [
+            r.athlete_id,
+            { percent: r.percent === null ? null : Number(r.percent), started: r.started },
+          ]),
+        )
+    : Object.fromEntries(
+        athletes.map((a) => {
+          const mine = tests.filter((t) => t.athleteId === a.id);
+          return [
+            a.id,
+            {
+              percent: mine.length ? overallGoalPercent(mine, resultList, a.id) : null,
+              // Cases are sorted oldest first.
+              started: activeCases.get(a.id)?.[0]?.start_date ?? null,
+            },
+          ];
+        }),
+      );
+
   // Before supabase/athlete_notes.sql is run the table doesn't exist; the
   // profile then says so instead of offering a box that can't save.
   const noteMap: Record<string, AthleteNote> | null =
@@ -334,6 +364,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     conversations: conversationList,
     injuryHistory,
     notes: noteMap,
+    recovery,
     progress,
     catalog: {
       injuries: rows<{ id: string; name: string }>(injuries),

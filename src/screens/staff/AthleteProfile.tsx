@@ -4,6 +4,7 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { ChatThread } from '../../components/Chat';
+import { RecoveryBar } from '../../components/RecoveryBar';
 import { useToast } from '../../components/Toast';
 import { upcomingAppointments } from '../../domain/appointments';
 import { availabilityLabel } from '../../domain/availability';
@@ -18,6 +19,7 @@ import {
 import { doneOnDay } from '../../domain/logs';
 import { athleteThread, unreadIn } from '../../domain/messages';
 import { PAIN_ALERT_LEVEL } from '../../domain/pain';
+import { PRACTICE_PERCENT, recoveryPace } from '../../domain/recovery';
 import { bestStreak, currentStreak } from '../../domain/streak';
 import { aboutThread } from '../../domain/teams';
 import type { Appointment, Athlete, InjuryRecord, Team } from '../../domain/types';
@@ -25,6 +27,7 @@ import { weekCompletion, weekStatus } from '../../domain/week';
 import { formatCalendarDay, formatDay, formatNumber, formatSentAt, formatTime, plural } from '../../format';
 import { useAppStore, useTeam } from '../../store/AppStore';
 import { AboutChat } from './AboutChat';
+import { AvailabilityEditor } from './AthleteDetail';
 
 /**
  * Everything the trainer has on one athlete, on one page: status, every
@@ -55,6 +58,7 @@ export function AthleteProfile() {
 
       <div className="staff-grid">
         <div className="stack-sm">
+          <Recovery athlete={athlete} />
           <Overview athlete={athlete} />
           <InjuryHistory athlete={athlete} />
           <PainReports athlete={athlete} />
@@ -65,6 +69,35 @@ export function AthleteProfile() {
         <ProfileChat key={athlete.id} athlete={athlete} team={team} />
       </div>
     </>
+  );
+}
+
+/**
+ * How close they are to playing again, exactly as the coach sees it, and the
+ * status and return date the trainer sets for the coach.
+ */
+function Recovery({ athlete }: { athlete: Athlete }) {
+  const { state } = useAppStore();
+  const cleared = athlete.availability === 'cleared';
+  const pace = recoveryPace(state.recovery?.[athlete.id], cleared, new Date());
+
+  return (
+    <Card aria-labelledby="profile-recovery">
+      <div className="stack-xs">
+        <h2 id="profile-recovery">Recovery</h2>
+        <p className="muted">
+          The coach sees this bar and these dates. It fills as milestone tests improve; {PRACTICE_PERCENT}% is back to practice
+          and 100% is back to play. The dates are where {athlete.name.split(' ')[0]} is on pace to get there, so they move with
+          every new result.
+        </p>
+      </div>
+      {pace ? (
+        <RecoveryBar pace={pace} cleared={cleared} />
+      ) : (
+        <p>No milestone tests are set, so there's no recovery bar yet. Assign an injury with milestones from the roster.</p>
+      )}
+      <AvailabilityEditor athlete={athlete} />
+    </Card>
   );
 }
 
