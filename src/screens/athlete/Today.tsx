@@ -87,9 +87,11 @@ export function Today() {
           <ProgressBar percent={percent} />
         </div>
         {nextGoal && total > 0 && (
-          <Link to="/athlete/progress" className="small working-toward">
-            Working toward: <span className="strong">{nextGoal.name}</span>{" "}
-            <span aria-hidden="true">&rsaquo;</span>
+          <Link to="/athlete/progress" className="btn btn--secondary working-toward">
+            <span className="working-toward__text">
+              <span className="muted">Working toward</span> {nextGoal.name}
+            </span>
+            <span className="working-toward__arrow" aria-hidden="true">&rsaquo;</span>
           </Link>
         )}
       </Card>

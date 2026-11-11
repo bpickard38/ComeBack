@@ -771,7 +771,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
+  justify-content: space-between;
   gap: var(--space-1) var(--space-3);
+}
+
+.recovery-meter__name {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-tight, 1.2);
 }
 
 .recovery-meter__pct {
@@ -1466,14 +1473,24 @@
   }
 }
 
-/* Link from Today's summary to the milestone the exercises build toward. */
+/* Button from Today's summary to the milestone the exercises build toward. */
 .working-toward {
-  display: block;
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
   margin-top: var(--space-3);
-  color: var(--accent);
-  text-decoration: none;
+  padding-inline: var(--space-4);
+  text-align: left;
 }
 
-.working-toward:hover {
-  text-decoration: underline;
+.working-toward__arrow {
+  color: var(--accent);
+  font-size: var(--font-size-2xl);
+  line-height: 1;
+}
+
+@media (hover: hover) {
+  .working-toward:hover {
+    background: var(--surface-high);
+  }
 }
