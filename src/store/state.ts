@@ -7,6 +7,7 @@ import type {
   MessageThread,
   MilestoneTest,
   Role,
+  Team,
   TestResult,
 } from '../domain/types';
 import type { AthleteProgress } from '../domain/progress';
@@ -24,6 +25,9 @@ export interface CatalogItem {
  * details, a trainer gets their teams' athletes.
  */
 export interface RemoteData {
+  /** The teams you're on, by name. A trainer can have several. */
+  teams: Team[];
+  /** Athletes on all of those teams; each lists its teamIds. */
   athletes: Athlete[];
   /** Plan exercises for every athlete above. */
   exercises: Exercise[];
@@ -51,12 +55,14 @@ export interface RemoteData {
 export interface AppState extends RemoteData {
   /** Fixed by the account; see AuthGate. */
   role: Role;
+  /** Which team a trainer or coach is looking at. null means the first one. */
+  selectedTeamId: string | null;
   /** Demo toggle: pretend the connection is down so saves fail. */
   offline: boolean;
   /** Demo button: show the end-of-day reminder regardless of the clock. */
   reminderSimulated: boolean;
 }
 
-export function createInitialState(role: Role, data: RemoteData): AppState {
-  return { role, offline: false, reminderSimulated: false, ...data };
+export function createInitialState(role: Role, data: RemoteData, selectedTeamId: string | null = null): AppState {
+  return { role, selectedTeamId, offline: false, reminderSimulated: false, ...data };
 }

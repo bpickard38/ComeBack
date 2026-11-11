@@ -3,7 +3,8 @@ import { Avatar, ChatThread } from '../../components/Chat';
 import { athleteThread, inboxOrder, lastMessage, unreadIn } from '../../domain/messages';
 import type { MessageThread } from '../../domain/types';
 import { formatAgo } from '../../format';
-import { useAppStore } from '../../store/AppStore';
+import { coachThread } from '../../domain/teams';
+import { useAppStore, useTeam } from '../../store/AppStore';
 
 /** One person the trainer can message. */
 interface Contact {
@@ -16,8 +17,8 @@ interface Contact {
 }
 
 /**
- * The trainer's direct messages, laid out like Instagram: the coach and
- * every athlete (most recent first) on the left, the open conversation on
+ * The trainer's direct messages for the team picked in the switcher, laid
+ * out like Instagram: that team's coach and athletes (most recent first) on the left, the open conversation on
  * the right. On phones it's one or the other, with a back arrow.
  *
  * The open conversation is in the URL (?with=<athlete id> or ?with=coach)
@@ -26,16 +27,17 @@ interface Contact {
  */
 export function TrainerMessages() {
   const { state } = useAppStore();
+  const { team, athletes: teamAthletes } = useTeam();
   const [params, setParams] = useSearchParams();
 
   const coach: Contact = {
-    thread: 'coach-trainer',
+    thread: coachThread(team?.id ?? ''),
     param: 'coach',
     name: 'Coach',
     detail: 'Team coach. Keep medical details out; they see status only.',
   };
   const byThread = new Map<MessageThread, Contact>(
-    state.athletes.map((a) => [
+    teamAthletes.map((a) => [
       athleteThread(a.id),
       { thread: athleteThread(a.id), param: a.id, name: a.name, detail: `${a.sport}. Only you two see this.` },
     ]),
@@ -53,7 +55,7 @@ export function TrainerMessages() {
           <ContactRow contact={coach} isOpen={open === coach} onSelect={() => select(coach)} />
           <h2 className="dm__section">Athletes</h2>
           {athletes.length === 0 ? (
-            <p className="muted pad">No athletes on the roster yet.</p>
+            <p className="muted pad">No athletes on this team yet.</p>
           ) : (
             athletes.map((c) => <ContactRow key={c.param} contact={c} isOpen={open === c} onSelect={() => select(c)} />)
           )}

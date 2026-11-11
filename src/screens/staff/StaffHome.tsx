@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '../../components/Button';
 import { useReturnFocus } from '../../components/useReturnFocus';
 import { formatDay } from '../../format';
-import { useAppStore } from '../../store/AppStore';
+import { useAppStore, useTeam } from '../../store/AppStore';
 import { AssignForm } from './AssignForm';
 import { AthleteDetail } from './AthleteDetail';
 import { CoachView } from './CoachView';
@@ -15,14 +15,15 @@ export function StaffHome() {
   return state.role === 'coach' ? <CoachView /> : <TrainerView />;
 }
 
-/** Trainer home: roster on the left, selected athlete on the right. */
+/** Trainer home for the team picked in the switcher: roster on the left, selected athlete on the right. */
 function TrainerView() {
-  const { state } = useAppStore();
-  const [selectedId, setSelectedId] = useState(state.athletes[0]?.id);
+  const { team, athletes } = useTeam();
+  const [selectedId, setSelectedId] = useState(athletes[0]?.id);
   const [assigning, setAssigning] = useState(false);
   const assignButtonRef = useReturnFocus(assigning);
 
-  const selected = state.athletes.find((a) => a.id === selectedId) ?? state.athletes[0];
+  // After switching teams the old pick isn't on this roster, so take the first.
+  const selected = athletes.find((a) => a.id === selectedId) ?? athletes[0];
 
   // The page column and tabs come from StaffLayout.
   return (
@@ -30,20 +31,20 @@ function TrainerView() {
       <div className="page-head">
         <div className="stack-xs">
           <div className="eyebrow">{formatDay(new Date())}</div>
-          <h1>Roster</h1>
+          <h1>{team ? `${team.name} roster` : 'Roster'}</h1>
         </div>
-        {!assigning && (
+        {!assigning && selected && (
           <Button ref={assignButtonRef} variant="primary" onClick={() => setAssigning(true)}>
             Assign injury and exercises
           </Button>
         )}
       </div>
 
-      <TeamCodes />
+      {team && <TeamCodes team={team} />}
 
       {assigning && selected && (
         <AssignForm
-          athletes={state.athletes}
+          athletes={athletes}
           initialAthleteId={selected.id}
           onClose={(assignedTo) => {
             if (assignedTo) setSelectedId(assignedTo);
@@ -52,11 +53,11 @@ function TrainerView() {
         />
       )}
 
-      {state.athletes.length === 0 ? (
-        <p className="muted">No athletes on the roster yet.</p>
+      {athletes.length === 0 ? (
+        <p className="muted">No athletes on this team yet. Share the athlete join code above to add them.</p>
       ) : (
         <div className="staff-grid">
-          <Roster athletes={state.athletes} selectedId={selected?.id} onSelect={setSelectedId} />
+          <Roster athletes={athletes} selectedId={selected?.id} onSelect={setSelectedId} />
           {selected && <AthleteDetail athlete={selected} />}
         </div>
       )}

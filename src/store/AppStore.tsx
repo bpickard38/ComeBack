@@ -17,6 +17,7 @@ import { isGoalReached, parseResultValue } from '../domain/goals';
 import { normalizeAvailability } from '../domain/availability';
 import { ALREADY_LOGGED, createLog } from '../domain/logs';
 import { athleteThread, unreadIn } from '../domain/messages';
+import { athletesOnTeam, currentTeam } from '../domain/teams';
 import type {
   Athlete,
   Availability,
@@ -26,14 +27,17 @@ import type {
   MessageThread,
   MilestoneTest,
   Result,
+  Team,
   TestResult,
 } from '../domain/types';
 import {
   validateAppointment,
   validateAssignment,
   validateMessage,
+  validateTeam,
   type AppointmentInput,
   type AssignmentInput,
+  type TeamInput,
   type ValidAppointment,
 } from '../domain/validation';
 import type { Profile } from './profile';
@@ -45,6 +49,26 @@ const OFFLINE_ERROR = 'Nothing was recorded. Check your connection and try again
 
 /** How often to fetch what other people changed. */
 const REFRESH_MS = 30_000;
+
+// Which team you were last looking at, remembered on this device.
+const teamKey = (userId: string) => `comeback.team.${userId}`;
+
+function savedTeamId(userId: string): string | null {
+  // Storage can be blocked (private windows, some settings), so never let it crash the app.
+  try {
+    return localStorage.getItem(teamKey(userId));
+  } catch {
+    return null;
+  }
+}
+
+function saveTeamId(userId: string, teamId: string) {
+  try {
+    localStorage.setItem(teamKey(userId), teamId);
+  } catch {
+    // Not remembered, but the choice still holds until the page reloads.
+  }
+}
 
 /** One athlete's goals. */
 export function testsFor(state: AppState, athleteId: string): MilestoneTest[] {
@@ -69,6 +93,26 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
     toggleOffline: () => dispatch({ type: 'setOffline', offline: !state.offline }),
     simulateReminder: () => dispatch({ type: 'simulateReminder' }),
     reload,
+
+    /** Trainer or coach picks which of their teams to look at. */
+    selectTeam(teamId: string) {
+      saveTeamId(profile.id, teamId);
+      dispatch({ type: 'selectTeam', teamId });
+    },
+
+    /** Trainer starts another team and lands on it, ready to share its join codes. */
+    async createTeam(input: TeamInput): Promise<Result<{ id: string }>> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can create a team.' };
+      const valid = validateTeam(input);
+      if (!valid.ok) return valid;
+      if (state.offline) return { ok: false, error: `Could not create the team. ${OFFLINE_ERROR}` };
+      const saved = await remote.createTeam(valid.value);
+      if (!saved.ok) return { ok: false, error: `Could not create the team. ${saved.error}` };
+      saveTeamId(profile.id, saved.value.id);
+      dispatch({ type: 'selectTeam', teamId: saved.value.id });
+      await reload(); // brings in the new team
+      return saved;
+    },
 
     async logExercise(
       athleteId: string,
@@ -167,7 +211,7 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       if (state.role === 'athlete' && thread !== athleteThread(profile.id)) {
         return { ok: false, error: 'You can only message your trainer.' };
       }
-      if (state.role === 'coach' && thread !== 'coach-trainer') {
+      if (state.role === 'coach' && !thread.startsWith('coach:')) {
         return { ok: false, error: 'Coaches can only message the trainer.' };
       }
       if (state.offline) return { ok: false, error: `Could not send your message. ${OFFLINE_ERROR}` };
@@ -227,7 +271,7 @@ export function AppStoreProvider({ profile, children }: { profile: Profile; chil
   // ('loaded'), keeping on-screen-only settings like the offline toggle.
   const [state, dispatch] = useReducer((current: AppState | null, action: Action) => {
     if (current) return reducer(current, action);
-    return action.type === 'loaded' ? createInitialState(profile.role, action.data) : null;
+    return action.type === 'loaded' ? createInitialState(profile.role, action.data, savedTeamId(profile.id)) : null;
   }, null);
 
   // Counts saves. A refresh that started before a save finished would bring
@@ -261,7 +305,7 @@ export function AppStoreProvider({ profile, children }: { profile: Profile; chil
 
   // Commands dispatch through this, so saves are counted (see `writes`).
   const countingDispatch = useCallback((action: Action) => {
-    if (action.type !== 'setOffline' && action.type !== 'simulateReminder') writes.current++;
+    if (action.type !== 'setOffline' && action.type !== 'simulateReminder' && action.type !== 'selectTeam') writes.current++;
     dispatch(action);
   }, []);
 
@@ -287,6 +331,16 @@ export function useAppStore(): StoreValue {
   const value = useContext(StoreContext);
   if (!value) throw new Error('useAppStore must be used inside <AppStoreProvider>');
   return value;
+}
+
+/**
+ * The team a trainer or coach is looking at, and its athletes. `team` is
+ * undefined only if they're on no team, which AuthGate doesn't let through.
+ */
+export function useTeam(): { team: Team | undefined; athletes: Athlete[] } {
+  const { state } = useAppStore();
+  const team = currentTeam(state.teams, state.selectedTeamId);
+  return { team, athletes: team ? athletesOnTeam(state.athletes, team.id) : [] };
 }
 
 /** The signed-in athlete, for the athlete screens. */

@@ -29,10 +29,19 @@ export interface AthleteInjury {
   name: string;
 }
 
+/** A team the signed-in person is on. A trainer can have several. */
+export interface Team {
+  id: string;
+  name: string;
+  sport: string | null;
+}
+
 export interface Athlete {
   id: string;
   name: string;
   sport: string;
+  /** Every team this athlete is on (usually one). */
+  teamIds: string[];
   /** Every active injury. An athlete can have several at once. */
   injuries: AthleteInjury[];
   /** Plan exercises from all active injuries together. */
@@ -84,8 +93,9 @@ export interface Appointment {
   exerciseIds: string[];
 }
 
-/** "athlete:<id>" for trainer and athlete messages, or the coach-to-trainer thread. */
-export type MessageThread = `athlete:${string}` | 'coach-trainer';
+/** "athlete:<athlete id>" for trainer and athlete messages, or "coach:<team id>"
+ * for one team's coach-to-trainer thread (each team has its own). */
+export type MessageThread = `athlete:${string}` | `coach:${string}`;
 
 export interface Message {
   id: string;

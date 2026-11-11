@@ -20,6 +20,22 @@ export function validateMessage(text: string): Result<string> {
   return { ok: true, value: trimmed };
 }
 
+export interface TeamInput {
+  name: string;
+  /** Optional, '' when left blank. */
+  sport: string;
+  school: string;
+}
+
+/** Same shape, trimmed and with a name. */
+export type ValidTeam = TeamInput;
+
+export function validateTeam(input: TeamInput): Result<ValidTeam> {
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: 'Give your team a name.' };
+  return { ok: true, value: { name, sport: input.sport.trim(), school: input.school.trim() } };
+}
+
 export interface AppointmentInput {
   athleteId: string;
   title: string;

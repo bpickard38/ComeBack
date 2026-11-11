@@ -1,32 +1,32 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../../components/Button';
-import { useAppStore } from '../../store/AppStore';
+import type { Team } from '../../domain/types';
 import { supabase } from '../../store/supabase';
 
 interface TeamCode {
-  teamId: string;
-  teamName: string;
   athleteCode: string;
   coachCode: string;
 }
 
 /**
- * Trainer-only card with each team's join codes to share. Only trainers can
+ * Trainer-only card with one team's join codes to share. Only trainers can
  * read team_codes (see supabase/signup.sql), so this shows nothing for others.
  */
-export function TeamCodes() {
-  const { profile } = useAppStore();
-  const [codes, setCodes] = useState<TeamCode[] | null>(null);
+export function TeamCodes({ team }: { team: Team }) {
+  // Remembers which team the codes belong to, so switching teams never
+  // shows the last team's codes while the new ones load.
+  const [loaded, setLoaded] = useState<{ teamId: string; codes: TeamCode | null } | null>(null);
   const [error, setError] = useState('');
-  const [confirming, setConfirming] = useState<string | null>(null); // team id about to get new codes
+  const [confirming, setConfirming] = useState(false);
   const [attempt, setAttempt] = useState(0); // bumped to load again
 
   useEffect(() => {
     let cancelled = false;
     supabase
       .from('team_codes')
-      .select('team_id, athlete_code, coach_code, teams(name)')
-      .in('team_id', profile.teamIds)
+      .select('athlete_code, coach_code')
+      .eq('team_id', team.id)
+      .maybeSingle()
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) {
@@ -35,69 +35,63 @@ export function TeamCodes() {
           return;
         }
         setError('');
-        setCodes(
-          data.map((row) => ({
-            teamId: row.team_id,
-            // teams(name) comes back as a nested object from the join.
-            teamName: (row.teams as unknown as { name: string } | null)?.name ?? 'Your team',
-            athleteCode: row.athlete_code,
-            coachCode: row.coach_code,
-          })),
-        );
+        setLoaded({
+          teamId: team.id,
+          codes: data ? { athleteCode: data.athlete_code, coachCode: data.coach_code } : null,
+        });
       });
+    setConfirming(false);
     return () => {
       cancelled = true;
     };
-  }, [profile.teamIds, attempt]);
+  }, [team.id, attempt]);
 
-  async function resetCodes(teamId: string) {
-    setConfirming(null);
-    const { error } = await supabase.rpc('reset_team_codes', { p_team: teamId });
+  async function resetCodes() {
+    setConfirming(false);
+    const { error } = await supabase.rpc('reset_team_codes', { p_team: team.id });
     if (error) setError(error.message);
     else setAttempt((n) => n + 1);
   }
 
   if (error) return <p className="sign-in__error" role="alert">{error}</p>;
-  if (!codes || codes.length === 0) return null;
+  const codes = loaded?.teamId === team.id ? loaded.codes : null;
+  if (!codes) return null;
 
   return (
     <section className="card" aria-labelledby="team-codes-title">
-      <h2 id="team-codes-title">Join codes</h2>
+      <h2 id="team-codes-title">Join codes for {team.name}</h2>
       <p className="muted">
-        Share the matching code after someone creates an account.
+        Share the matching code after someone creates an account. It adds them to this team only.
       </p>
-      {codes.map((c) => (
-        <div key={c.teamId} className="panel">
-          {codes.length > 1 && <div className="strong">{c.teamName}</div>}
-          <div className="row team-codes">
-            <div>
-              <div className="small muted">Athletes</div>
-              <div className="join-code">{c.athleteCode}</div>
-            </div>
-            <div>
-              <div className="small muted">Coaches</div>
-              <div className="join-code">{c.coachCode}</div>
-            </div>
+      <div className="panel">
+        <div className="row team-codes">
+          <div>
+            <div className="small muted">Athletes</div>
+            <div className="join-code">{codes.athleteCode}</div>
           </div>
-          {confirming === c.teamId ? (
-            <div className="stack-sm">
-              <p className="small">The old codes will stop working. People already on the team stay on it.</p>
-              <div className="row">
-                <Button variant="primary" onClick={() => resetCodes(c.teamId)}>
-                  Make new codes
-                </Button>
-                <Button onClick={() => setConfirming(null)}>Cancel</Button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <Button variant="secondary" onClick={() => setConfirming(c.teamId)}>
+          <div>
+            <div className="small muted">Coaches</div>
+            <div className="join-code">{codes.coachCode}</div>
+          </div>
+        </div>
+        {confirming ? (
+          <div className="stack-sm">
+            <p className="small">The old codes will stop working. People already on the team stay on it.</p>
+            <div className="row">
+              <Button variant="primary" onClick={resetCodes}>
                 Make new codes
               </Button>
+              <Button onClick={() => setConfirming(false)}>Cancel</Button>
             </div>
-          )}
-        </div>
-      ))}
+          </div>
+        ) : (
+          <div>
+            <Button variant="secondary" onClick={() => setConfirming(true)}>
+              Make new codes
+            </Button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

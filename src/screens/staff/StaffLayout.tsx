@@ -1,8 +1,9 @@
 import { Outlet } from 'react-router-dom';
 import { TabBar, type Tab } from '../../components/TabBar';
-import { athleteThread, unreadIn } from '../../domain/messages';
-import type { MessageThread } from '../../domain/types';
+import { unreadIn } from '../../domain/messages';
+import { teamThreads } from '../../domain/teams';
 import { useAppStore } from '../../store/AppStore';
+import { TeamSwitcher } from './TeamSwitcher';
 
 /**
  * Wraps staff screens with role-specific navigation and the active screen.
@@ -14,8 +15,9 @@ export function StaffLayout() {
   }
 
   // How many conversations have something you haven't read, shown on the tab.
-  const threads: MessageThread[] = ['coach-trainer', ...state.athletes.map((a) => athleteThread(a.id))];
-  const waiting = threads.filter((t) => unreadIn(state.messages, t, profile.id) > 0).length;
+  // Counted across every team, so nothing is missed while looking at one.
+  const threads = new Set(state.teams.flatMap((t) => teamThreads(state.athletes, t.id)));
+  const waiting = [...threads].filter((t) => unreadIn(state.messages, t, profile.id) > 0).length;
   const tabs: Tab[] = [
     { to: '/staff', label: 'Roster', icon: 'roster' },
     { to: '/staff/messages', label: 'Messages', icon: 'messages', unreadCount: waiting },
@@ -27,6 +29,8 @@ export function StaffLayout() {
         <TabBar tabs={tabs} label="Trainer sections" className="tabs--staff" />
       </aside>
       <section className="staff-layout__content" aria-label="Trainer workspace">
+        {/* Roster and Messages both show the team picked here. */}
+        <TeamSwitcher />
         <Outlet />
       </section>
     </div>

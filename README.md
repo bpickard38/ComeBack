@@ -145,6 +145,7 @@ If the accounts ever get deleted, sign up again in the app with the same emails,
 - A trainer creates a team and gets two join codes (shown on their home screen): one for athletes, one for coaches.
 - Athletes and coaches enter their code to join. A code only works for its role, so nobody can join as staff with an athlete code.
 - What anyone can see is decided in the database by team membership, not by the role they picked.
+- A trainer can run several teams. "New team" on the trainer's home screen creates another one with its own join codes and coach conversation, and the team buttons at the top switch between them. The roster, messages and join codes all show the team that is picked, and the choice is remembered on that device. A coach who has joined more than one team gets the same buttons.
 
 ## Full demo script
 
@@ -155,7 +156,8 @@ Use the demo accounts above. To show two roles side by side, sign in to the seco
 3. **Trainer**: Maya and Devon are flagged for pain and a new message. Open Maya's conversation on the Messages tab and reply (her flag clears once it's read), set Devon to Out with a return date, and open Jordan: he has two active injuries, each with its own plan. Assign him new exercises for one of them (the other stays as is), or mark one cleared.
 4. **Coach**: "Team availability" shows only Out / Limited / Cleared and return dates, no injuries. Below it, "This week's progress" shows each athlete's week % with On track / Behind, days complete, streak, goals reached and last week's %, still with no injury names or pain. Maya's row shows 3 goals improved this week after the retests. Message the trainer, then show it under Coach on the trainer's Messages tab.
 5. **Errors**: set "Connection: offline" and try logging; tap "Edit my plan"; log without a pain rating; save an empty result or message.
-6. **Sign-up**: create a new athlete account and join with the athlete code from the trainer's "Join codes" card. Try the coach code first to show it is refused.
+6. **Several teams**: as the trainer, press "New team", name it and create it. The app switches to the new, empty roster with its own join codes; press "Demo Soccer" to go back. (Running `demo_data.sql` again removes teams the demo trainer made.)
+7. **Sign-up**: create a new athlete account and join with the athlete code from the trainer's "Join codes" card. Try the coach code first to show it is refused.
 
 ## Push reminders
 

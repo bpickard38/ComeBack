@@ -23,6 +23,7 @@ const athlete: Athlete = {
   id: 'x',
   name: 'Test Athlete',
   sport: 'Soccer',
+  teamIds: ['team'],
   injuries: [{ caseId: 'c1', name: 'Ankle sprain' }],
   assignedExerciseIds: ['e1', 'e2'],
   priorBestStreak: 1,
@@ -285,7 +286,7 @@ describe('messages', () => {
     expect(unreadIn(messages, 'athlete:x', 'trainer')).toBe(2);
     // The trainer's own message never counts as unread for them.
     expect(unreadIn(messages, 'athlete:x', 'athlete')).toBe(1);
-    expect(unreadIn(messages, 'coach-trainer', 'trainer')).toBe(0);
+    expect(unreadIn(messages, 'coach:team', 'trainer')).toBe(0);
   });
 
   it('orders the inbox newest first, empty threads last', () => {

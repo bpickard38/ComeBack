@@ -12,6 +12,7 @@ export type Action =
   | { type: 'loaded'; data: RemoteData }
   | { type: 'setOffline'; offline: boolean }
   | { type: 'simulateReminder' }
+  | { type: 'selectTeam'; teamId: string }
   | { type: 'addLog'; log: ExerciseLog }
   | { type: 'addResult'; result: TestResult }
   | { type: 'addMessage'; message: Message }
@@ -27,6 +28,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, offline: action.offline };
     case 'simulateReminder':
       return { ...state, reminderSimulated: true };
+    case 'selectTeam':
+      return { ...state, selectedTeamId: action.teamId };
     case 'addLog':
       return { ...state, logs: [...state.logs, action.log] };
     case 'addResult':

@@ -17,10 +17,12 @@ import type {
   MessageThread,
   MilestoneTest,
   Result,
+  Team,
   TestResult,
 } from '../domain/types';
 import type { AthleteProgress } from '../domain/progress';
-import type { ValidAppointment } from '../domain/validation';
+import { coachThread } from '../domain/teams';
+import type { ValidAppointment, ValidTeam } from '../domain/validation';
 import type { Profile } from './profile';
 import type { RemoteData } from './state';
 import { supabase } from './supabase';
@@ -28,6 +30,7 @@ import { supabase } from './supabase';
 // Row shapes as Supabase returns them. Nested objects come from joins like
 // "injuries(name)" in a select.
 interface MemberRow {
+  team_id: string;
   user_id: string;
   role: string;
   availability: Availability | null;
@@ -100,9 +103,11 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   const isCoach = profile.role === 'coach';
   const none = Promise.resolve({ data: [], error: null });
 
-  const [members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary] =
+  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary] =
     await Promise.all([
-      supabase.from('team_members').select('user_id, role, availability, expected_return, teams(name, sport)'),
+      // Only the teams you're on come back (row level security).
+      supabase.from('teams').select('id, name, sport').order('name'),
+      supabase.from('team_members').select('team_id, user_id, role, availability, expected_return, teams(name, sport)'),
       supabase.from('users').select('id, name, role'),
       supabase.from('athlete_injuries').select('id, athlete_id, status, start_date, injuries(name)'),
       supabase.from('plan_exercises').select('id, athlete_injury_id, sets, reps, hold_seconds, active, exercises(name, video_url, description)'),
@@ -113,7 +118,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
         .from('appointments')
         .select('id, athlete_id, starts_at, location, title, appointment_tests(case_milestone_id, note), appointment_exercises(plan_exercise_id)')
         .neq('status', 'cancelled'),
-      supabase.from('conversations').select('id, kind, athlete_id'),
+      supabase.from('conversations').select('id, kind, athlete_id, team_id'),
       supabase.from('messages').select('id, conversation_id, sender_id, body, sent_at, read_at').order('sent_at'),
       isTrainer ? supabase.from('injuries').select('id, name').order('name') : none,
       isTrainer ? supabase.from('exercises').select('id, name').order('name') : none,
@@ -145,14 +150,23 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     description: p.exercises?.description ?? null,
   }));
 
+  const teamList = rows<Team>(teams);
+
+  // One entry per athlete, even if they're on two of your teams.
   const athletes: Athlete[] = [];
   for (const m of rows<MemberRow>(members)) {
-    if (m.role !== 'athlete' || athletes.some((a) => a.id === m.user_id)) continue;
+    if (m.role !== 'athlete') continue;
+    const already = athletes.find((a) => a.id === m.user_id);
+    if (already) {
+      already.teamIds.push(m.team_id);
+      continue;
+    }
     const current = activeCases.get(m.user_id) ?? [];
     athletes.push({
       id: m.user_id,
       name: userById.get(m.user_id)?.name ?? 'Athlete',
       sport: m.teams?.sport ?? m.teams?.name ?? '',
+      teamIds: [m.team_id],
       injuries: current.map((c) => ({ caseId: c.id, name: c.injuries?.name ?? 'Injury' })),
       assignedExerciseIds: planRows
         .filter((p) => p.active && current.some((c) => c.id === p.athlete_injury_id))
@@ -205,11 +219,18 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     exerciseIds: a.appointment_exercises.map((e) => e.plan_exercise_id),
   }));
 
-  // Database conversations become the app's threads: "athlete:<id>" or "coach-trainer".
+  // Database conversations become the app's threads: "athlete:<athlete id>",
+  // or "coach:<team id>" since every team has its own coach conversation.
   const threadOf = new Map<string, MessageThread>();
   const conversationList: RemoteData['conversations'] = [];
-  for (const c of rows<{ id: string; kind: string; athlete_id: string | null }>(conversations)) {
-    const thread: MessageThread = c.kind === 'coach_trainer' ? 'coach-trainer' : `athlete:${c.athlete_id}`;
+  const conversationRows = rows<{ id: string; kind: string; athlete_id: string | null; team_id: string | null }>(conversations);
+  // A coach conversation from before conversations had a team (live_data.sql)
+  // counts as the first team's, unless that team already has its own.
+  conversationRows.sort((a, b) => Number(a.team_id === null) - Number(b.team_id === null));
+  for (const c of conversationRows) {
+    const thread: MessageThread =
+      c.kind === 'coach_trainer' ? coachThread(c.team_id ?? teamList[0]?.id ?? '') : `athlete:${c.athlete_id}`;
+    if (c.kind === 'coach_trainer' && c.team_id === null && conversationList.some((x) => x.thread === thread)) continue;
     threadOf.set(c.id, thread);
     conversationList.push({ thread, id: c.id });
   }
@@ -244,6 +265,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
         }));
 
   return {
+    teams: teamList,
     athletes,
     exercises,
     tests,
@@ -329,6 +351,12 @@ export async function updateAvailability(athleteId: string, availability: Availa
   // Security rules turn a forbidden update into "0 rows changed", not an error.
   if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can change their status.' };
   return { ok: true, value: undefined };
+}
+
+/** A trainer starts another team. The database makes its join codes and coach conversation. */
+export async function createTeam(team: ValidTeam): Promise<Result<{ id: string }>> {
+  const { data, error } = await supabase.rpc('create_team', { p_name: team.name, p_sport: team.sport, p_school: team.school });
+  return error ? { ok: false, error: error.message } : { ok: true, value: { id: data as string } };
 }
 
 /** Trainer marks one injury (an athlete_injuries row) as cleared. */

@@ -7,7 +7,9 @@ import { lastWeek, thisWeek, weekStatus, type AthleteProgress } from '../../doma
 import type { Athlete, Availability } from '../../domain/types';
 import { ON_TRACK_PERCENT } from '../../domain/week';
 import { formatCalendarDay } from '../../format';
-import { useAppStore } from '../../store/AppStore';
+import { coachThread } from '../../domain/teams';
+import { useAppStore, useTeam } from '../../store/AppStore';
+import { TeamSwitcher } from './TeamSwitcher';
 
 // Show who's out first, then limited, then cleared.
 const ORDER: Record<Availability, number> = { out: 0, limited: 1, cleared: 2 };
@@ -19,13 +21,17 @@ const ORDER: Record<Availability, number> = { out: 0, limited: 1, cleared: 2 };
  */
 export function CoachView() {
   const { state } = useAppStore();
-  const athletes = [...state.athletes].sort((a, b) => ORDER[a.availability] - ORDER[b.availability]);
+  // A coach on several teams sees one at a time, each with its own trainer chat.
+  const { team, athletes: teamAthletes } = useTeam();
+  const athletes = [...teamAthletes].sort((a, b) => ORDER[a.availability] - ORDER[b.availability]);
+  const thread = coachThread(team?.id ?? '');
   // Use the trainer's name once they've written; until then, a generic one.
   const trainerName =
-    messagesIn(state.messages, 'coach-trainer').find((m) => m.from === 'Trainer')?.senderName ?? 'Trainer';
+    messagesIn(state.messages, thread).find((m) => m.from === 'Trainer')?.senderName ?? 'Trainer';
 
   return (
     <div className="column column--staff">
+      <TeamSwitcher />
       <div className="staff-grid staff-grid--coach">
         <div className="stack-sm">
           <Card className="card--flush card--coach card--coach-status" aria-label="Availability">
@@ -81,7 +87,8 @@ export function CoachView() {
           <WeeklyProgress athletes={athletes} progress={state.progress} />
         </div>
 
-        <ChatThread thread="coach-trainer" name={trainerName} detail="Athletic Trainer" />
+        {/* key starts a fresh draft when you switch teams */}
+        <ChatThread key={thread} thread={thread} name={trainerName} detail="Athletic Trainer" />
       </div>
     </div>
   );
