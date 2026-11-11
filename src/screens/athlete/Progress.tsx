@@ -1,6 +1,4 @@
-import { Link } from 'react-router-dom';
 import { Card } from '../../components/Card';
-import { findLog } from '../../domain/logs';
 import { availabilityLabel } from '../../domain/availability';
 import { currentValue, goalPercent, goalsReached, isGoalReached } from '../../domain/goals';
 import { formatCalendarDay, injuryLabel } from '../../format';
@@ -20,11 +18,6 @@ export function Progress() {
   const allMet = tests.length > 0 && met === tests.length;
   const next = tests.find((t) => !isGoalReached(t, state.results, me.id));
   const nextPercent = next ? goalPercent(next, currentValue(next, state.results, me.id)) : 100;
-
-  // Today's exercises, so the next goal can point at the work that builds toward it.
-  const now = new Date();
-  const assigned = me.assignedExerciseIds.length;
-  const doneToday = me.assignedExerciseIds.filter((id) => findLog(state.logs, me.id, id, now)).length;
 
   return (
     <>
@@ -68,8 +61,8 @@ export function Progress() {
             <div className="stack-xs">
               <ul className="milestone-chips">
                 {tests.map((test) => {
+                  // Only the next milestone's percentage is shown, in the bar above. Chips just say done or not.
                   const reached = isGoalReached(test, state.results, me.id);
-                  const percent = goalPercent(test, currentValue(test, state.results, me.id));
                   return (
                     <li key={test.id} className={`milestone-chip${reached ? ' milestone-chip--reached' : ''}`}>
                       {reached && (
@@ -78,7 +71,7 @@ export function Progress() {
                         </span>
                       )}
                       <span>{test.name}</span>
-                      <span className="milestone-chip__pct">{reached ? 'Reached' : `${percent}%`}</span>
+                      {reached && <span className="visually-hidden">(reached)</span>}
                     </li>
                   );
                 })}
@@ -88,14 +81,6 @@ export function Progress() {
         )}
       </Card>
 
-      {assigned > 0 && (
-        <Link to="/athlete" className="card next-visit">
-          <span className="strong">
-            Today&rsquo;s exercises &middot; {doneToday} of {assigned}
-          </span>
-          <span className="next-visit__arrow" aria-hidden="true">&rsaquo;</span>
-        </Link>
-      )}
 
       {tests.length === 0 ? (
         <Card>
