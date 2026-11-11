@@ -1462,3 +1462,160 @@
     background: var(--surface-raised);
   }
 }
+
+/* Player Pet (src/screens/athlete/PetCard.tsx) */
+.pet-card__main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.pet-card__sprite {
+  display: grid;
+  flex: none;
+  place-items: end center;
+  padding: var(--space-2) var(--space-3) 0;
+  border-radius: var(--radius-md);
+  /* A little patch of field under the player. */
+  background: linear-gradient(to bottom, var(--surface-raised) 72%, #2f7a3e 72%);
+}
+
+.pet-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pet-card__bubble {
+  position: relative;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.pet-card__footer {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pet-sprite {
+  display: block;
+  overflow: visible;
+}
+
+.pet-sprite--ready {
+  animation: pet-breathe 2.4s ease-in-out infinite;
+}
+
+.pet-sprite--pumped {
+  animation: pet-bounce 0.9s ease-in-out infinite;
+}
+
+.pet-sprite__z {
+  animation: pet-float 2s ease-in-out infinite;
+}
+
+@keyframes pet-breathe {
+  50% { transform: translateY(1px); }
+}
+
+@keyframes pet-bounce {
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes pet-float {
+  50% { opacity: 0.4; transform: translateY(-1px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-sprite,
+  .pet-sprite__z {
+    animation: none;
+  }
+}
+
+.pet-recap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pet-recap li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.pet-recap__win,
+.pet-recap__loss {
+  flex: none;
+  width: 1.5rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+}
+
+.pet-recap__win {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.pet-recap__loss {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.pet-editor__preview {
+  display: grid;
+  place-items: center;
+  padding-top: var(--space-2);
+}
+
+.pet-editor__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7rem;
+  gap: var(--space-3);
+}
+
+.pet-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.pet-swatch {
+  cursor: pointer;
+}
+
+.pet-swatch span {
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.pet-swatch input:checked + span {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pet-swatch input:focus-visible + span {
+  outline: var(--focus-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.pet-editor__rule {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pet-off .spread {
+  align-items: center;
+}

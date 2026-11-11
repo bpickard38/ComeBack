@@ -23,6 +23,9 @@ import {
 } from "../../store/AppStore";
 import { upcomingAppointments } from "../../domain/appointments";
 import { RemindersCard } from "./RemindersCard";
+import { PET_FEATURE } from "../../features";
+import { usePetSave } from "../../store/petSave";
+import { PetCard, PetOffCard } from "./PetCard";
 
 export function Today() {
   const { state, commands } = useAppStore();
@@ -30,6 +33,10 @@ export function Today() {
   const me = useSignedInAthlete();
   // Which tutorial is open. Only one at a time, like the prototype.
   const [openId, setOpenId] = useState<string | null>(null);
+  // Player Pet: optional, saved on this device. See src/features.ts to hide it for everyone.
+  const [petSave, setPetSave] = usePetSave(me.id);
+  const [petJustAdded, setPetJustAdded] = useState(false);
+  const petOn = PET_FEATURE && petSave?.enabled === true;
 
   const now = new Date();
   const items = me.assignedExerciseIds.map((id) => ({
@@ -82,6 +89,16 @@ export function Today() {
           <ProgressBar percent={percent} />
         </div>
       </Card>
+
+      {petOn && petSave && (
+        <PetCard
+          athlete={me}
+          logs={state.logs}
+          save={petSave}
+          onChange={setPetSave}
+          startEditing={petJustAdded}
+        />
+      )}
 
       {showReminder && (
         <section className="notice">
@@ -140,6 +157,15 @@ export function Today() {
         </Link>
       )}
 
+      {PET_FEATURE && !petOn && (
+        <PetOffCard
+          save={petSave}
+          onChange={(save, firstTime) => {
+            setPetJustAdded(firstTime);
+            setPetSave(save);
+          }}
+        />
+      )}
     </>
   );
 }
