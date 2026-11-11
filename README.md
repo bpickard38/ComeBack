@@ -16,6 +16,22 @@ The React app hosted on Vercel uses Supabase for logins and exercise data. The *
 
 OpenAI selects tool actions; the server-side function performs database operations. The AI function and OpenAI integration are planned. Existing optional push reminders are omitted from this simplified overview.
 
+## Data Flow Diagrams
+
+In both diagrams a solid line is an input or a request, and a dashed line is an output or a response.
+
+### Level 0 (context)
+
+The whole system as one process, with every outside person and service it exchanges data with.
+
+![Comeback level 0 context data flow diagram](reference/dfd-level-0.svg)
+
+### Level 1
+
+The same system broken into nine processes with its data stores. The twelve arrows that cross the system boundary are the same twelve as in the level 0 diagram. Rehab Plans and Exercise Logs are each drawn twice (marked with a double bar) to keep lines from crossing; they are the same stores.
+
+![Comeback level 1 data flow diagram](reference/dfd-level-1.svg)
+
 ## App Summary
 
 When a college athlete gets hurt, the athletic trainer hands them a rehab plan, but the trainer only sees the athlete at scheduled visits and has no way to know whether the exercises are actually getting done in between. Athletes lose track of what they are supposed to do each day, do not know whether they are on pace to return, and have no easy way to tell the trainer when something hurts. Coaches sit in the dark: they want to know who is available for practice and when, but the trainer cannot share medical details with them. Comeback fixes this by giving each role its own view of one shared record. The trainer assigns an injury, exercises and milestone goals; the athlete logs each exercise with a pain rating, and tracks milestone tests on a road-to-recovery view; the trainer sees completion, pain flags and messages on a roster; and the coach sees only availability (Out, Limited, Cleared), an expected return date, and a weekly progress summary in counts (exercises done, goals reached) with no medical details. Every log, result and message is stored in a Supabase database, so all three people see the same data and nothing resets on refresh.
