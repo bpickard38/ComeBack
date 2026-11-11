@@ -224,6 +224,13 @@ Each team still has one coach and trainer conversation for everything. On top of
 
 It is only messages. Coaches get no new access to injuries, logs, results or trainer notes, so what they learn is whatever the trainer chooses to write.
 
+### Finding an athlete
+
+- **On a team's roster**: "Search <team name>" narrows that team's roster by name as you type.
+- **Across teams**: a trainer with two or more teams also gets "Search all your athletes" at the top of the trainer screens. Click into it to list everyone on every team with their team name, or type to narrow it down. Picking someone switches to their team and opens their profile.
+
+Both match any part of a first or last name, ignore capitals and accents, and list names that start with what you typed first (`src/domain/search.ts`).
+
 The page is trainer-only. Coaches can't open the route, and the database returns them no injuries, logs, results or notes.
 
 ## Workout sets and tutorial videos

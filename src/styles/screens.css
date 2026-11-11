@@ -766,6 +766,17 @@
   border-color: var(--text);
 }
 
+/* Athlete search: the box stays a comfortable width; results reuse the roster rows as links. */
+.athlete-search__field {
+  flex: 1 1 16rem;
+  max-width: 28rem;
+}
+
+a.roster-row {
+  color: inherit;
+  text-decoration: none;
+}
+
 /* Player profile (trainer): label and value pairs, two across when there's room. */
 .facts {
   display: grid;
