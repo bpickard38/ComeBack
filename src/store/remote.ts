@@ -524,31 +524,32 @@ export async function updatePlanExercise(planId: string, change: Partial<ValidPr
 }
 
 /**
- * Saves the signed-in person's profile photo. Each upload gets a new file
- * name so browsers don't keep showing the old picture; the last one is removed.
+ * Saves someone's profile photo: your own, or (as their trainer) an
+ * athlete's. Each upload gets a new file name so browsers don't keep showing
+ * the old picture; the last one is removed. Pass null to take the photo down.
  */
-export async function savePhoto(userId: string, photo: Blob): Promise<Result> {
+export async function savePhoto(ownerId: string, photo: Blob | null, isOwn: boolean): Promise<Result> {
   const bucket = supabase.storage.from(PHOTO_BUCKET);
-  const path = `${userId}/${Date.now()}.jpg`;
-  const previous = await supabase.from('users').select('avatar_path').eq('id', userId).maybeSingle();
+  const previous = await supabase.from('users').select('avatar_path').eq('id', ownerId).maybeSingle();
   if (previous.error) return { ok: false, error: PHOTOS_NOT_SET_UP };
-  const uploaded = await bucket.upload(path, photo, { contentType: 'image/jpeg', cacheControl: '31536000' });
-  if (uploaded.error) return { ok: false, error: uploaded.error.message };
-  const { error } = await supabase.from('users').update({ avatar_path: path }).eq('id', userId);
+
+  let path: string | null = null;
+  if (photo) {
+    path = `${ownerId}/${Date.now()}.jpg`;
+    const uploaded = await bucket.upload(path, photo, { contentType: 'image/jpeg', cacheControl: '31536000' });
+    if (uploaded.error) return { ok: false, error: uploaded.error.message };
+  }
+
+  // You may edit your own row; a trainer goes through a database function
+  // that checks they're this athlete's trainer.
+  const { error } = isOwn
+    ? await supabase.from('users').update({ avatar_path: path }).eq('id', ownerId)
+    : await supabase.rpc('set_athlete_photo', { p_athlete: ownerId, p_path: path });
   if (error) {
-    await bucket.remove([path]);
-    return { ok: false, error: error.message };
+    if (path) await bucket.remove([path]);
+    return { ok: false, error: isOwn ? error.message : `${error.message} If this keeps happening, the profile photos script needs running again.` };
   }
   if (previous.data?.avatar_path) await bucket.remove([previous.data.avatar_path]);
-  return { ok: true, value: undefined };
-}
-
-export async function removePhoto(userId: string): Promise<Result> {
-  const previous = await supabase.from('users').select('avatar_path').eq('id', userId).maybeSingle();
-  if (previous.error) return { ok: false, error: PHOTOS_NOT_SET_UP };
-  const { error } = await supabase.from('users').update({ avatar_path: null }).eq('id', userId);
-  if (error) return { ok: false, error: error.message };
-  if (previous.data?.avatar_path) await supabase.storage.from(PHOTO_BUCKET).remove([previous.data.avatar_path]);
   return { ok: true, value: undefined };
 }
 

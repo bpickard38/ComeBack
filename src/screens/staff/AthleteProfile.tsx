@@ -27,6 +27,7 @@ import type { Appointment, Athlete, InjuryRecord, Team } from '../../domain/type
 import { weekCompletion, weekStatus } from '../../domain/week';
 import { formatCalendarDay, formatDay, formatNumber, formatSentAt, formatTime, plural } from '../../format';
 import { useAppStore, useTeam } from '../../store/AppStore';
+import { PhotoButtons } from '../PhotoButtons';
 import { AboutChat } from './AboutChat';
 import { AvailabilityEditor } from './AthleteDetail';
 import { PlanEditor } from './PlanEditor';
@@ -55,6 +56,8 @@ export function AthleteProfile() {
           <div className="stack-xs">
             <div className="eyebrow">Player profile &middot; {team.name}</div>
             <h1>{athlete.name}</h1>
+            {/* The athlete can set this themselves; the trainer can too. */}
+            <PhotoButtons athleteId={athlete.id} name={athlete.name} hasPhoto={Boolean(athlete.photoUrl)} small />
           </div>
         </div>
         <Link to="/staff" className="btn btn--secondary">

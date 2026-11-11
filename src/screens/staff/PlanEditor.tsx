@@ -25,7 +25,9 @@ export function PlanEditor({ athlete }: { athlete: Athlete }) {
       <div className="spread">
         <div className="stack-xs">
           <h2 id="profile-plan">Plan and progress</h2>
-          <p className="muted">Change anything here. {athlete.name.split(' ')[0]} sees it on their screens within 30 seconds.</p>
+          <p className="muted">
+            Press Edit on an injury to change it. {athlete.name.split(' ')[0]} sees changes on their screens within 30 seconds.
+          </p>
         </div>
         {!assigning && (
           <Button ref={assignButtonRef} variant="primary" onClick={() => setAssigning(true)}>
@@ -48,10 +50,16 @@ export function PlanEditor({ athlete }: { athlete: Athlete }) {
   );
 }
 
-/** One active injury: its exercises, its milestone tests, and a way to clear it. */
+/**
+ * One active injury: its exercises and milestone tests. It opens read-only,
+ * so nothing changes by accident; Edit unlocks the number boxes and the
+ * Remove, Record and Save buttons, and Done locks it again.
+ */
 function InjuryEditor({ athlete, injury }: { athlete: Athlete; injury: AthleteInjury }) {
   const { state, commands } = useAppStore();
   const { notify } = useToast();
+  const [editing, setEditing] = useState(false);
+  const editButtonRef = useReturnFocus(editing);
   const [confirming, setConfirming] = useState(false);
   const exercises = state.exercises.filter((e) => e.caseId === injury.caseId && e.active !== false);
   const tests = testsFor(state, athlete.id).filter((t) => t.caseId === injury.caseId);
@@ -72,13 +80,29 @@ function InjuryEditor({ athlete, injury }: { athlete: Athlete; injury: AthleteIn
         </h3>
         {confirming ? (
           <div className="row">
-            <Button variant="primary" onClick={clear}>
+            <Button variant="primary" className="btn--small" onClick={clear}>
               Yes, clear {injury.name}
             </Button>
-            <Button onClick={() => setConfirming(false)}>Cancel</Button>
+            <Button className="btn--small" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
           </div>
         ) : (
-          <Button onClick={() => setConfirming(true)}>Mark cleared</Button>
+          <div className="row">
+            <Button
+              ref={editButtonRef}
+              variant={editing ? 'primary' : 'secondary'}
+              className="btn--small"
+              aria-pressed={editing}
+              aria-label={editing ? `Done editing ${injury.name}` : `Edit ${injury.name}`}
+              onClick={() => setEditing((on) => !on)}
+            >
+              {editing ? 'Done' : 'Edit'}
+            </Button>
+            <Button className="btn--small" aria-label={`Mark ${injury.name} cleared`} onClick={() => setConfirming(true)}>
+              Mark cleared
+            </Button>
+          </div>
         )}
       </div>
 
@@ -86,17 +110,37 @@ function InjuryEditor({ athlete, injury }: { athlete: Athlete; injury: AthleteIn
         <div className="small strong">Exercises ({exercises.length})</div>
         {exercises.length === 0 ? (
           <p className="small muted">None assigned. Use &ldquo;Add injury or exercises&rdquo; above and pick {injury.name}.</p>
-        ) : (
+        ) : editing ? (
           exercises.map((e) => <ExerciseRow key={e.id} exercise={e} />)
+        ) : (
+          <ul className="plain-list">
+            {exercises.map((e) => (
+              <li key={e.id}>
+                {e.name} <span className="small muted">{e.prescription}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
       {tests.length > 0 && (
         <div className="stack-sm">
           <div className="small strong">Milestone tests ({tests.length})</div>
-          {tests.map((t) => (
-            <TestRow key={t.id} test={t} athlete={athlete} />
-          ))}
+          {editing ? (
+            tests.map((t) => <TestRow key={t.id} test={t} athlete={athlete} />)
+          ) : (
+            <ul className="plain-list">
+              {tests.map((t) => (
+                <li key={t.id}>
+                  {t.name}{' '}
+                  <span className="small muted">
+                    now {formatNumber(currentValue(t, state.results, athlete.id))} {t.unit}, goal {formatNumber(t.target)} {t.unit}
+                    {isGoalReached(t, state.results, athlete.id) && <span className="strong"> (reached)</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </section>

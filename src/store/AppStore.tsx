@@ -211,11 +211,17 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       return saved;
     },
 
-    /** The signed-in person's own profile photo. Pass null to remove it. */
-    async setPhoto(photo: Blob | null): Promise<Result> {
-      if (state.offline) return { ok: false, error: `Could not save your photo. ${OFFLINE_ERROR}` };
-      const saved = photo ? await remote.savePhoto(profile.id, photo) : await remote.removePhoto(profile.id);
-      if (!saved.ok) return { ok: false, error: `Could not save your photo. ${saved.error}` };
+    /**
+     * Sets a profile photo, or removes it with null. Without an athlete id
+     * it's the signed-in person's own; a trainer can pass one of their athletes.
+     */
+    async setPhoto(photo: Blob | null, athleteId?: string): Promise<Result> {
+      const ownerId = athleteId ?? profile.id;
+      const isOwn = ownerId === profile.id;
+      if (!isOwn && state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change an athlete’s photo.' };
+      if (state.offline) return { ok: false, error: `Could not save the photo. ${OFFLINE_ERROR}` };
+      const saved = await remote.savePhoto(ownerId, photo, isOwn);
+      if (!saved.ok) return { ok: false, error: `Could not save the photo. ${saved.error}` };
       await reload();
       return saved;
     },

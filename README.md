@@ -243,16 +243,16 @@ The QR code is drawn by `qrcode-generator`, the one dependency added for this.
 
 ## Profile photos
 
-An athlete can add a photo of themselves at the bottom of their Trainer tab. It's cropped to a square and shrunk in the browser before upload. Their trainer sees it at the top of the player profile; until the athlete adds one, the profile shows an empty outline.
+An athlete can add a photo of themselves at the bottom of their Trainer tab. It's cropped to a square and shrunk in the browser before upload. Their trainer sees it at the top of the player profile and can add, change or remove it there too; until there is one, the profile shows an empty outline.
 
-`supabase/profile_photos.sql` adds a public Storage bucket called `avatars` and an `avatar_path` column on `users`. People can only write to their own folder. Because the bucket is public, anyone who has a photo's full address can open it; the address isn't listed anywhere. Until the script is run nobody has a photo and adding one says it isn't set up.
+`supabase/profile_photos.sql` adds a public Storage bucket called `avatars` and an `avatar_path` column on `users`. People can write to their own folder, and a trainer to the folder of an athlete on one of their teams (through `set_athlete_photo`). Because the bucket is public, anyone who has a photo's full address can open it; the address isn't listed anywhere. Until the script is run nobody has a photo and adding one says it isn't set up.
 
 ## Player profiles for trainers
 
 On the roster, "Open profile" on an athlete takes the trainer to that athlete's own page (`/staff/athletes/<id>`). It gathers what a trainer wants before treating someone:
 
 - **Recovery**: the recovery bar and projected dates the coach sees (above), with the status and "Expected back" date the trainer sets for the coach.
-- **Plan and progress**: everything about the athlete's rehab the trainer can change, without going back to the roster. Add an injury or exercises; change an exercise's sets, reps and hold, or remove it; record a milestone test result; move a test's goal; mark an injury cleared; schedule or cancel appointments.
+- **Plan and progress**: everything about the athlete's rehab the trainer can change, without going back to the roster. Each injury opens read-only; its small **Edit** button (beside **Mark cleared**) unlocks the boxes and buttons, and **Done** locks it again. Add an injury or exercises; change an exercise's sets, reps and hold, or remove it; record a milestone test result; move a test's goal; mark an injury cleared; schedule or cancel appointments.
 - **At a glance**: the status the coach sees, today's and this week's exercise counts, streak, email and phone.
 - **Injury history**: every injury on file, active and cleared, with start and cleared dates, how long it took, the exercises prescribed and where each milestone test started, stands and should end.
 - **Pain reported**: ratings of 5 or more from the last 14 days, with the exercise and time.
