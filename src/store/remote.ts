@@ -23,7 +23,7 @@ import type {
   TestResult,
 } from '../domain/types';
 import type { AthleteProgress } from '../domain/progress';
-import { coachThread } from '../domain/teams';
+import { aboutThread, coachThread } from '../domain/teams';
 import type { ValidAppointment, ValidTeam } from '../domain/validation';
 import type { Profile } from './profile';
 import type { RemoteData } from './state';
@@ -261,7 +261,8 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   }));
 
   // Database conversations become the app's threads: "athlete:<athlete id>",
-  // or "coach:<team id>" since every team has its own coach conversation.
+  // "coach:<team id>" since every team has its own coach conversation, or
+  // "about:<team id>:<athlete id>" for staff talking about one athlete.
   const threadOf = new Map<string, MessageThread>();
   const conversationList: RemoteData['conversations'] = [];
   const conversationRows = rows<{ id: string; kind: string; athlete_id: string | null; team_id: string | null }>(conversations);
@@ -270,7 +271,11 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   conversationRows.sort((a, b) => Number(a.team_id === null) - Number(b.team_id === null));
   for (const c of conversationRows) {
     const thread: MessageThread =
-      c.kind === 'coach_trainer' ? coachThread(c.team_id ?? teamList[0]?.id ?? '') : `athlete:${c.athlete_id}`;
+      c.kind === 'coach_trainer'
+        ? coachThread(c.team_id ?? teamList[0]?.id ?? '')
+        : c.kind === 'coach_athlete'
+          ? aboutThread(c.team_id ?? '', c.athlete_id ?? '')
+          : `athlete:${c.athlete_id}`;
     if (c.kind === 'coach_trainer' && c.team_id === null && conversationList.some((x) => x.thread === thread)) continue;
     threadOf.set(c.id, thread);
     conversationList.push({ thread, id: c.id });
@@ -412,6 +417,15 @@ export async function updateAvailability(athleteId: string, availability: Availa
 export async function createTeam(team: ValidTeam): Promise<Result<{ id: string }>> {
   const { data, error } = await supabase.rpc('create_team', { p_name: team.name, p_sport: team.sport, p_school: team.school });
   return error ? { ok: false, error: error.message } : { ok: true, value: { id: data as string } };
+}
+
+/**
+ * Finds or starts the staff conversation about one athlete and makes sure the
+ * team's trainers and coaches are in it (see supabase/coach_athlete_chat.sql).
+ */
+export async function openAboutConversation(teamId: string, athleteId: string): Promise<Result> {
+  const { error } = await supabase.rpc('coach_athlete_conversation', { p_team: teamId, p_athlete: athleteId });
+  return error ? { ok: false, error: error.message } : { ok: true, value: undefined };
 }
 
 /** Saves the trainer's note on an athlete, replacing the last one. */

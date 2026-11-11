@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { athletesOnTeam, coachThread, currentTeam, teamThreads } from './teams';
+import { aboutThread, athletesOnTeam, coachThread, currentTeam, teamThreads } from './teams';
 import type { Athlete, Team } from './types';
 import { validateTeam } from './validation';
 
@@ -58,8 +58,13 @@ describe('athletesOnTeam', () => {
 });
 
 describe('teamThreads', () => {
-  it('is the team\'s own coach thread plus its athletes', () => {
-    expect(teamThreads([maya, jordan], 'soccer')).toEqual([coachThread('soccer'), 'athlete:maya']);
+  it('is the team\'s own coach thread, its athletes, and the coach threads about them', () => {
+    expect(teamThreads([maya, jordan], 'soccer')).toEqual([coachThread('soccer'), 'athlete:maya', aboutThread('soccer', 'maya')]);
+  });
+
+  it('keeps the coach thread about an athlete apart from the athlete\'s own and from other teams', () => {
+    expect(aboutThread('soccer', 'both')).not.toBe('athlete:both');
+    expect(aboutThread('soccer', 'both')).not.toBe(aboutThread('track', 'both'));
   });
 
   it('gives each team a different coach thread', () => {

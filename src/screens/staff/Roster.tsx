@@ -4,7 +4,8 @@ import { highestRecentPain, isHighPain } from '../../domain/pain';
 import type { Athlete } from '../../domain/types';
 import { weekCompletion, weekStatus } from '../../domain/week';
 import { injuryLabel } from '../../format';
-import { useAppStore } from '../../store/AppStore';
+import { aboutThread } from '../../domain/teams';
+import { useAppStore, useTeam } from '../../store/AppStore';
 
 interface RosterProps {
   athletes: Athlete[];
@@ -19,6 +20,7 @@ interface RosterProps {
  */
 export function Roster({ athletes, selectedId, onSelect }: RosterProps) {
   const { state, profile } = useAppStore();
+  const { team } = useTeam();
   const now = new Date();
 
   return (
@@ -34,6 +36,7 @@ export function Roster({ athletes, selectedId, onSelect }: RosterProps) {
         const flags = [
           isHighPain(pain ?? undefined) ? `Pain ${pain} reported` : null,
           unreadIn(state.messages, athleteThread(a.id), profile.id) > 0 ? 'New message' : null,
+          team && unreadIn(state.messages, aboutThread(team.id, a.id), profile.id) > 0 ? 'New coach message' : null,
         ].filter(Boolean);
         return (
           <button

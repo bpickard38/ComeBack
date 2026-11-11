@@ -18,7 +18,7 @@ import { normalizeAvailability } from '../domain/availability';
 import { validateNote } from '../domain/history';
 import { ALREADY_LOGGED, createLog } from '../domain/logs';
 import { athleteThread, unreadIn } from '../domain/messages';
-import { athletesOnTeam, currentTeam } from '../domain/teams';
+import { aboutThread, athletesOnTeam, currentTeam } from '../domain/teams';
 import type {
   Athlete,
   Availability,
@@ -212,7 +212,7 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       if (state.role === 'athlete' && thread !== athleteThread(profile.id)) {
         return { ok: false, error: 'You can only message your trainer.' };
       }
-      if (state.role === 'coach' && !thread.startsWith('coach:')) {
+      if (state.role === 'coach' && !thread.startsWith('coach:') && !thread.startsWith('about:')) {
         return { ok: false, error: 'Coaches can only message the trainer.' };
       }
       if (state.offline) return { ok: false, error: `Could not send your message. ${OFFLINE_ERROR}` };
@@ -232,6 +232,20 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       };
       dispatch({ type: 'addMessage', message });
       return { ok: true, value: message };
+    },
+
+    /**
+     * Trainer or coach opens the staff conversation about one athlete. The
+     * first time, the database creates it; after that this does nothing.
+     */
+    async openAboutChat(teamId: string, athleteId: string): Promise<Result> {
+      if (state.role === 'athlete') return { ok: false, error: 'Only trainers and coaches can open this conversation.' };
+      if (state.conversations.some((c) => c.thread === aboutThread(teamId, athleteId))) return { ok: true, value: undefined };
+      if (state.offline) return { ok: false, error: `Could not open the conversation. ${OFFLINE_ERROR}` };
+      const opened = await remote.openAboutConversation(teamId, athleteId);
+      if (!opened.ok) return opened;
+      await reload(); // brings in the new conversation
+      return opened;
     },
 
     /** Trainer's private note on an athlete's profile. Saving an empty note clears it. */

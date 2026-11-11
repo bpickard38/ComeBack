@@ -10,6 +10,11 @@ export function coachThread(teamId: string): MessageThread {
   return `coach:${teamId}`;
 }
 
+/** A team's trainers and coaches talking about one athlete. The athlete isn't in it. */
+export function aboutThread(teamId: string, athleteId: string): MessageThread {
+  return `about:${teamId}:${athleteId}`;
+}
+
 /** The team being looked at: the chosen one if you're still on it, otherwise the first. */
 export function currentTeam(teams: Team[], selectedId: string | null): Team | undefined {
   return teams.find((t) => t.id === selectedId) ?? teams[0];
@@ -19,7 +24,15 @@ export function athletesOnTeam(athletes: Athlete[], teamId: string): Athlete[] {
   return athletes.filter((a) => a.teamIds.includes(teamId));
 }
 
-/** Every conversation a trainer has on one team: its coach thread, then each athlete's. */
+/**
+ * Every conversation a trainer has on one team: its coach thread, each
+ * athlete's own thread, then the coach threads about each athlete.
+ */
 export function teamThreads(athletes: Athlete[], teamId: string): MessageThread[] {
-  return [coachThread(teamId), ...athletesOnTeam(athletes, teamId).map((a) => athleteThread(a.id))];
+  const onTeam = athletesOnTeam(athletes, teamId);
+  return [
+    coachThread(teamId),
+    ...onTeam.map((a) => athleteThread(a.id)),
+    ...onTeam.map((a) => aboutThread(teamId, a.id)),
+  ];
 }

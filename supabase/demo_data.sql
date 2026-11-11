@@ -217,7 +217,7 @@ begin
   -- ---------- Devon's message: the trainer's roster flags it ----------
   select c.id into v_conv
   from public.conversations c join auth.users u on u.id = c.athlete_id
-  where u.email = 'bpickard38+demo-devon@gmail.com' and c.team_id = v_team;
+  where u.email = 'bpickard38+demo-devon@gmail.com' and c.team_id = v_team and c.kind = 'trainer_athlete';
   if v_conv is not null then
     insert into public.messages (conversation_id, sender_id, body, sent_at)
     select v_conv, c.athlete_id, 'My shoulder ached after wall slides yesterday. Should I keep doing them?',

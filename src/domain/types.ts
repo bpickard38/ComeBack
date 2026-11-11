@@ -123,9 +123,13 @@ export interface Appointment {
   exerciseIds: string[];
 }
 
-/** "athlete:<athlete id>" for trainer and athlete messages, or "coach:<team id>"
- * for one team's coach-to-trainer thread (each team has its own). */
-export type MessageThread = `athlete:${string}` | `coach:${string}`;
+/**
+ * "athlete:<athlete id>" for trainer and athlete messages, "coach:<team id>"
+ * for one team's coach-to-trainer thread (each team has its own), or
+ * "about:<team id>:<athlete id>" for that team's trainers and coaches
+ * talking about one athlete, which the athlete can't see.
+ */
+export type MessageThread = `athlete:${string}` | `coach:${string}` | `about:${string}`;
 
 export interface Message {
   id: string;

@@ -1,14 +1,15 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Card } from '../../components/Card';
 import { ChatThread } from '../../components/Chat';
 import { AVAILABILITY_OPTIONS, availabilityLabel } from '../../domain/availability';
-import { messagesIn } from '../../domain/messages';
+import { messagesIn, unreadIn } from '../../domain/messages';
 import { lastWeek, thisWeek, weekStatus, type AthleteProgress } from '../../domain/progress';
-import type { Athlete, Availability } from '../../domain/types';
+import type { Athlete, Availability, Team } from '../../domain/types';
 import { ON_TRACK_PERCENT } from '../../domain/week';
 import { formatCalendarDay } from '../../format';
-import { coachThread } from '../../domain/teams';
+import { aboutThread, coachThread } from '../../domain/teams';
 import { useAppStore, useTeam } from '../../store/AppStore';
+import { AboutChat } from './AboutChat';
 import { TeamSwitcher } from './TeamSwitcher';
 
 // Show who's out first, then limited, then cleared.
@@ -87,9 +88,60 @@ export function CoachView() {
           <WeeklyProgress athletes={athletes} progress={state.progress} />
         </div>
 
-        {/* key starts a fresh draft when you switch teams */}
-        <ChatThread key={thread} thread={thread} name={trainerName} detail="Athletic Trainer" />
+        {/* key starts over on the whole-team conversation when you switch teams */}
+        {team && <CoachChat key={team.id} team={team} athletes={athletes} trainerName={trainerName} />}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The coach's messages with the trainer: one conversation for the whole
+ * team, plus a private one about each athlete, picked from a list. The
+ * athlete can't see the one about them.
+ */
+function CoachChat({ team, athletes, trainerName }: { team: Team; athletes: Athlete[]; trainerName: string }) {
+  const { state, profile } = useAppStore();
+  const [aboutId, setAboutId] = useState(''); // '' is the whole-team conversation
+  const about = athletes.find((a) => a.id === aboutId);
+  const unread = (athleteId: string) => unreadIn(state.messages, aboutThread(team.id, athleteId), profile.id);
+  const teamUnread = unreadIn(state.messages, coachThread(team.id), profile.id);
+  const newLabel = (count: number) => (count > 0 ? ` (${count} new)` : '');
+  // Conversations with something new, other than the one on screen.
+  const waiting = athletes.filter((a) => a.id !== aboutId && unread(a.id) > 0);
+
+  return (
+    <div className="stack-sm">
+      <div className="stack-xs">
+        <label htmlFor="coach-chat-about" className="strong">
+          Message the trainer about
+        </label>
+        <select id="coach-chat-about" className="field" value={about ? about.id : ''} onChange={(e) => setAboutId(e.target.value)}>
+          <option value="">The whole team{newLabel(about ? teamUnread : 0)}</option>
+          {athletes.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+              {newLabel(a.id === aboutId ? 0 : unread(a.id))}
+            </option>
+          ))}
+        </select>
+        {waiting.length > 0 && (
+          <p className="small strong warn-text" role="status">
+            New from the trainer about {waiting.map((a) => a.name).join(', ')}
+          </p>
+        )}
+      </div>
+      {about ? (
+        <AboutChat
+          key={about.id}
+          athlete={about}
+          team={team}
+          name={trainerName}
+          detail={`Athletic Trainer, about ${about.name}. ${about.name.split(' ')[0]} can't see this.`}
+        />
+      ) : (
+        <ChatThread thread={coachThread(team.id)} name={trainerName} detail="Athletic Trainer" />
+      )}
     </div>
   );
 }

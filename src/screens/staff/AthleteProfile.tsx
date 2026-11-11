@@ -19,11 +19,12 @@ import { doneOnDay } from '../../domain/logs';
 import { athleteThread, unreadIn } from '../../domain/messages';
 import { PAIN_ALERT_LEVEL } from '../../domain/pain';
 import { bestStreak, currentStreak } from '../../domain/streak';
-import { coachThread } from '../../domain/teams';
+import { aboutThread } from '../../domain/teams';
 import type { Appointment, Athlete, InjuryRecord, Team } from '../../domain/types';
 import { weekCompletion, weekStatus } from '../../domain/week';
 import { formatCalendarDay, formatDay, formatNumber, formatSentAt, formatTime, plural } from '../../format';
 import { useAppStore, useTeam } from '../../store/AppStore';
+import { AboutChat } from './AboutChat';
 
 /**
  * Everything the trainer has on one athlete, on one page: status, every
@@ -324,7 +325,7 @@ function Notes({ athlete }: { athlete: Athlete }) {
 function ProfileChat({ athlete, team }: { athlete: Athlete; team: Team }) {
   const { state, profile } = useAppStore();
   const [withCoach, setWithCoach] = useState(false);
-  const threads = { athlete: athleteThread(athlete.id), coach: coachThread(team.id) };
+  const threads = { athlete: athleteThread(athlete.id), coach: aboutThread(team.id, athlete.id) };
   const unread = (thread: typeof threads.athlete) => unreadIn(state.messages, thread, profile.id);
   const firstName = athlete.name.split(' ')[0];
 
@@ -336,20 +337,19 @@ function ProfileChat({ athlete, team }: { athlete: Athlete; team: Team }) {
           {unread(threads.athlete) > 0 && <span className="warn-text"> &middot; {unread(threads.athlete)} new</span>}
         </button>
         <button type="button" className="chip" aria-pressed={withCoach} onClick={() => setWithCoach(true)}>
-          {team.name} coaches
+          Coaches, about {firstName}
           {unread(threads.coach) > 0 && <span className="warn-text"> &middot; {unread(threads.coach)} new</span>}
         </button>
       </div>
-      {/* key starts a fresh draft when you switch conversations */}
       {withCoach ? (
-        <ChatThread
-          key={threads.coach}
-          thread={threads.coach}
+        <AboutChat
+          athlete={athlete}
+          team={team}
           name="Coach"
-          detail={`${team.name} coaches. ${firstName} can't see this. Keep medical details out; coaches see status only.`}
+          detail={`About ${athlete.name}. ${firstName} can't see this. Coaches see status only, so keep medical details out.`}
         />
       ) : (
-        <ChatThread key={threads.athlete} thread={threads.athlete} name={athlete.name} detail="Only you two see this." />
+        <ChatThread thread={threads.athlete} name={athlete.name} detail="Only you two see this." />
       )}
     </div>
   );
