@@ -26,6 +26,7 @@ import { RemindersCard } from "./RemindersCard";
 import { PET_FEATURE } from "../../features";
 import { usePetSave } from "../../store/petSave";
 import { PetCard, PetOffCard } from "./PetCard";
+import { reactionToExercise } from "../../domain/pet";
 
 export function Today() {
   const { state, commands } = useAppStore();
@@ -65,6 +66,12 @@ export function Today() {
     const { log } = result.value;
     let text = `Logged: ${exercise.name} at ${formatTime(log.loggedAt)}, pain ${log.pain}. Your trainer can see it.`;
     if (isHighPain(log.pain)) text += " They\u2019ll follow up about the pain.";
+    // The pet reacts on its card too; this line reaches athletes who scrolled past it.
+    if (petOn && petSave && total > 0) {
+      const before = Math.round((100 * done) / total);
+      const after = Math.round((100 * (done + 1)) / total);
+      text += ` ${petSave.look.name}: ${reactionToExercise(before, after, total - done - 1).text}`;
+    }
     notify(text);
     return true;
   }

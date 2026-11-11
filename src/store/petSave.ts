@@ -6,7 +6,7 @@
 */
 import { useState } from 'react';
 import { dayKey } from '../domain/dates';
-import { DEFAULT_LOOK, type PetLook } from '../domain/pet';
+import { DEFAULT_LOOK, JERSEY_COLORS, SKIN_TONES, type PetLook } from '../domain/pet';
 
 export interface PetSave {
   enabled: boolean;
@@ -15,6 +15,8 @@ export interface PetSave {
   startedOn: string;
   /** The last game day whose recap the athlete closed. */
   seenThrough: string | null;
+  /** The newest milestone goal he already celebrated (that result's time), so each one is celebrated once. */
+  celebratedGoalAt?: string | null;
 }
 
 const key = (athleteId: string) => `comeback.pet.${athleteId}`;
@@ -25,7 +27,11 @@ function load(athleteId: string): PetSave | null {
     const raw = localStorage.getItem(key(athleteId));
     if (!raw) return null;
     const saved = JSON.parse(raw) as PetSave;
-    return { ...saved, look: { ...DEFAULT_LOOK, ...saved.look } };
+    const look = { ...DEFAULT_LOOK, ...saved.look };
+    // A color from an older version of the app that's no longer offered goes back to the default.
+    if (!JERSEY_COLORS.some((c) => c.value === look.jersey)) look.jersey = DEFAULT_LOOK.jersey;
+    if (!SKIN_TONES.some((c) => c.value === look.skin)) look.skin = DEFAULT_LOOK.skin;
+    return { ...saved, look };
   } catch {
     return null;
   }

@@ -10,20 +10,24 @@ import { PetSprite, preloadPetFrames } from '../../components/PetSprite';
 import { ProgressBar } from '../../components/ProgressBar';
 import { useToast } from '../../components/Toast';
 import { addDays, dayKey } from '../../domain/dates';
+import { doneOnDay } from '../../domain/logs';
 import {
   careerStats,
-  JERSEY_COLORS,
   currentSeason,
   energyOn,
   gamesPlayed,
-  goalReachedRecently,
+  JERSEY_COLORS,
+  latestGoalReachedAt,
   PET_NAME_MAX,
   PET_STATE_LABEL,
   petSays,
   petState,
+  reactionToExercise,
+  SKIN_TONES,
   unseenGames,
   validatePetLook,
   type PetGame,
+  type PetReaction,
 } from '../../domain/pet';
 import type { Athlete, ExerciseLog, MilestoneTest, TestResult } from '../../domain/types';
 import { newPetSave, type PetSave } from '../../store/petSave';
@@ -50,63 +54,102 @@ function shortDay(day: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short' });
 }
 
+/** How long a reaction (cheer or celebration) lasts before he goes back to his resting pose. */
+const REACTION_MS = 3500;
+
 export function PetCard({ athlete, logs, tests, results, save, onChange, startEditing = false }: PetCardProps) {
   const [detailOpen, setDetailOpen] = useState(startEditing);
+  const [reaction, setReaction] = useState<(PetReaction & { id: number }) | null>(null);
   const { look } = save;
   useEffect(() => preloadPetFrames(look), [look]);
 
   const now = new Date();
   const { name } = look;
   const energy = energyOn(athlete, logs, now);
+  const exercisesLeft = athlete.assignedExerciseIds.length - doneOnDay(athlete, logs, now);
   const games = gamesPlayed(athlete, logs, save.startedOn, now);
   const season = currentSeason(games);
   const unseen = unseenGames(games, save.seenThrough);
   const lastGame = games[games.length - 1];
-  const state = petState({
-    athlete,
-    logs,
-    today: now,
-    goalJustReached: goalReachedRecently(tests, results, athlete.id, now),
-    unseenWin: unseen.some((g) => g.won),
-  });
-  const says = petSays(athlete, logs, now);
-  const markSeen = () => onChange({ ...save, seenThrough: lastGame.day });
+  const goalAt = latestGoalReachedAt(tests, results, athlete.id, now);
+
+  function react(next: PetReaction) {
+    setReaction({ ...next, id: Date.now() });
+  }
+
+  // He goes back to his resting pose after a moment.
+  useEffect(() => {
+    if (!reaction) return;
+    const timer = setTimeout(() => setReaction(null), REACTION_MS);
+    return () => clearTimeout(timer);
+  }, [reaction]);
+
+  // An exercise was just logged: energy went up, so he cheers (or celebrates a finished plan).
+  const lastEnergy = useRef(energy);
+  useEffect(() => {
+    if (energy > lastEnergy.current) react(reactionToExercise(lastEnergy.current, energy, exercisesLeft));
+    lastEnergy.current = energy;
+  }, [energy, exercisesLeft]);
+
+  // A milestone goal he hasn't celebrated yet. Each goal gets one celebration.
+  useEffect(() => {
+    if (goalAt && (!save.celebratedGoalAt || goalAt > save.celebratedGoalAt)) {
+      react({ state: 'celebrating', text: 'You hit a milestone goal! That is huge!' });
+      onChange({ ...save, celebratedGoalAt: goalAt });
+    }
+  }, [goalAt]); // only re-check when a newer goal shows up
+
+  const resting = petState({ athlete, logs, today: now });
+  const state = reaction?.state ?? resting;
+  const says = reaction?.text ?? petSays(athlete, logs, now);
+
+  function closeRecap() {
+    const wins = unseen.filter((g) => g.won).length;
+    if (wins > 0) {
+      react({
+        state: 'celebrating',
+        text: unseen.length === 1 ? 'We won! Thanks for the energy.' : `We won ${wins} of ${unseen.length} while you were away!`,
+      });
+    }
+    onChange({ ...save, seenThrough: lastGame.day });
+  }
 
   return (
     <Card className="pet-card" aria-labelledby="pet-name">
+      {/* Name above him; his speech box rises beside the name so its tail points at his head. */}
       <div className="pet-card__main">
+        <h2 id="pet-name" className="title pet-card__name">
+          {name}
+        </h2>
         <button
           type="button"
-          className="pet-card__sprite"
+          className={`pet-card__sprite${reaction ? ' pet-card__sprite--react' : ''}`}
           onClick={() => setDetailOpen(true)}
           aria-label={`Open ${name}'s details`}
         >
-          <PetSprite state={state} look={look} width={100} />
+          <PetSprite state={state} look={look} />
+          {reaction?.badge && (
+            <span key={reaction.id} className="pet-card__badge" aria-hidden="true">
+              {reaction.badge}
+            </span>
+          )}
         </button>
-        <div className="stack-sm pet-card__info">
-          <div className="stack-xs">
-            <h2 id="pet-name" className="title">
-              {name}
-            </h2>
-            <div className="small muted">
-              {PET_STATE_LABEL[state]} &middot; Season {season.number}: {season.wins}&ndash;{season.losses}
-            </div>
-          </div>
-          <p className="pet-card__bubble small" aria-live="polite">
-            {says}
-          </p>
-          <div className="stack-xs">
-            <div className="spread small strong">
-              <span>Energy for tonight&rsquo;s game</span>
-              <span>{energy}%</span>
-            </div>
-            <ProgressBar percent={energy} />
-          </div>
+        <PetSpeech text={says} excited={reaction !== null} />
+      </div>
+      <div className="small muted">
+        {PET_STATE_LABEL[state]} &middot; Season {season.number}: {season.wins}&ndash;{season.losses}
+      </div>
+
+      <div className="stack-xs">
+        <div className="spread small strong">
+          <span>Energy for tonight&rsquo;s game</span>
+          <span>{energy}%</span>
         </div>
+        <ProgressBar percent={energy} />
       </div>
 
       {unseen.length > 0 ? (
-        <Recap games={unseen} season={season} onDone={markSeen} />
+        <Recap games={unseen} season={season} onDone={closeRecap} />
       ) : (
         <p className="small muted">
           {lastGame ? `Last game: ${gameLine(lastGame)}.` : `First game is tonight.`} Tap {name} for more.
@@ -126,6 +169,32 @@ export function PetCard({ athlete, logs, tests, results, save, onChange, startEd
         />
       )}
     </Card>
+  );
+}
+
+/**
+ * What he says, in a white retro game text box with a pixel arrow pointing
+ * at him. aria-live lets screen readers announce his reactions.
+ */
+function PetSpeech({ text, excited = false, tail = 'left' }: { text: string; excited?: boolean; tail?: 'left' | 'up' }) {
+  return (
+    <p className={`pet-speech pet-speech--${tail}${excited ? ' pet-speech--excited' : ''}`} aria-live="polite">
+      {tail === 'left' ? (
+        // A short triangle stub under the box's bottom-left corner, pointing at his head, drawn as pixels.
+        <svg className="pet-speech__tail" viewBox="0 0 9 6" shapeRendering="crispEdges" aria-hidden="true">
+          <path d="M2 4h1v1H2zM3 3h1v1H3zM3 4h1v1H3zM3 5h1v1H3zM4 3h1v1H4zM4 4h1v1H4zM5 3h1v1H5zM5 4h1v1H5zM6 2h1v1H6zM6 3h1v1H6zM6 4h1v1H6zM7 2h1v1H7zM7 3h1v1H7zM8 2h1v1H8zM8 3h1v1H8z" fill="#00000040" />
+          <path d="M1 2h1v1H1zM2 1h1v1H2zM2 3h1v1H2zM3 0h1v1H3zM3 2h1v1H3zM4 2h1v1H4zM5 2h1v1H5zM6 1h1v1H6zM7 1h1v1H7zM8 0h1v1H8z" fill="#14141c" />
+          <path d="M2 2h1v1H2zM3 1h1v1H3zM4 0h1v1H4zM4 1h1v1H4zM5 0h1v1H5zM5 1h1v1H5zM6 0h1v1H6zM7 0h1v1H7z" fill="#ffffff" />
+        </svg>
+      ) : (
+        // A small arrow on top, pointing up at him.
+        <svg className="pet-speech__tail" viewBox="0 0 5 7" shapeRendering="crispEdges" aria-hidden="true">
+          <path d="M4 0h1v1H4zM3 1h1v1H3zM2 2h1v1H2zM1 3h1v1H1zM2 4h1v1H2zM3 5h1v1H3zM4 6h1v1H4z" fill="#14141c" />
+          <path d="M4 1h1v5H4zM3 2h1v3H3zM2 3h1v1H2z" fill="#ffffff" />
+        </svg>
+      )}
+      {text}
+    </p>
   );
 }
 
@@ -250,9 +319,9 @@ function PetDetail({
         </div>
 
         <div className="pet-dialog__stage">
-          <PetSprite state={state} look={preview} width={200} />
+          <PetSprite state={state} look={preview} scale={3} />
         </div>
-        <p className="pet-card__bubble small">{says}</p>
+        <PetSpeech text={says} tail="up" />
 
         <div className="stack-xs">
           <div className="spread small strong">
@@ -313,24 +382,20 @@ function PetDetail({
               />
             </label>
           </div>
-          <fieldset className="chip-group">
-            <legend className="label">Jersey color</legend>
-            <div className="pet-swatches">
-              {JERSEY_COLORS.map((c) => (
-                <label key={c.value} className="pet-swatch" title={c.label}>
-                  <input
-                    type="radio"
-                    className="visually-hidden"
-                    name="pet-jersey"
-                    checked={draft.jersey === c.value}
-                    onChange={() => setDraft({ ...draft, jersey: c.value })}
-                    aria-label={c.label}
-                  />
-                  <span style={{ background: c.value }} />
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <Swatches
+            legend="Jersey color"
+            name="pet-jersey"
+            options={JERSEY_COLORS}
+            value={draft.jersey}
+            onPick={(jersey) => setDraft({ ...draft, jersey })}
+          />
+          <Swatches
+            legend="Skin tone"
+            name="pet-skin"
+            options={SKIN_TONES}
+            value={draft.skin}
+            onPick={(skin) => setDraft({ ...draft, skin })}
+          />
           <Button type="submit" variant="primary" className="align-start">
             Save
           </Button>
@@ -343,6 +408,42 @@ function PetDetail({
         </div>
       </div>
     </dialog>
+  );
+}
+
+/** A row of round color choices (radio buttons). */
+function Swatches({
+  legend,
+  name,
+  options,
+  value,
+  onPick,
+}: {
+  legend: string;
+  name: string;
+  options: readonly { label: string; value: string }[];
+  value: string;
+  onPick: (value: string) => void;
+}) {
+  return (
+    <fieldset className="chip-group">
+      <legend className="label">{legend}</legend>
+      <div className="pet-swatches">
+        {options.map((c) => (
+          <label key={c.value} className="pet-swatch" title={c.label}>
+            <input
+              type="radio"
+              className="visually-hidden"
+              name={name}
+              checked={value === c.value}
+              onChange={() => onPick(c.value)}
+              aria-label={c.label}
+            />
+            <span style={{ background: c.value }} />
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 

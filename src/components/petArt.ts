@@ -1,61 +1,52 @@
 /*
-  Player Pet artwork. The images in src/assets/pet come from the owner's
-  sprite strip (reference/pet-sprites.png) via scripts/slice-pet-sprites.py:
-    <state>.png         the pose, jersey number erased
-    <state>-jersey.png  uniform map: alpha = "this pixel is uniform red",
-                        gray = how light/dark it is (128 = the normal red)
-  To show the athlete's choices, we recolor the uniform pixels and draw the
-  number back on in a chunky pixel font, using a <canvas>.
+  Player Pet artwork. The images in src/assets/pet are made from the owner's
+  sprite strip (reference/pet-sprites.png) by scripts/slice-pet-sprites.py:
+  clean pixel art, one image per pose, that uses only a small shared set of
+  colors. palette.json says which of those colors are the uniform and the
+  skin, and how light each is.
+
+  To show the athlete's choices we swap those exact colors and draw the jersey
+  number back on, pixel by pixel, using a <canvas>.
 */
 import celebrating from '../assets/pet/celebrating.png';
-import celebratingJersey from '../assets/pet/celebrating-jersey.png';
 import happy from '../assets/pet/happy.png';
-import happyJersey from '../assets/pet/happy-jersey.png';
 import idle from '../assets/pet/idle.png';
-import idleJersey from '../assets/pet/idle-jersey.png';
+import palette from '../assets/pet/palette.json';
 import tired from '../assets/pet/tired.png';
-import tiredJersey from '../assets/pet/tired-jersey.png';
 import training from '../assets/pet/training.png';
-import trainingJersey from '../assets/pet/training-jersey.png';
-import { ORIGINAL_RED, type PetLook, type PetState } from '../domain/pet';
+import type { PetLook, PetState } from '../domain/pet';
 
-export const FRAME_WIDTH = 240;
-export const FRAME_HEIGHT = 295;
+/** Size of every frame, in art pixels. It's shown scaled up with crisp edges. */
+export const FRAME_WIDTH = 96;
+export const FRAME_HEIGHT = 119;
 
 // Importing an image gives back its URL. Vite copies the file into the build.
-export const PET_FRAMES: Record<PetState, { art: string; jersey: string }> = {
-  idle: { art: idle, jersey: idleJersey },
-  happy: { art: happy, jersey: happyJersey },
-  training: { art: training, jersey: trainingJersey },
-  tired: { art: tired, jersey: tiredJersey },
-  celebrating: { art: celebrating, jersey: celebratingJersey },
-};
+export const PET_FRAMES: Record<PetState, string> = { idle, happy, training, tired, celebrating };
 
 /**
- * Where the number goes on each pose, in frame pixels (from the slicing
- * script): center, the box it must fit in, and a lean for poses where the
- * chest is turned.
+ * Where the number goes on each pose, in art pixels (printed by the slicing
+ * script): its center, the room it has, and a lean for a turned chest.
  */
 const NUMBER_SPOTS: Record<PetState, { x: number; y: number; height: number; width: number; lean: number }> = {
-  idle: { x: 127.8, y: 194.5, height: 31, width: 40, lean: 0 },
-  happy: { x: 128, y: 195.8, height: 30.5, width: 40, lean: 0 },
-  training: { x: 132, y: 196, height: 27, width: 38, lean: 0.18 },
-  tired: { x: 129.8, y: 217.8, height: 19.5, width: 33, lean: 0.2 },
-  celebrating: { x: 123.5, y: 176, height: 28, width: 38, lean: 0 },
+  idle: { x: 51.1, y: 78.8, height: 12.4, width: 15.4, lean: 0 },
+  happy: { x: 51.2, y: 79.3, height: 12.2, width: 15.2, lean: 0 },
+  training: { x: 52.8, y: 79.4, height: 10.8, width: 14.4, lean: 0.15 },
+  tired: { x: 51.9, y: 88.1, height: 7.8, width: 12.6, lean: 0.15 },
+  celebrating: { x: 49.4, y: 71.4, height: 11.2, width: 14.4, lean: 0 },
 };
 
-/** A bold 5 x 7 pixel font, to match the art. '#' = filled. */
+/** A 3 x 5 pixel font, the classic scoreboard look. '#' = filled. */
 const DIGITS: Record<string, string[]> = {
-  '0': ['.###.', '##.##', '##.##', '##.##', '##.##', '##.##', '.###.'],
-  '1': ['.##..', '###..', '.##..', '.##..', '.##..', '.##..', '####.'],
-  '2': ['.###.', '##.##', '...##', '..##.', '.##..', '##...', '#####'],
-  '3': ['####.', '...##', '...##', '.###.', '...##', '...##', '####.'],
-  '4': ['##.##', '##.##', '##.##', '#####', '...##', '...##', '...##'],
-  '5': ['#####', '##...', '####.', '...##', '...##', '##.##', '.###.'],
-  '6': ['.###.', '##...', '##...', '####.', '##.##', '##.##', '.###.'],
-  '7': ['#####', '...##', '..##.', '..##.', '.##..', '.##..', '.##..'],
-  '8': ['.###.', '##.##', '##.##', '.###.', '##.##', '##.##', '.###.'],
-  '9': ['.###.', '##.##', '##.##', '.####', '...##', '...##', '.###.'],
+  '0': ['###', '#.#', '#.#', '#.#', '###'],
+  '1': ['.#.', '##.', '.#.', '.#.', '###'],
+  '2': ['###', '..#', '###', '#..', '###'],
+  '3': ['###', '..#', '###', '..#', '###'],
+  '4': ['#.#', '#.#', '###', '..#', '..#'],
+  '5': ['###', '#..', '###', '..#', '###'],
+  '6': ['###', '#..', '###', '#.#', '###'],
+  '7': ['###', '..#', '..#', '.#.', '.#.'],
+  '8': ['###', '#.#', '###', '#.#', '###'],
+  '9': ['###', '#.#', '###', '..#', '###'],
 };
 
 export interface Block {
@@ -65,24 +56,31 @@ export interface Block {
 }
 
 /**
- * The squares that draw `number`, centered on (0, 0). Square "pixels" keep
- * the retro look, so they're sized to fit the spot's height and width.
+ * The squares that draw `number` at a spot, in whole art pixels so the
+ * number is as crisp as the rest of the sprite. Each font pixel is 2 x 2 art
+ * pixels when there's room, else 1 x 1.
  */
-export function numberBlocks(number: number, height: number, width: number): Block[] {
+export function numberBlocks(number: number, spot: { x: number; y: number; height: number; width: number; lean: number }): Block[] {
   const text = String(number);
-  const columns = text.length * 5 + (text.length - 1); // one blank column between digits
-  const size = Math.min(height / 7, width / columns);
-  const left = (-columns * size) / 2;
-  const top = (-7 * size) / 2;
+  const columns = text.length * 3 + (text.length - 1); // one blank column between digits
+  const size = spot.height >= 10 && columns * 2 <= spot.width + 2 ? 2 : 1;
+  const left = Math.round(spot.x - (columns * size) / 2);
+  const top = Math.round(spot.y - (5 * size) / 2);
   const blocks: Block[] = [];
   [...text].forEach((digit, i) => {
     DIGITS[digit].forEach((row, r) => {
+      // Lean: rows nearer the top shift right a little.
+      const shift = Math.round(spot.lean * (4 - r) * size);
       [...row].forEach((cell, c) => {
-        if (cell === '#') blocks.push({ x: left + (i * 6 + c) * size, y: top + r * size, size });
+        if (cell === '#') blocks.push({ x: left + (i * 4 + c) * size + shift, y: top + r * size, size });
       });
     });
   });
   return blocks;
+}
+
+export function numberSpot(state: PetState) {
+  return NUMBER_SPOTS[state];
 }
 
 function channels(hex: string): [number, number, number] {
@@ -91,8 +89,8 @@ function channels(hex: string): [number, number, number] {
 }
 
 /**
- * One uniform pixel in the new color. `shade` is the map's gray: 128 is the
- * color itself, lower is darker (shadows), higher is lighter (highlights).
+ * A color at a shade. 128 is the color itself, lower is darker (shadows),
+ * higher is lighter (highlights).
  */
 export function tint(color: string, shade: number): [number, number, number] {
   const k = shade / 128;
@@ -106,7 +104,17 @@ export function tint(color: string, shade: number): [number, number, number] {
 /** White numbers, or dark ones on light jerseys so they stay readable. */
 export function numberColor(jersey: string): string {
   const [r, g, b] = channels(jersey);
-  return 0.299 * r + 0.587 * g + 0.114 * b > 165 ? '#1d2230' : '#f5f6f8';
+  return 0.299 * r + 0.587 * g + 0.114 * b > 165 ? '#14141c' : '#fcfaf9';
+}
+
+/** Which art colors become which new colors for a look. Keys are "#rrggbb". */
+export function colorSwaps(look: Pick<PetLook, 'jersey' | 'skin'>): Map<string, [number, number, number]> {
+  const swaps = new Map<string, [number, number, number]>();
+  for (const entry of palette) {
+    const target = entry.role === 'uniform' ? look.jersey : look.skin;
+    swaps.set(entry.rgb, tint(target, entry.shade));
+  }
+  return swaps;
 }
 
 /* ---------- Drawing (browser only) ---------- */
@@ -126,57 +134,37 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return found;
 }
 
-function pixelsOf(img: HTMLImageElement): ImageData {
-  const canvas = document.createElement('canvas');
-  canvas.width = FRAME_WIDTH;
-  canvas.height = FRAME_HEIGHT;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(img, 0, 0);
-  return ctx.getImageData(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
-}
+const hex = (r: number, g: number, b: number) => `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 
 const finished = new Map<string, Promise<string>>();
 
-/** The pose in the athlete's colors and number, as an image URL. Cached, so each combination is drawn once. */
-export function drawPetFrame(state: PetState, look: Pick<PetLook, 'number' | 'jersey'>): Promise<string> {
-  const key = `${state}|${look.jersey}|${look.number}`;
+/** The pose in the athlete's look, as an image URL. Cached, so each combination is drawn once. */
+export function drawPetFrame(state: PetState, look: Pick<PetLook, 'number' | 'jersey' | 'skin'>): Promise<string> {
+  const key = `${state}|${look.jersey}|${look.skin}|${look.number}`;
   let found = finished.get(key);
   if (!found) {
     found = (async () => {
-      const frame = PET_FRAMES[state];
-      const [art, map] = await Promise.all([loadImage(frame.art), loadImage(frame.jersey)]);
+      const art = await loadImage(PET_FRAMES[state]);
       const canvas = document.createElement('canvas');
       canvas.width = FRAME_WIDTH;
       canvas.height = FRAME_HEIGHT;
       const ctx = canvas.getContext('2d')!;
-      const out = pixelsOf(art);
+      ctx.drawImage(art, 0, 0);
 
-      // Recolor the uniform. The original red is left exactly as drawn.
-      if (look.jersey !== ORIGINAL_RED) {
-        const uniform = pixelsOf(map).data;
-        const px = out.data;
-        for (let i = 0; i < px.length; i += 4) {
-          const amount = uniform[i + 3] / 255;
-          if (amount === 0) continue;
-          const [r, g, b] = tint(look.jersey, uniform[i]);
-          px[i] += (r - px[i]) * amount;
-          px[i + 1] += (g - px[i + 1]) * amount;
-          px[i + 2] += (b - px[i + 2]) * amount;
-        }
+      // Swap the uniform and skin colors, pixel by pixel.
+      const swaps = colorSwaps(look);
+      const image = ctx.getImageData(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+      const px = image.data;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] === 0) continue;
+        const swap = swaps.get(hex(px[i], px[i + 1], px[i + 2]));
+        if (swap) [px[i], px[i + 1], px[i + 2]] = swap;
       }
-      ctx.putImageData(out, 0, 0);
+      ctx.putImageData(image, 0, 0);
 
-      // Draw the number, leaning with the chest on turned poses.
-      const spot = NUMBER_SPOTS[state];
-      ctx.save();
-      ctx.translate(spot.x, spot.y);
-      ctx.transform(1, 0, -spot.lean, 1, 0, 0);
+      // The number, on the same pixel grid as the art.
       ctx.fillStyle = numberColor(look.jersey);
-      for (const block of numberBlocks(look.number, spot.height, spot.width)) {
-        // A hair of overlap so neighboring squares don't show seams.
-        ctx.fillRect(block.x, block.y, block.size + 0.3, block.size + 0.3);
-      }
-      ctx.restore();
+      for (const b of numberBlocks(look.number, NUMBER_SPOTS[state])) ctx.fillRect(b.x, b.y, b.size, b.size);
       return canvas.toDataURL('image/png');
     })();
     finished.set(key, found);

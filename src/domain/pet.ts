@@ -25,10 +25,22 @@ export interface PetLook {
   number: number;
   /** Uniform color (jersey, socks, helmet stripe), "#rrggbb". */
   jersey: string;
+  /** Skin tone, "#rrggbb". */
+  skin: string;
 }
 
-/** The red the artwork was drawn in. Picking it shows the art untouched. */
-export const ORIGINAL_RED = '#9e3222';
+/** The red the artwork was drawn in. */
+export const ORIGINAL_RED = '#9b3223';
+/** The skin tone the artwork was drawn in. */
+export const ORIGINAL_SKIN = '#f7cb94';
+
+export const SKIN_TONES = [
+  { label: 'Light', value: ORIGINAL_SKIN },
+  { label: 'Medium light', value: '#e2a872' },
+  { label: 'Medium', value: '#c18553' },
+  { label: 'Medium dark', value: '#93603a' },
+  { label: 'Dark', value: '#6a4128' },
+] as const;
 
 export const JERSEY_COLORS = [
   { label: 'Red', value: ORIGINAL_RED },
@@ -43,7 +55,7 @@ export const JERSEY_COLORS = [
   { label: 'Black', value: '#2a2d33' },
 ] as const;
 
-export const DEFAULT_LOOK: PetLook = { name: 'Rookie', number: 12, jersey: ORIGINAL_RED };
+export const DEFAULT_LOOK: PetLook = { name: 'Rookie', number: 12, jersey: ORIGINAL_RED, skin: ORIGINAL_SKIN };
 
 export const PET_NAME_MAX = 16;
 
@@ -63,6 +75,7 @@ export function validatePetLook(look: PetLook): Result<PetLook> {
     return { ok: false, error: 'Jersey number must be 0 to 99.' };
   }
   if (!JERSEY_COLORS.some((c) => c.value === look.jersey)) return { ok: false, error: 'Pick a jersey color.' };
+  if (!SKIN_TONES.some((c) => c.value === look.skin)) return { ok: false, error: 'Pick a skin tone.' };
   return { ok: true, value: { ...look, name } };
 }
 
@@ -232,43 +245,46 @@ export const PET_STATE_LABEL: Record<PetState, string> = {
   celebrating: 'Celebrating',
 };
 
-/** A milestone goal reached this recently makes him celebrate. */
+/** A milestone goal reached this recently still gets a celebration the first time the athlete sees him. */
 export const CELEBRATE_GOAL_DAYS = 3;
 
-/** True when a goal was reached by a result recorded in the last few days. */
-export function goalReachedRecently(
+/**
+ * When the most recent goal was reached (the result's time), if one was
+ * reached in the last few days. null otherwise.
+ */
+export function latestGoalReachedAt(
   tests: MilestoneTest[],
   results: TestResult[],
   athleteId: string,
   today: Date,
-): boolean {
+): string | null {
   const since = addDays(today, -CELEBRATE_GOAL_DAYS).toISOString();
-  return tests.some((t) => {
-    if (t.athleteId !== athleteId) return false;
+  let latestAt: string | null = null;
+  for (const t of tests) {
+    if (t.athleteId !== athleteId) continue;
     const latest = latestResult(results, athleteId, t.id);
-    return latest !== undefined && latest.value >= t.target && latest.recordedAt >= since;
-  });
+    if (latest && latest.value >= t.target && latest.recordedAt >= since && (!latestAt || latest.recordedAt > latestAt)) {
+      latestAt = latest.recordedAt;
+    }
+  }
+  return latestAt;
 }
 
 export interface PetStateInput {
   athlete: Athlete;
   logs: ExerciseLog[];
   today: Date;
-  /** A milestone goal was just reached. */
-  goalJustReached: boolean;
-  /** He won a game the athlete hasn't seen the recap for yet. */
-  unseenWin: boolean;
 }
 
 /**
- * Picks the sprite, first match wins:
- * celebrating (a goal was just reached, or he won while you were away),
+ * His resting pose, from today's exercises:
  * happy (today's plan is done), training (part of it is done),
  * tired (nothing done today, and it's evening or nothing was done yesterday either),
  * idle (otherwise, including rest days).
+ * Celebrating is never a resting pose: it plays for a moment after something
+ * happens (see PetReaction in the Today screen's PetCard).
  */
-export function petState({ athlete, logs, today, goalJustReached, unseenWin }: PetStateInput): PetState {
-  if (goalJustReached || unseenWin) return 'celebrating';
+export function petState({ athlete, logs, today }: PetStateInput): PetState {
   const assigned = athlete.assignedExerciseIds.length;
   if (assigned === 0) return 'idle';
   const done = doneOnDay(athlete, logs, today);
@@ -277,6 +293,25 @@ export function petState({ athlete, logs, today, goalJustReached, unseenWin }: P
   const inactiveYesterday = doneOnDay(athlete, logs, addDays(today, -1)) === 0;
   if (today.getHours() >= REMINDER_HOUR || inactiveYesterday) return 'tired';
   return 'idle';
+}
+
+/** A moment of excitement: a pose and a line, shown for a few seconds. */
+export interface PetReaction {
+  state: PetState;
+  text: string;
+  /** A short pop-up over him, like "+33%". */
+  badge?: string;
+}
+
+/** How he reacts when an exercise is logged. A cheer, or a full celebration when the plan is done. */
+export function reactionToExercise(energyBefore: number, energyAfter: number, exercisesLeft: number): PetReaction {
+  const badge = `+${energyAfter - energyBefore}%`;
+  if (exercisesLeft === 0) return { state: 'celebrating', text: 'Fully charged! We are winning tonight!', badge };
+  return {
+    state: 'happy',
+    text: `${badge} energy! ${exercisesLeft} more to go.`,
+    badge,
+  };
 }
 
 /** What the pet says on the Today screen. */

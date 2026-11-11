@@ -7,7 +7,8 @@ import {
   DEFAULT_LOOK,
   energyOn,
   gamesPlayed,
-  goalReachedRecently,
+  latestGoalReachedAt,
+  reactionToExercise,
   petSays,
   petState,
   playGame,
@@ -52,7 +53,7 @@ describe('pet energy', () => {
 });
 
 describe('pet state (which sprite shows)', () => {
-  const base = { athlete, today: TODAY, goalJustReached: false, unseenWin: false };
+  const base = { athlete, today: TODAY };
   const morning = new Date(2026, 10, 11, 9, 0);
 
   it('trains while part of the plan is done, and is happy when it is all done', () => {
@@ -74,9 +75,13 @@ describe('pet state (which sprite shows)', () => {
     expect(petState({ ...base, athlete: { ...athlete, assignedExerciseIds: [] }, logs: [] })).toBe('idle');
   });
 
-  it('celebrates a new goal or a win you have not seen yet', () => {
-    expect(petState({ ...base, logs: [], goalJustReached: true })).toBe('celebrating');
-    expect(petState({ ...base, logs: [], unseenWin: true })).toBe('celebrating');
+  it('never rests in the celebrating pose, even with one exercise done', () => {
+    expect(petState({ ...base, logs: [log('e1', 0)] })).not.toBe('celebrating');
+  });
+
+  it('cheers after each exercise and celebrates only when the plan is done', () => {
+    expect(reactionToExercise(0, 50, 1)).toMatchObject({ state: 'happy', badge: '+50%' });
+    expect(reactionToExercise(50, 100, 0)).toMatchObject({ state: 'celebrating', badge: '+50%' });
   });
 
   it('only counts goals reached in the last few days', () => {
@@ -84,9 +89,9 @@ describe('pet state (which sprite shows)', () => {
     const result = (value: number, daysAgo: number) => ({
       athleteId: athlete.id, testId: 't1', value, recordedAt: addDays(TODAY, -daysAgo).toISOString(), source: 'trainer' as const,
     });
-    expect(goalReachedRecently([test], [result(21, 1)], athlete.id, TODAY)).toBe(true);
-    expect(goalReachedRecently([test], [result(21, 10)], athlete.id, TODAY)).toBe(false);
-    expect(goalReachedRecently([test], [result(15, 1)], athlete.id, TODAY)).toBe(false);
+    expect(latestGoalReachedAt([test], [result(21, 1)], athlete.id, TODAY)).toBe(addDays(TODAY, -1).toISOString());
+    expect(latestGoalReachedAt([test], [result(21, 10)], athlete.id, TODAY)).toBeNull();
+    expect(latestGoalReachedAt([test], [result(15, 1)], athlete.id, TODAY)).toBeNull();
   });
 });
 
@@ -155,13 +160,14 @@ describe('pet seasons', () => {
 });
 
 describe('pet look and talk', () => {
-  it('needs a name, a 0 to 99 number and one of the jersey colors', () => {
+  it('needs a name, a 0 to 99 number, and one of the jersey colors and skin tones', () => {
     expect(validatePetLook(DEFAULT_LOOK).ok).toBe(true);
     expect(validatePetLook({ ...DEFAULT_LOOK, name: '  ' }).ok).toBe(false);
     expect(validatePetLook({ ...DEFAULT_LOOK, name: 'x'.repeat(40) }).ok).toBe(false);
     expect(validatePetLook({ ...DEFAULT_LOOK, number: 100 }).ok).toBe(false);
     expect(validatePetLook({ ...DEFAULT_LOOK, number: 4.5 }).ok).toBe(false);
     expect(validatePetLook({ ...DEFAULT_LOOK, jersey: '#123456' }).ok).toBe(false);
+    expect(validatePetLook({ ...DEFAULT_LOOK, skin: '#123456' }).ok).toBe(false);
   });
 
   it('counts down the exercises left', () => {
