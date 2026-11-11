@@ -105,7 +105,7 @@ function CoachTeam({ team }: { team: Team }) {
                         <td>
                           <button
                             type="button"
-                            className="btn btn--secondary"
+                            className="btn btn--secondary btn--small"
                             aria-pressed={aboutId === a.id}
                             aria-label={`Message the trainer about ${a.name}`}
                             onClick={() => messageAbout(a.id)}
@@ -200,7 +200,7 @@ function CoachChat({
           Message the trainer about
         </label>
         <div className="row">
-          <div className="athlete-search">
+          <div className="athlete-search__box">
             <input
               id="coach-chat-about"
               type="search"

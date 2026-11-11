@@ -33,9 +33,10 @@ export function AthleteSearch() {
 
   return (
     <section className="athlete-search" aria-label="Search all athletes">
-      <label htmlFor="athlete-search" className="visually-hidden">
-        Search all your athletes by name
+      <label htmlFor="athlete-search" className="strong nowrap">
+        Search all athletes:
       </label>
+      <div className="athlete-search__box">
       <input
         id="athlete-search"
         type="search"
@@ -78,6 +79,7 @@ export function AthleteSearch() {
           </p>
         </div>
       )}
+      </div>
     </section>
   );
 }
