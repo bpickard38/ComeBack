@@ -1470,14 +1470,34 @@
   gap: var(--space-4);
 }
 
-.pet-card__sprite {
+/* The player is a button: tapping him opens the detail view. */
+.pet-card__sprite,
+.pet-dialog__stage {
   display: grid;
   flex: none;
   place-items: end center;
-  padding: var(--space-2) var(--space-3) 0;
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  border: 2px solid #1d2230;
   border-radius: var(--radius-md);
-  /* A little patch of field under the player. */
-  background: linear-gradient(to bottom, var(--surface-raised) 72%, #2f7a3e 72%);
+  /* Sky, a strip of stands, and a patch of field with a yard line, like a retro game. */
+  background: linear-gradient(
+    to bottom,
+    #8cc4ef 0 50%,
+    #6c7fb4 50% 60%,
+    #4f9a3e 60% 80%,
+    #e9f2e4 80% 82%,
+    #4f9a3e 82%
+  );
+}
+
+.pet-card__sprite {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .pet-card__sprite:hover .pet-sprite {
+    transform: scale(1.05);
+  }
 }
 
 .pet-card__info {
@@ -1486,50 +1506,66 @@
 }
 
 .pet-card__bubble {
-  position: relative;
   margin: 0;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
 }
 
-.pet-card__footer {
-  align-items: center;
-  flex-wrap: wrap;
-}
-
 .pet-sprite {
   display: block;
-  overflow: visible;
+  max-width: 100%;
+  height: auto;
+  transform-origin: 50% 100%;
+  transition: transform 0.15s;
+  user-select: none;
 }
 
-.pet-sprite--ready {
-  animation: pet-breathe 2.4s ease-in-out infinite;
+/* A little life for each state. Turned off for people who ask for less motion. */
+.pet-sprite--idle {
+  animation: pet-breathe 2.6s ease-in-out infinite;
 }
 
-.pet-sprite--pumped {
+.pet-sprite--training {
+  animation: pet-jog 0.5s ease-in-out infinite;
+}
+
+.pet-sprite--happy {
   animation: pet-bounce 0.9s ease-in-out infinite;
 }
 
-.pet-sprite__z {
-  animation: pet-float 2s ease-in-out infinite;
+.pet-sprite--celebrating {
+  animation: pet-jump 1.1s ease-in-out infinite;
+}
+
+.pet-sprite--tired {
+  animation: pet-sway 3.2s ease-in-out infinite;
 }
 
 @keyframes pet-breathe {
-  50% { transform: translateY(1px); }
+  50% { transform: scaleY(0.98); }
+}
+
+@keyframes pet-jog {
+  50% { transform: translateY(-3%); }
 }
 
 @keyframes pet-bounce {
-  50% { transform: translateY(-4px); }
+  50% { transform: translateY(-5%); }
 }
 
-@keyframes pet-float {
-  50% { opacity: 0.4; transform: translateY(-1px); }
+@keyframes pet-jump {
+  40% { transform: translateY(-10%); }
+  60% { transform: translateY(-10%); }
+}
+
+@keyframes pet-sway {
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pet-sprite,
-  .pet-sprite__z {
+  .pet-sprite {
     animation: none;
   }
 }
@@ -1569,15 +1605,73 @@
   color: var(--danger);
 }
 
-.pet-editor__preview {
+.pet-dialog {
+  width: min(28rem, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100dvh - 2 * var(--space-4));
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-raised);
+}
+
+.pet-dialog::backdrop {
+  background: #000000a0;
+}
+
+.pet-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.pet-dialog__stage {
+  padding-top: var(--space-4);
+}
+
+.pet-stats {
   display: grid;
-  place-items: center;
-  padding-top: var(--space-2);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.pet-stats div {
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  text-align: center;
+}
+
+.pet-stats dt {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.pet-stats dd {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.pet-dialog__rule {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pet-dialog__off,
+.pet-off .spread {
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .pet-editor__fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 7rem;
+  grid-template-columns: minmax(0, 1fr) 6rem;
   gap: var(--space-3);
 }
 
@@ -1607,15 +1701,4 @@
 .pet-swatch input:focus-visible + span {
   outline: var(--focus-width) solid var(--focus-ring);
   outline-offset: 2px;
-}
-
-.pet-editor__rule {
-  width: 100%;
-  margin: 0;
-  border: 0;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.pet-off .spread {
-  align-items: center;
 }

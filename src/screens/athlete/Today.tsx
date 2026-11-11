@@ -94,6 +94,8 @@ export function Today() {
         <PetCard
           athlete={me}
           logs={state.logs}
+          tests={state.tests}
+          results={state.results}
           save={petSave}
           onChange={setPetSave}
           startEditing={petJustAdded}

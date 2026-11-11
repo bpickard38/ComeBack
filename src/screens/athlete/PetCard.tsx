@@ -1,39 +1,41 @@
 /*
-  Player Pet card on the Today screen. Only the athlete sees it.
-  The rules (energy, games, seasons) live in src/domain/pet.ts.
+  Player Pet on the Today screen. Only the athlete sees it.
+  A small companion card; tapping the player opens a bigger detail view.
+  The rules (energy, games, which sprite shows) live in src/domain/pet.ts.
 */
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
-import { PetSprite } from '../../components/PetSprite';
+import { PetSprite, preloadPetFrames } from '../../components/PetSprite';
 import { ProgressBar } from '../../components/ProgressBar';
 import { useToast } from '../../components/Toast';
 import { addDays, dayKey } from '../../domain/dates';
 import {
   careerStats,
+  JERSEY_COLORS,
   currentSeason,
   energyOn,
   gamesPlayed,
-  JERSEY_COLORS,
-  moodFor,
+  goalReachedRecently,
   PET_NAME_MAX,
+  PET_STATE_LABEL,
   petSays,
-  SKIN_TONES,
-  TRIM_COLORS,
+  petState,
   unseenGames,
   validatePetLook,
   type PetGame,
-  type PetLook,
 } from '../../domain/pet';
-import type { Athlete, ExerciseLog } from '../../domain/types';
+import type { Athlete, ExerciseLog, MilestoneTest, TestResult } from '../../domain/types';
 import { newPetSave, type PetSave } from '../../store/petSave';
 
 interface PetCardProps {
   athlete: Athlete;
   logs: ExerciseLog[];
+  tests: MilestoneTest[];
+  results: TestResult[];
   save: PetSave;
   onChange: (save: PetSave) => void;
-  /** Open the customize panel right away (first time the pet is turned on). */
+  /** Open the detail view with the name box right away (first time the pet is turned on). */
   startEditing?: boolean;
 }
 
@@ -48,36 +50,50 @@ function shortDay(day: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short' });
 }
 
-export function PetCard({ athlete, logs, save, onChange, startEditing = false }: PetCardProps) {
-  const [editing, setEditing] = useState(startEditing);
-  const now = new Date();
+export function PetCard({ athlete, logs, tests, results, save, onChange, startEditing = false }: PetCardProps) {
+  const [detailOpen, setDetailOpen] = useState(startEditing);
   const { look } = save;
+  useEffect(() => preloadPetFrames(look), [look]);
 
+  const now = new Date();
+  const { name } = look;
   const energy = energyOn(athlete, logs, now);
-  const mood = moodFor(energy);
   const games = gamesPlayed(athlete, logs, save.startedOn, now);
   const season = currentSeason(games);
-  const career = careerStats(games);
   const unseen = unseenGames(games, save.seenThrough);
   const lastGame = games[games.length - 1];
+  const state = petState({
+    athlete,
+    logs,
+    today: now,
+    goalJustReached: goalReachedRecently(tests, results, athlete.id, now),
+    unseenWin: unseen.some((g) => g.won),
+  });
+  const says = petSays(athlete, logs, now);
+  const markSeen = () => onChange({ ...save, seenThrough: lastGame.day });
 
   return (
     <Card className="pet-card" aria-labelledby="pet-name">
       <div className="pet-card__main">
-        <div className="pet-card__sprite">
-          <PetSprite look={look} mood={mood} size={88} />
-        </div>
+        <button
+          type="button"
+          className="pet-card__sprite"
+          onClick={() => setDetailOpen(true)}
+          aria-label={`Open ${name}'s details`}
+        >
+          <PetSprite state={state} look={look} width={100} />
+        </button>
         <div className="stack-sm pet-card__info">
           <div className="stack-xs">
             <h2 id="pet-name" className="title">
-              {look.name} <span className="muted normal">#{look.number}</span>
+              {name}
             </h2>
             <div className="small muted">
-              Season {season.number} &middot; {season.wins}&ndash;{season.losses}
+              {PET_STATE_LABEL[state]} &middot; Season {season.number}: {season.wins}&ndash;{season.losses}
             </div>
           </div>
           <p className="pet-card__bubble small" aria-live="polite">
-            {petSays(athlete, logs, now)}
+            {says}
           </p>
           <div className="stack-xs">
             <div className="spread small strong">
@@ -90,30 +106,24 @@ export function PetCard({ athlete, logs, save, onChange, startEditing = false }:
       </div>
 
       {unseen.length > 0 ? (
-        <Recap games={unseen} season={season} onDone={() => onChange({ ...save, seenThrough: lastGame.day })} />
-      ) : lastGame ? (
-        <p className="small muted">Last game: {gameLine(lastGame)}</p>
+        <Recap games={unseen} season={season} onDone={markSeen} />
       ) : (
-        <p className="small muted">First game is tonight. Every exercise you log gives {look.name} energy.</p>
+        <p className="small muted">
+          {lastGame ? `Last game: ${gameLine(lastGame)}.` : `First game is tonight.`} Tap {name} for more.
+        </p>
       )}
 
-      {editing ? (
-        <PetEditor
-          look={look}
-          onSave={(next) => {
-            onChange({ ...save, look: next });
-            setEditing(false);
-          }}
-          onCancel={() => setEditing(false)}
-          onTurnOff={() => onChange({ ...save, enabled: false })}
+      {detailOpen && (
+        <PetDetail
+          state={state}
+          says={says}
+          energy={energy}
+          games={games}
+          save={save}
+          onChange={onChange}
+          startEditing={startEditing}
+          onClose={() => setDetailOpen(false)}
         />
-      ) : (
-        <div className="spread pet-card__footer">
-          <span className="small muted">
-            Career: {career.wins} wins &middot; {career.touchdowns} TD &middot; {career.yards.toLocaleString()} yds
-          </span>
-          <Button onClick={() => setEditing(true)}>Customize</Button>
-        </div>
       )}
     </Card>
   );
@@ -136,20 +146,7 @@ function Recap({
       <div id="pet-recap" className="strong">
         While you were away
       </div>
-      <ul className="pet-recap">
-        {shown.map((g) => (
-          <li key={g.day}>
-            <span className={g.won ? 'pet-recap__win' : 'pet-recap__loss'}>{g.won ? 'W' : 'L'}</span>
-            <span>
-              <span className="strong">{gameLine(g)}</span>
-              <span className="small muted">
-                {' '}
-                &middot; {shortDay(g.day)} &middot; {g.touchdowns} TD, {g.yards} yds &middot; {g.energy}% energy
-              </span>
-            </span>
-          </li>
-        ))}
-      </ul>
+      <GameList games={shown} />
       {hidden > 0 && <p className="small muted">Plus {hidden} earlier game{hidden === 1 ? '' : 's'}.</p>}
       {season.justFinished && (
         <p className="small strong">
@@ -164,110 +161,188 @@ function Recap({
   );
 }
 
-function PetEditor({
-  look,
-  onSave,
-  onCancel,
-  onTurnOff,
+function GameList({ games }: { games: PetGame[] }) {
+  return (
+    <ul className="pet-recap">
+      {games.map((g) => (
+        <li key={g.day}>
+          <span className={g.won ? 'pet-recap__win' : 'pet-recap__loss'}>{g.won ? 'W' : 'L'}</span>
+          <span>
+            <span className="strong">{gameLine(g)}</span>
+            <span className="small muted">
+              {' '}
+              &middot; {shortDay(g.day)} &middot; {g.touchdowns} TD, {g.yards} yds &middot; {g.energy}% energy
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The bigger view: large sprite, stats, recent games, rename, turn off. */
+function PetDetail({
+  state,
+  says,
+  energy,
+  games,
+  save,
+  onChange,
+  startEditing,
+  onClose,
 }: {
-  look: PetLook;
-  onSave: (look: PetLook) => void;
-  onCancel: () => void;
-  onTurnOff: () => void;
+  state: ReturnType<typeof petState>;
+  says: string;
+  energy: number;
+  games: PetGame[];
+  save: PetSave;
+  onChange: (save: PetSave) => void;
+  startEditing: boolean;
+  onClose: () => void;
 }) {
   const { notify } = useToast();
-  const [draft, setDraft] = useState(look);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [draft, setDraft] = useState(save.look);
   // Keep the number as typed text so the box can be empty while editing.
-  const [numberText, setNumberText] = useState(String(look.number));
-  const preview = { ...draft, number: Number(numberText) || 0 };
+  const [numberText, setNumberText] = useState(String(save.look.number));
+  const preview = { ...draft, number: numberText === '' ? save.look.number : Number(numberText) };
+  const season = currentSeason(games);
+  const career = careerStats(games);
 
-  function submit(event: FormEvent) {
+  // showModal() makes it a real modal: focus moves in, Escape closes it, the page behind is inert.
+  // (Leaving the page removes it, so there's nothing to clean up.)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
+  }, []);
+
+  function saveLook(event: FormEvent) {
     event.preventDefault();
-    const result = validatePetLook({ ...draft, number: numberText.trim() === '' ? NaN : Number(numberText) });
+    const result = validatePetLook({ ...draft, number: numberText === '' ? NaN : Number(numberText) });
     if (!result.ok) {
       notify(result.error, 'error');
       return;
     }
-    onSave(result.value);
+    onChange({ ...save, look: result.value });
+    notify(`Saved. Looking good, ${result.value.name}!`);
   }
 
   return (
-    <form className="panel pet-editor" onSubmit={submit} aria-label="Customize your player">
-      <div className="pet-editor__preview">
-        <PetSprite look={preview} mood="pumped" size={72} />
-      </div>
-      <div className="pet-editor__fields">
-        <label className="stack-xs">
-          <span className="label">Name</span>
-          <input
-            className="field"
-            value={draft.name}
-            maxLength={PET_NAME_MAX}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            autoFocus
-          />
-        </label>
-        <label className="stack-xs">
-          <span className="label">Jersey number</span>
-          <input
-            className="field pet-editor__number"
-            inputMode="numeric"
-            value={numberText}
-            maxLength={2}
-            onChange={(e) => setNumberText(e.target.value.replace(/\D/g, ''))}
-          />
-        </label>
-      </div>
-      <Swatches legend="Jersey" name="jersey" options={JERSEY_COLORS} value={draft.jersey} onPick={(jersey) => setDraft({ ...draft, jersey })} />
-      <Swatches legend="Trim and number" name="trim" options={TRIM_COLORS} value={draft.trim} onPick={(trim) => setDraft({ ...draft, trim })} />
-      <Swatches legend="Skin" name="skin" options={SKIN_TONES} value={draft.skin} onPick={(skin) => setDraft({ ...draft, skin })} />
-      <div className="row">
-        <Button type="submit" variant="primary">
-          Save
-        </Button>
-        <Button onClick={onCancel}>Cancel</Button>
-      </div>
-      <hr className="pet-editor__rule" />
-      <div className="spread">
-        <span className="small muted">Not for you? You can turn it back on at the bottom of Today.</span>
-        <Button onClick={onTurnOff}>Turn off Player Pet</Button>
-      </div>
-    </form>
-  );
-}
+    <dialog
+      ref={dialogRef}
+      className="pet-dialog"
+      aria-labelledby="pet-dialog-title"
+      onClose={onClose}
+      // Clicking the dark area outside the box closes it.
+      onClick={(e) => e.target === dialogRef.current && dialogRef.current?.close()}
+    >
+      <div className="pet-dialog__body">
+        <div className="spread">
+          <div className="stack-xs">
+            <h2 id="pet-dialog-title" className="title">
+              {save.look.name}
+            </h2>
+            <span className="small muted">{PET_STATE_LABEL[state]}</span>
+          </div>
+          <Button onClick={() => dialogRef.current?.close()} aria-label="Close">
+            &times;
+          </Button>
+        </div>
 
-function Swatches({
-  legend,
-  name,
-  options,
-  value,
-  onPick,
-}: {
-  legend: string;
-  name: string;
-  options: readonly { label: string; value: string }[];
-  value: string;
-  onPick: (value: string) => void;
-}) {
-  return (
-    <fieldset className="chip-group">
-      <legend className="label">{legend}</legend>
-      <div className="pet-swatches">
-        {options.map((o) => (
-          <label key={o.value} className="pet-swatch" title={o.label}>
-            <input
-              type="radio"
-              className="visually-hidden"
-              name={`pet-${name}`}
-              checked={value === o.value}
-              onChange={() => onPick(o.value)}
-              aria-label={o.label}
-            />
-            <span style={{ background: o.value }} />
-          </label>
-        ))}
+        <div className="pet-dialog__stage">
+          <PetSprite state={state} look={preview} width={200} />
+        </div>
+        <p className="pet-card__bubble small">{says}</p>
+
+        <div className="stack-xs">
+          <div className="spread small strong">
+            <span>Energy for tonight&rsquo;s game</span>
+            <span>{energy}%</span>
+          </div>
+          <ProgressBar percent={energy} />
+        </div>
+
+        <dl className="pet-stats">
+          <div>
+            <dt>Season {season.number}</dt>
+            <dd>
+              {season.wins}&ndash;{season.losses}
+            </dd>
+          </div>
+          <div>
+            <dt>Career wins</dt>
+            <dd>{career.wins}</dd>
+          </div>
+          <div>
+            <dt>Touchdowns</dt>
+            <dd>{career.touchdowns}</dd>
+          </div>
+          <div>
+            <dt>Yards</dt>
+            <dd>{career.yards.toLocaleString()}</dd>
+          </div>
+        </dl>
+
+        {games.length > 0 && (
+          <section className="stack-sm" aria-label="Recent games">
+            <div className="label">Recent games</div>
+            <GameList games={games.slice(-5).reverse()} />
+          </section>
+        )}
+
+        <form className="stack-sm" onSubmit={saveLook} aria-label="Customize your player">
+          <div className="pet-editor__fields">
+            <label className="stack-xs">
+              <span className="label">Name</span>
+              <input
+                className="field"
+                value={draft.name}
+                maxLength={PET_NAME_MAX}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                autoFocus={startEditing}
+              />
+            </label>
+            <label className="stack-xs">
+              <span className="label">Number</span>
+              <input
+                className="field"
+                inputMode="numeric"
+                value={numberText}
+                maxLength={2}
+                onChange={(e) => setNumberText(e.target.value.replace(/\D/g, ''))}
+              />
+            </label>
+          </div>
+          <fieldset className="chip-group">
+            <legend className="label">Jersey color</legend>
+            <div className="pet-swatches">
+              {JERSEY_COLORS.map((c) => (
+                <label key={c.value} className="pet-swatch" title={c.label}>
+                  <input
+                    type="radio"
+                    className="visually-hidden"
+                    name="pet-jersey"
+                    checked={draft.jersey === c.value}
+                    onChange={() => setDraft({ ...draft, jersey: c.value })}
+                    aria-label={c.label}
+                  />
+                  <span style={{ background: c.value }} />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <Button type="submit" variant="primary" className="align-start">
+            Save
+          </Button>
+        </form>
+
+        <hr className="pet-dialog__rule" />
+        <div className="spread pet-dialog__off">
+          <span className="small muted">Not for you? You can turn it back on at the bottom of Today.</span>
+          <Button onClick={() => onChange({ ...save, enabled: false })}>Turn off Player Pet</Button>
+        </div>
       </div>
-    </fieldset>
+    </dialog>
   );
 }
 

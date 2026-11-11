@@ -7,15 +7,16 @@ import {
   DEFAULT_LOOK,
   energyOn,
   gamesPlayed,
-  moodFor,
+  goalReachedRecently,
   petSays,
+  petState,
   playGame,
   SEASON_LENGTH,
   unseenGames,
   validatePetLook,
   winChance,
 } from './pet';
-import type { Athlete, ExerciseLog } from './types';
+import type { Athlete, ExerciseLog, MilestoneTest } from './types';
 
 const TODAY = new Date(2026, 10, 11, 14, 0);
 
@@ -47,10 +48,44 @@ describe('pet energy', () => {
     expect(energyOn({ ...athlete, assignedExerciseIds: [] }, [], TODAY)).toBe(100);
   });
 
-  it('sets the mood from energy', () => {
-    expect(moodFor(0)).toBe('tired');
-    expect(moodFor(50)).toBe('ready');
-    expect(moodFor(100)).toBe('pumped');
+});
+
+describe('pet state (which sprite shows)', () => {
+  const base = { athlete, today: TODAY, goalJustReached: false, unseenWin: false };
+  const morning = new Date(2026, 10, 11, 9, 0);
+
+  it('trains while part of the plan is done, and is happy when it is all done', () => {
+    expect(petState({ ...base, logs: [log('e1', 0)] })).toBe('training');
+    expect(petState({ ...base, logs: [log('e1', 0), log('e2', 0)] })).toBe('happy');
+  });
+
+  it('is idle in the morning when yesterday was active', () => {
+    expect(petState({ ...base, today: morning, logs: [log('e1', 1)] })).toBe('idle');
+  });
+
+  it('gets tired after a day off, or in the evening with nothing done', () => {
+    expect(petState({ ...base, today: morning, logs: [] })).toBe('tired');
+    const evening = new Date(2026, 10, 11, 19, 0);
+    expect(petState({ ...base, today: evening, logs: [log('e1', 1)] })).toBe('tired');
+  });
+
+  it('is idle on a rest day', () => {
+    expect(petState({ ...base, athlete: { ...athlete, assignedExerciseIds: [] }, logs: [] })).toBe('idle');
+  });
+
+  it('celebrates a new goal or a win you have not seen yet', () => {
+    expect(petState({ ...base, logs: [], goalJustReached: true })).toBe('celebrating');
+    expect(petState({ ...base, logs: [], unseenWin: true })).toBe('celebrating');
+  });
+
+  it('only counts goals reached in the last few days', () => {
+    const test: MilestoneTest = { id: 't1', athleteId: athlete.id, name: 'Hop', description: '', unit: 'cm', baseline: 10, target: 20 };
+    const result = (value: number, daysAgo: number) => ({
+      athleteId: athlete.id, testId: 't1', value, recordedAt: addDays(TODAY, -daysAgo).toISOString(), source: 'trainer' as const,
+    });
+    expect(goalReachedRecently([test], [result(21, 1)], athlete.id, TODAY)).toBe(true);
+    expect(goalReachedRecently([test], [result(21, 10)], athlete.id, TODAY)).toBe(false);
+    expect(goalReachedRecently([test], [result(15, 1)], athlete.id, TODAY)).toBe(false);
   });
 });
 
@@ -119,11 +154,13 @@ describe('pet seasons', () => {
 });
 
 describe('pet look and talk', () => {
-  it('needs a name and a 0 to 99 jersey number', () => {
+  it('needs a name, a 0 to 99 number and one of the jersey colors', () => {
     expect(validatePetLook(DEFAULT_LOOK).ok).toBe(true);
     expect(validatePetLook({ ...DEFAULT_LOOK, name: '  ' }).ok).toBe(false);
+    expect(validatePetLook({ ...DEFAULT_LOOK, name: 'x'.repeat(40) }).ok).toBe(false);
     expect(validatePetLook({ ...DEFAULT_LOOK, number: 100 }).ok).toBe(false);
     expect(validatePetLook({ ...DEFAULT_LOOK, number: 4.5 }).ok).toBe(false);
+    expect(validatePetLook({ ...DEFAULT_LOOK, jersey: '#123456' }).ok).toBe(false);
   });
 
   it('counts down the exercises left', () => {

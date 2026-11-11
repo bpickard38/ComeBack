@@ -12,49 +12,38 @@
   rest days count as full energy, and a missed day only means one tired game.
 */
 import { addDays, dayKey } from './dates';
+import { latestResult } from './goals';
 import { doneOnDay, findLog } from './logs';
 import { isHighPain } from './pain';
-import type { Athlete, ExerciseLog, Result } from './types';
+import { REMINDER_HOUR } from './reminder';
+import type { Athlete, ExerciseLog, MilestoneTest, Result, TestResult } from './types';
 
 /** How the athlete customized their pet. */
 export interface PetLook {
   name: string;
+  /** Jersey number, 0 to 99. */
   number: number;
+  /** Uniform color (jersey, socks, helmet stripe), "#rrggbb". */
   jersey: string;
-  trim: string;
-  skin: string;
 }
 
+/** The red the artwork was drawn in. Picking it shows the art untouched. */
+export const ORIGINAL_RED = '#9e3222';
+
 export const JERSEY_COLORS = [
-  { label: 'Red', value: '#c8332b' },
+  { label: 'Red', value: ORIGINAL_RED },
   { label: 'Navy', value: '#22408f' },
+  { label: 'Royal blue', value: '#2f63c9' },
+  { label: 'Sky blue', value: '#4a9fd8' },
   { label: 'Green', value: '#2e8540' },
-  { label: 'Purple', value: '#6a3fa0' },
-  { label: 'Orange', value: '#e0701f' },
-  { label: 'Black', value: '#24282d' },
+  { label: 'Purple', value: '#5e3a9c' },
+  { label: 'Orange', value: '#dd6b1f' },
   { label: 'Gold', value: '#d9a521' },
-  { label: 'Sky', value: '#3c9ad6' },
+  { label: 'Maroon', value: '#6b1f2a' },
+  { label: 'Black', value: '#2a2d33' },
 ] as const;
 
-export const TRIM_COLORS = [
-  { label: 'White', value: '#f4f4f4' },
-  ...JERSEY_COLORS,
-] as const;
-
-export const SKIN_TONES = [
-  { label: 'Light', value: '#f6cfa8' },
-  { label: 'Medium light', value: '#dca577' },
-  { label: 'Medium dark', value: '#a8693f' },
-  { label: 'Dark', value: '#6b4126' },
-] as const;
-
-export const DEFAULT_LOOK: PetLook = {
-  name: 'Rookie',
-  number: 12,
-  jersey: JERSEY_COLORS[0].value,
-  trim: TRIM_COLORS[0].value,
-  skin: SKIN_TONES[0].value,
-};
+export const DEFAULT_LOOK: PetLook = { name: 'Rookie', number: 12, jersey: ORIGINAL_RED };
 
 export const PET_NAME_MAX = 16;
 
@@ -73,6 +62,7 @@ export function validatePetLook(look: PetLook): Result<PetLook> {
   if (!Number.isInteger(look.number) || look.number < 0 || look.number > 99) {
     return { ok: false, error: 'Jersey number must be 0 to 99.' };
   }
+  if (!JERSEY_COLORS.some((c) => c.value === look.jersey)) return { ok: false, error: 'Pick a jersey color.' };
   return { ok: true, value: { ...look, name } };
 }
 
@@ -229,14 +219,64 @@ export function unseenGames(games: PetGame[], seenThrough: string | null): PetGa
   return seenThrough ? games.filter((g) => g.day > seenThrough) : games;
 }
 
-/* ---------- Mood and talk ---------- */
+/* ---------- State and talk ---------- */
 
-export type PetMood = 'tired' | 'ready' | 'pumped';
+/** Which sprite to show. Each one is an image in src/assets/pet. */
+export type PetState = 'idle' | 'happy' | 'training' | 'tired' | 'celebrating';
 
-export function moodFor(energy: number): PetMood {
-  if (energy >= 100) return 'pumped';
-  if (energy >= 34) return 'ready';
-  return 'tired';
+export const PET_STATE_LABEL: Record<PetState, string> = {
+  idle: 'Ready to go',
+  happy: 'Pumped up',
+  training: 'Training',
+  tired: 'Tired',
+  celebrating: 'Celebrating',
+};
+
+/** A milestone goal reached this recently makes him celebrate. */
+export const CELEBRATE_GOAL_DAYS = 3;
+
+/** True when a goal was reached by a result recorded in the last few days. */
+export function goalReachedRecently(
+  tests: MilestoneTest[],
+  results: TestResult[],
+  athleteId: string,
+  today: Date,
+): boolean {
+  const since = addDays(today, -CELEBRATE_GOAL_DAYS).toISOString();
+  return tests.some((t) => {
+    if (t.athleteId !== athleteId) return false;
+    const latest = latestResult(results, athleteId, t.id);
+    return latest !== undefined && latest.value >= t.target && latest.recordedAt >= since;
+  });
+}
+
+export interface PetStateInput {
+  athlete: Athlete;
+  logs: ExerciseLog[];
+  today: Date;
+  /** A milestone goal was just reached. */
+  goalJustReached: boolean;
+  /** He won a game the athlete hasn't seen the recap for yet. */
+  unseenWin: boolean;
+}
+
+/**
+ * Picks the sprite, first match wins:
+ * celebrating (a goal was just reached, or he won while you were away),
+ * happy (today's plan is done), training (part of it is done),
+ * tired (nothing done today, and it's evening or nothing was done yesterday either),
+ * idle (otherwise, including rest days).
+ */
+export function petState({ athlete, logs, today, goalJustReached, unseenWin }: PetStateInput): PetState {
+  if (goalJustReached || unseenWin) return 'celebrating';
+  const assigned = athlete.assignedExerciseIds.length;
+  if (assigned === 0) return 'idle';
+  const done = doneOnDay(athlete, logs, today);
+  if (done === assigned) return 'happy';
+  if (done > 0) return 'training';
+  const inactiveYesterday = doneOnDay(athlete, logs, addDays(today, -1)) === 0;
+  if (today.getHours() >= REMINDER_HOUR || inactiveYesterday) return 'tired';
+  return 'idle';
 }
 
 /** What the pet says on the Today screen. */
