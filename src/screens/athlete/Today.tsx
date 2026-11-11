@@ -16,8 +16,10 @@ import {
 import type { Exercise, ExerciseLog } from "../../domain/types";
 import { youtubeEmbedUrl } from "../../domain/video";
 import { formatDay, formatTime } from "../../format";
+import { isGoalReached } from "../../domain/goals";
 import {
   exerciseById,
+  testsFor,
   useAppStore,
   useSignedInAthlete,
 } from "../../store/AppStore";
@@ -44,6 +46,9 @@ export function Today() {
     left > 0 && (state.reminderSimulated || shouldShowReminder(now, left));
   const leftNames = items.filter((i) => !i.log).map((i) => i.exercise.name);
   const nextVisit = upcomingAppointments(state.appointments, me.id, now)[0];
+  const nextGoal = testsFor(state, me.id).find(
+    (t) => !isGoalReached(t, state.results, me.id),
+  );
 
   /** Returns true when the log saved, so the card can move keyboard focus. */
   async function markDone(
@@ -81,6 +86,12 @@ export function Today() {
           </div>
           <ProgressBar percent={percent} />
         </div>
+        {nextGoal && total > 0 && (
+          <Link to="/athlete/progress" className="small working-toward">
+            Working toward: <span className="strong">{nextGoal.name}</span>{" "}
+            <span aria-hidden="true">&rsaquo;</span>
+          </Link>
+        )}
       </Card>
 
       {showReminder && (

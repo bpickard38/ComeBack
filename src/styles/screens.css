@@ -1465,3 +1465,15 @@
     background: var(--surface-raised);
   }
 }
+
+/* Link from Today's summary to the milestone the exercises build toward. */
+.working-toward {
+  display: block;
+  margin-top: var(--space-3);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.working-toward:hover {
+  text-decoration: underline;
+}

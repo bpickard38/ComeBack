@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import { Card } from '../../components/Card';
+import { findLog } from '../../domain/logs';
 import { availabilityLabel } from '../../domain/availability';
 import { currentValue, goalPercent, goalsReached, isGoalReached, overallGoalPercent } from '../../domain/goals';
 import { formatCalendarDay, injuryLabel } from '../../format';
@@ -17,6 +19,12 @@ export function Progress() {
   const met = goalsReached(tests, state.results, me.id);
   const overall = overallGoalPercent(tests, state.results, me.id);
   const allMet = tests.length > 0 && met === tests.length;
+  const next = tests.find((t) => !isGoalReached(t, state.results, me.id));
+
+  // Today's exercises, so the next goal can point at the work that builds toward it.
+  const now = new Date();
+  const assigned = me.assignedExerciseIds.length;
+  const doneToday = me.assignedExerciseIds.filter((id) => findLog(state.logs, me.id, id, now)).length;
 
   return (
     <>
@@ -32,19 +40,20 @@ export function Progress() {
 
         {tests.length > 0 && (
           <div className="recovery-meter">
+            {/* Milestones reached is the headline: the trainer's test results decide it, not exercise logs. */}
             <div className="recovery-meter__headline">
-              <span className="recovery-meter__pct">{overall}%</span>
-              <span className="muted">of the way to return to play</span>
+              <span className="recovery-meter__pct">
+                {met} of {tests.length}
+              </span>
+              <span className="muted">milestones reached</span>
             </div>
-            {/* The number above says the same thing, so the bar is hidden from screen readers. */}
+            {/* The bar also moves as results improve between milestones. The headline says the
+                same thing in words, so the bar is hidden from screen readers. */}
             <div className="recovery-meter__track" aria-hidden="true">
               <div className="recovery-meter__fill" style={{ width: `${overall}%` }} />
             </div>
 
             <div className="stack-xs">
-              <div className="small strong">
-                {met} of {tests.length} milestones reached
-              </div>
               <ul className="milestone-chips">
                 {tests.map((test) => {
                   const reached = isGoalReached(test, state.results, me.id);
@@ -66,6 +75,21 @@ export function Progress() {
           </div>
         )}
       </Card>
+
+      {next && (
+        <Link to="/athlete" className="card next-visit">
+          <span className="stack-xs">
+            <span className="eyebrow">Next goal</span>
+            <span className="strong">Pass: {next.name}</span>
+            {assigned > 0 && (
+              <span className="muted">
+                Today&rsquo;s exercises build toward it &middot; {doneToday} of {assigned} done
+              </span>
+            )}
+          </span>
+          <span className="next-visit__arrow" aria-hidden="true">&rsaquo;</span>
+        </Link>
+      )}
 
       {tests.length === 0 ? (
         <Card>
