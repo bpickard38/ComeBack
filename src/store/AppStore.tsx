@@ -15,6 +15,7 @@ import { createContext, useCallback, useContext, useEffect, useReducer, useRef, 
 import { Button } from '../components/Button';
 import { isGoalReached, parseResultValue } from '../domain/goals';
 import { normalizeAvailability } from '../domain/availability';
+import { validateNote } from '../domain/history';
 import { ALREADY_LOGGED, createLog } from '../domain/logs';
 import { athleteThread, unreadIn } from '../domain/messages';
 import { athletesOnTeam, currentTeam } from '../domain/teams';
@@ -231,6 +232,18 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       };
       dispatch({ type: 'addMessage', message });
       return { ok: true, value: message };
+    },
+
+    /** Trainer's private note on an athlete's profile. Saving an empty note clears it. */
+    async saveNote(athleteId: string, text: string): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can keep notes on an athlete.' };
+      const valid = validateNote(text);
+      if (!valid.ok) return valid;
+      if (state.offline) return { ok: false, error: `Could not save your note. ${OFFLINE_ERROR}` };
+      const saved = await remote.saveNote(athleteId, valid.value, profile.id);
+      if (!saved.ok) return { ok: false, error: `Could not save your note. ${saved.error}` };
+      dispatch({ type: 'setNote', athleteId, note: { text: valid.value, updatedAt: saved.value.updatedAt, updatedBy: profile.name } });
+      return { ok: true, value: undefined };
     },
 
     /** Called when a conversation is on screen. Quietly does nothing offline. */

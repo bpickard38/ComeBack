@@ -5,7 +5,7 @@
   save to the database, before dispatching. Keeping it this simple makes
   every change easy to trace.
 */
-import type { Availability, ExerciseLog, Message, MessageThread, TestResult } from '../domain/types';
+import type { AthleteNote, Availability, ExerciseLog, Message, MessageThread, TestResult } from '../domain/types';
 import type { AppState, RemoteData } from './state';
 
 export type Action =
@@ -13,6 +13,7 @@ export type Action =
   | { type: 'setOffline'; offline: boolean }
   | { type: 'simulateReminder' }
   | { type: 'selectTeam'; teamId: string }
+  | { type: 'setNote'; athleteId: string; note: AthleteNote }
   | { type: 'addLog'; log: ExerciseLog }
   | { type: 'addResult'; result: TestResult }
   | { type: 'addMessage'; message: Message }
@@ -30,6 +31,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, reminderSimulated: true };
     case 'selectTeam':
       return { ...state, selectedTeamId: action.teamId };
+    case 'setNote':
+      return { ...state, notes: { ...state.notes, [action.athleteId]: action.note } };
     case 'addLog':
       return { ...state, logs: [...state.logs, action.log] };
     case 'addResult':

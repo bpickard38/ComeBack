@@ -10,9 +10,11 @@ import { dayKey } from '../domain/dates';
 import type {
   Appointment,
   Athlete,
+  AthleteNote,
   Availability,
   Exercise,
   ExerciseLog,
+  InjuryRecord,
   Message,
   MessageThread,
   MilestoneTest,
@@ -42,7 +44,8 @@ interface CaseRow {
   athlete_id: string;
   status: string;
   start_date: string;
-  injuries: { name: string } | null;
+  cleared_at: string | null;
+  injuries: { name: string; body_region: string | null } | null;
 }
 interface PlanRow {
   id: string;
@@ -103,13 +106,14 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   const isCoach = profile.role === 'coach';
   const none = Promise.resolve({ data: [], error: null });
 
-  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary] =
+  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary, notes] =
     await Promise.all([
       // Only the teams you're on come back (row level security).
       supabase.from('teams').select('id, name, sport').order('name'),
       supabase.from('team_members').select('team_id, user_id, role, availability, expected_return, teams(name, sport)'),
-      supabase.from('users').select('id, name, role'),
-      supabase.from('athlete_injuries').select('id, athlete_id, status, start_date, injuries(name)'),
+      // Contact details are only shown on the trainer's player profiles.
+      supabase.from('users').select(isTrainer ? 'id, name, role, email, phone' : 'id, name, role'),
+      supabase.from('athlete_injuries').select('id, athlete_id, status, start_date, cleared_at, injuries(name, body_region)'),
       supabase.from('plan_exercises').select('id, athlete_injury_id, sets, reps, hold_seconds, active, exercises(name, video_url, description)'),
       supabase.from('exercise_logs').select('athlete_id, plan_exercise_id, logged_at, pain'),
       supabase.from('case_milestones').select('id, athlete_injury_id, baseline, target, milestone_tests(name, description, unit)'),
@@ -125,9 +129,11 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       isTrainer ? supabase.from('injury_exercises').select('injury_id, exercise_id').order('position') : none,
       // Coaches can't read logs or goals; this function returns only counts.
       isCoach ? supabase.rpc('coach_weekly_summary', { p_today: dayKey(new Date()) }) : none,
+      // Private trainer notes; nobody else can read the table.
+      isTrainer ? supabase.from('athlete_notes').select('athlete_id, body, updated_by, updated_at') : none,
     ]);
 
-  const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL }>(users);
+  const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL; email?: string; phone?: string | null }>(users);
   const userById = new Map(userRows.map((u) => [u.id, u]));
 
   // Each athlete's current cases: every active one, oldest first. An athlete
@@ -167,6 +173,8 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       name: userById.get(m.user_id)?.name ?? 'Athlete',
       sport: m.teams?.sport ?? m.teams?.name ?? '',
       teamIds: [m.team_id],
+      email: userById.get(m.user_id)?.email,
+      phone: userById.get(m.user_id)?.phone,
       injuries: current.map((c) => ({ caseId: c.id, name: c.injuries?.name ?? 'Injury' })),
       assignedExerciseIds: planRows
         .filter((p) => p.active && current.some((c) => c.id === p.athlete_injury_id))
@@ -180,7 +188,8 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
 
   // Goals only for current cases; results only for those goals.
   const tests: MilestoneTest[] = [];
-  for (const g of rows<GoalRow>(goals)) {
+  const goalRows = rows<GoalRow>(goals);
+  for (const g of goalRows) {
     const athleteId = caseAthlete.get(g.athlete_injury_id);
     if (!athleteId || !activeCaseIds.has(g.athlete_injury_id)) continue;
     tests.push({
@@ -194,7 +203,39 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     });
   }
   const testAthlete = new Map(tests.map((t) => [t.id, t.athleteId]));
-  const resultList: TestResult[] = rows<{ case_milestone_id: string; value: number; recorded_at: string; source: 'athlete' | 'trainer' }>(results)
+  const resultRows = rows<{ case_milestone_id: string; value: number; recorded_at: string; source: 'athlete' | 'trainer' }>(results);
+
+  // Injury history for the trainer's player profiles: every case, cleared
+  // ones too, with its plan and where each milestone test ended up.
+  const latestValue = new Map<string, { value: number; at: string }>();
+  for (const r of resultRows) {
+    const seen = latestValue.get(r.case_milestone_id);
+    if (!seen || r.recorded_at >= seen.at) latestValue.set(r.case_milestone_id, { value: Number(r.value), at: r.recorded_at });
+  }
+  const injuryHistory: InjuryRecord[] = isTrainer
+    ? caseRows.map((c) => ({
+        caseId: c.id,
+        athleteId: c.athlete_id,
+        name: c.injuries?.name ?? 'Injury',
+        bodyRegion: c.injuries?.body_region ?? null,
+        startDate: c.start_date,
+        clearedAt: c.cleared_at,
+        exercises: planRows
+          .filter((p) => p.athlete_injury_id === c.id)
+          .map((p) => `${p.exercises?.name ?? 'Exercise'}: ${prescriptionText(p.sets, p.reps, p.hold_seconds)}`),
+        goals: goalRows
+          .filter((g) => g.athlete_injury_id === c.id)
+          .map((g) => ({
+            name: g.milestone_tests?.name ?? 'Test',
+            unit: g.milestone_tests?.unit ?? '',
+            baseline: Number(g.baseline),
+            target: Number(g.target),
+            latest: latestValue.get(g.id)?.value ?? null,
+          })),
+      }))
+    : [];
+
+  const resultList: TestResult[] = resultRows
     .filter((r) => testAthlete.has(r.case_milestone_id))
     .map((r) => ({
       athleteId: testAthlete.get(r.case_milestone_id)!,
@@ -264,6 +305,18 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
           goalsImproved: Number(r.goals_improved),
         }));
 
+  // Before supabase/athlete_notes.sql is run the table doesn't exist; the
+  // profile then says so instead of offering a box that can't save.
+  const noteMap: Record<string, AthleteNote> | null =
+    !isTrainer || notes.error
+      ? null
+      : Object.fromEntries(
+          rows<{ athlete_id: string; body: string; updated_by: string | null; updated_at: string }>(notes).map((n) => [
+            n.athlete_id,
+            { text: n.body, updatedAt: n.updated_at, updatedBy: n.updated_by ? userById.get(n.updated_by)?.name : undefined },
+          ]),
+        );
+
   return {
     teams: teamList,
     athletes,
@@ -274,6 +327,8 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     appointments: appointmentList,
     messages: messageList,
     conversations: conversationList,
+    injuryHistory,
+    notes: noteMap,
     progress,
     catalog: {
       injuries: rows<{ id: string; name: string }>(injuries),
@@ -357,6 +412,15 @@ export async function updateAvailability(athleteId: string, availability: Availa
 export async function createTeam(team: ValidTeam): Promise<Result<{ id: string }>> {
   const { data, error } = await supabase.rpc('create_team', { p_name: team.name, p_sport: team.sport, p_school: team.school });
   return error ? { ok: false, error: error.message } : { ok: true, value: { id: data as string } };
+}
+
+/** Saves the trainer's note on an athlete, replacing the last one. */
+export async function saveNote(athleteId: string, text: string, trainerId: string): Promise<Result<{ updatedAt: string }>> {
+  const updatedAt = new Date().toISOString();
+  const { error } = await supabase
+    .from('athlete_notes')
+    .upsert({ athlete_id: athleteId, body: text, updated_by: trainerId, updated_at: updatedAt }, { onConflict: 'athlete_id' });
+  return error ? { ok: false, error: error.message } : { ok: true, value: { updatedAt } };
 }
 
 /** Trainer marks one injury (an athlete_injuries row) as cleared. */

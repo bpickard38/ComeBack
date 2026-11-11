@@ -1,8 +1,10 @@
 import type {
   Appointment,
   Athlete,
+  AthleteNote,
   Exercise,
   ExerciseLog,
+  InjuryRecord,
   Message,
   MessageThread,
   MilestoneTest,
@@ -39,6 +41,11 @@ export interface RemoteData {
   messages: Message[];
   /** Which database conversation each message thread is. */
   conversations: Array<{ thread: MessageThread; id: string }>;
+  /** Every injury on file, active and cleared, for the trainer's player profiles. Empty for coaches. */
+  injuryHistory: InjuryRecord[];
+  /** Trainer notes by athlete id. null for other roles, or when
+   * supabase/athlete_notes.sql hasn't been run yet. */
+  notes: Record<string, AthleteNote> | null;
   /** Per-athlete counts for the coach's weekly summary. null for other roles,
    * or when supabase/weekly_summary.sql hasn't been run yet. */
   progress: AthleteProgress[] | null;

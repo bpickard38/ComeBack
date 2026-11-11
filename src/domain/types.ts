@@ -29,6 +29,33 @@ export interface AthleteInjury {
   name: string;
 }
 
+/**
+ * One injury an athlete has had, active or cleared, with what was prescribed
+ * and how the milestone tests went. Loaded for trainers only.
+ */
+export interface InjuryRecord {
+  /** The athlete_injuries row. */
+  caseId: string;
+  athleteId: string;
+  name: string;
+  bodyRegion: string | null;
+  /** Calendar day "YYYY-MM-DD". */
+  startDate: string;
+  /** When the trainer cleared it; null while it's active. */
+  clearedAt: string | null;
+  /** Exercises on this injury's plan, e.g. "Calf raise: 3 sets of 15". */
+  exercises: string[];
+  goals: Array<{ name: string; unit: string; baseline: number; target: number; latest: number | null }>;
+}
+
+/** A trainer's private note about an athlete. */
+export interface AthleteNote {
+  text: string;
+  updatedAt: string;
+  /** Name of the trainer who last saved it, when known. */
+  updatedBy?: string;
+}
+
 /** A team the signed-in person is on. A trainer can have several. */
 export interface Team {
   id: string;
@@ -42,6 +69,9 @@ export interface Athlete {
   sport: string;
   /** Every team this athlete is on (usually one). */
   teamIds: string[];
+  /** Contact details, loaded for trainers only. */
+  email?: string;
+  phone?: string | null;
   /** Every active injury. An athlete can have several at once. */
   injuries: AthleteInjury[];
   /** Plan exercises from all active injuries together. */

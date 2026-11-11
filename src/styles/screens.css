@@ -766,6 +766,34 @@
   border-color: var(--text);
 }
 
+/* Player profile (trainer): label and value pairs, two across when there's room. */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.facts dd {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.plain-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .big-stat {
   display: flex;
   flex-wrap: wrap;

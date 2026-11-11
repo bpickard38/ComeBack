@@ -9,6 +9,7 @@ import { AthleteLayout } from './screens/athlete/AthleteLayout';
 import { Progress } from './screens/athlete/Progress';
 import { Today } from './screens/athlete/Today';
 import { Trainer } from './screens/athlete/Trainer';
+import { AthleteProfile } from './screens/staff/AthleteProfile';
 import { StaffHome } from './screens/staff/StaffHome';
 import { StaffLayout } from './screens/staff/StaffLayout';
 import { TrainerMessages } from './screens/staff/TrainerMessages';
@@ -67,6 +68,15 @@ export function App() {
             }
           >
             <Route index element={<StaffHome />} />
+            {/* Medical history and notes: trainer-only, like the data behind it. */}
+            <Route
+              path="athletes/:athleteId"
+              element={
+                <RequireRole allowed={['trainer']}>
+                  <AthleteProfile />
+                </RequireRole>
+              }
+            />
             {/* Coaches message the trainer from their home screen, so this is trainer-only. */}
             <Route
               path="messages"

@@ -23,6 +23,11 @@ export function AthleteDetail({ athlete }: { athlete: Athlete }) {
           {athlete.sport} &middot; {injuryLabel(athlete)}
         </p>
       </div>
+      {state.role === 'trainer' && (
+        <Link to={`/staff/athletes/${athlete.id}`} className="btn btn--primary align-start strong">
+          Open {athlete.name}&rsquo;s profile
+        </Link>
+      )}
       {state.role === 'trainer' && <InjuryList athlete={athlete} />}
       <AvailabilityEditor athlete={athlete} />
       {state.role === 'trainer' && <AppointmentScheduler athlete={athlete} />}
