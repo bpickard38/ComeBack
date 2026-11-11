@@ -171,8 +171,9 @@ for c in sorted(centers.tolist(), key=sum):
     else:
         merged.append([c])
 centers = np.array([np.mean(g, 0) for g in merged])
-# Outline: one pure dark color.
+# Outline: one pure dark color. Whites: one pure white (near-whites only made specks).
 centers[centers.sum(1) < 120] = (20, 20, 28)
+centers[centers.min(1) > 215] = (252, 250, 249)
 centers = np.unique(np.round(centers), axis=0)
 # Ball browns, then the mouth (last), keep their exact colors.
 centers = np.vstack([centers, *BALL_COLORS, MOUTH_COLOR])
@@ -184,6 +185,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 for old in OUT.glob('*-jersey.png'):
     old.unlink()  # from the earlier version of this script
 SKIN_INDEX = int(np.argmin(((palette - [247, 203, 148]) ** 2).sum(1)))
+SHADING = {i for i, c in enumerate(palette) if c.min() > 150 or is_uniform_red(c.astype(float)[None])[0]}
 DARK_INDEX = int(np.argmin(palette.sum(1)))
 
 
@@ -227,11 +229,14 @@ def color_groups(a: np.ndarray):
             yield color, group
 
 
-def despeckle(a: np.ndarray) -> np.ndarray:
-    """Specks of 1-2 pixels mostly surrounded by one other color take that color."""
+def despeckle(a: np.ndarray, max_size: int = 2, only=None) -> np.ndarray:
+    """
+    Specks of up to max_size pixels mostly surrounded by one other color take
+    that color. `only` limits it to specks of those colors.
+    """
     a = a.copy()
     for color, group in list(color_groups(a)):
-        if len(group) > 2:
+        if len(group) > max_size or (only is not None and color not in only):
             continue
         inside = set(group)
         around = [a[n] for p in group for n in neighbors4(a, *p) if n not in inside]
@@ -290,7 +295,11 @@ for name, frame in frames.items():
         ((shrink(idx, dx, dy), dx, dy) for dx in range(SCALE) for dy in range(SCALE)),
         key=lambda t: t[0][1],
     )
-    small = matching_eyes(despeckle(despeckle(small)))
+    small = despeckle(despeckle(small))
+    # Bigger blotches of shading (grays on the white, the darker jersey red) left
+    # over from the original art's soft shading. Never the dark lines: eyes are small.
+    small = despeckle(small, max_size=8, only=SHADING)
+    small = matching_eyes(small)
     x, y, hgt, wid = spots[name]
     spots[name] = (x + dx / SCALE, y + dy / SCALE, hgt, wid)
     used += np.bincount(small.ravel(), minlength=TRANSPARENT + 1)[:TRANSPARENT]

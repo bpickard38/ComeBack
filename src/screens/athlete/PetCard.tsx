@@ -84,12 +84,13 @@ export function PetCard({ athlete, logs, tests, results, save, onChange, startEd
     return () => clearTimeout(timer);
   }, [reaction]);
 
-  // An exercise was just logged: energy went up, so he cheers (or celebrates a finished plan).
-  const lastEnergy = useRef(energy);
+  // An exercise was just logged (fewer left than before), so he cheers, or celebrates a finished plan.
+  const assigned = athlete.assignedExerciseIds.length;
+  const lastLeft = useRef(exercisesLeft);
   useEffect(() => {
-    if (energy > lastEnergy.current) react(reactionToExercise(lastEnergy.current, energy, exercisesLeft));
-    lastEnergy.current = energy;
-  }, [energy, exercisesLeft]);
+    if (exercisesLeft < lastLeft.current) react(reactionToExercise(assigned, exercisesLeft));
+    lastLeft.current = exercisesLeft;
+  }, [exercisesLeft, assigned]);
 
   // A milestone goal he hasn't celebrated yet. Each goal gets one celebration.
   useEffect(() => {

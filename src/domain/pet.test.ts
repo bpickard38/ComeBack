@@ -80,8 +80,13 @@ describe('pet state (which sprite shows)', () => {
   });
 
   it('cheers after each exercise and celebrates only when the plan is done', () => {
-    expect(reactionToExercise(0, 50, 1)).toMatchObject({ state: 'happy', badge: '+50%' });
-    expect(reactionToExercise(50, 100, 0)).toMatchObject({ state: 'celebrating', badge: '+50%' });
+    expect(reactionToExercise(2, 1)).toMatchObject({ state: 'happy', badge: '+50%' });
+    expect(reactionToExercise(2, 0)).toMatchObject({ state: 'celebrating', badge: '+50%' });
+  });
+
+  it('gives every exercise the same share: 4 exercises are +25% each time', () => {
+    for (const left of [3, 2, 1, 0]) expect(reactionToExercise(4, left).badge).toBe('+25%');
+    expect(reactionToExercise(4, 2).text).toBe('+25% energy! 2 more to go.');
   });
 
   it('only counts goals reached in the last few days', () => {

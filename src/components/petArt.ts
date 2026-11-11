@@ -25,15 +25,23 @@ export const PET_FRAMES: Record<PetState, string> = { idle, happy, training, tir
 
 /**
  * Where the number goes on each pose, in art pixels (printed by the slicing
- * script): its center, the room it has, and a lean for a turned chest.
+ * script): its center and the room it has. It's always drawn upright: leaning
+ * pixel digits breaks them apart.
  */
-const NUMBER_SPOTS: Record<PetState, { x: number; y: number; height: number; width: number; lean: number }> = {
-  idle: { x: 51.1, y: 78.8, height: 12.4, width: 15.4, lean: 0 },
-  happy: { x: 51.2, y: 79.3, height: 12.2, width: 15.2, lean: 0 },
-  training: { x: 52.8, y: 79.4, height: 10.8, width: 14.4, lean: 0.15 },
-  tired: { x: 51.9, y: 88.1, height: 7.8, width: 12.6, lean: 0.15 },
-  celebrating: { x: 49.4, y: 71.4, height: 11.2, width: 14.4, lean: 0 },
+const NUMBER_SPOTS: Record<PetState, NumberSpot> = {
+  idle: { x: 51.5, y: 78.8, height: 12.4, width: 15.4 },
+  happy: { x: 51.4, y: 79.7, height: 12.2, width: 15.2 },
+  training: { x: 53, y: 80.2, height: 10.8, width: 14.4 },
+  tired: { x: 51.9, y: 88.1, height: 7.8, width: 12.6 },
+  celebrating: { x: 49.8, y: 71.4, height: 11.2, width: 14.4 },
 };
+
+interface NumberSpot {
+  x: number;
+  y: number;
+  height: number;
+  width: number;
+}
 
 /** A 3 x 5 pixel font, the classic scoreboard look. '#' = filled. */
 const DIGITS: Record<string, string[]> = {
@@ -60,7 +68,7 @@ export interface Block {
  * number is as crisp as the rest of the sprite. Each font pixel is 2 x 2 art
  * pixels when there's room, else 1 x 1.
  */
-export function numberBlocks(number: number, spot: { x: number; y: number; height: number; width: number; lean: number }): Block[] {
+export function numberBlocks(number: number, spot: NumberSpot): Block[] {
   const text = String(number);
   const columns = text.length * 3 + (text.length - 1); // one blank column between digits
   const size = spot.height >= 10 && columns * 2 <= spot.width + 2 ? 2 : 1;
@@ -69,10 +77,8 @@ export function numberBlocks(number: number, spot: { x: number; y: number; heigh
   const blocks: Block[] = [];
   [...text].forEach((digit, i) => {
     DIGITS[digit].forEach((row, r) => {
-      // Lean: rows nearer the top shift right a little.
-      const shift = Math.round(spot.lean * (4 - r) * size);
       [...row].forEach((cell, c) => {
-        if (cell === '#') blocks.push({ x: left + (i * 4 + c) * size + shift, y: top + r * size, size });
+        if (cell === '#') blocks.push({ x: left + (i * 4 + c) * size, y: top + r * size, size });
       });
     });
   });

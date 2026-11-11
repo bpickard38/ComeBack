@@ -303,10 +303,14 @@ export interface PetReaction {
   badge?: string;
 }
 
-/** How he reacts when an exercise is logged. A cheer, or a full celebration when the plan is done. */
-export function reactionToExercise(energyBefore: number, energyAfter: number, exercisesLeft: number): PetReaction {
-  const badge = `+${energyAfter - energyBefore}%`;
-  if (exercisesLeft === 0) return { state: 'celebrating', text: 'Fully charged! We are winning tonight!', badge };
+/**
+ * How he reacts when an exercise is logged. Each exercise is always worth the
+ * same share of his energy (with 4 exercises, +25% every time), so the number
+ * never jumps around. A cheer, or a full celebration when the plan is done.
+ */
+export function reactionToExercise(exercisesAssigned: number, exercisesLeft: number): PetReaction {
+  const badge = `+${Math.round(100 / Math.max(exercisesAssigned, 1))}%`;
+  if (exercisesLeft <= 0) return { state: 'celebrating', text: 'Fully charged! We are winning tonight!', badge };
   return {
     state: 'happy',
     text: `${badge} energy! ${exercisesLeft} more to go.`,

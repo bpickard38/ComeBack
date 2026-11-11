@@ -68,9 +68,7 @@ export function Today() {
     if (isHighPain(log.pain)) text += " They\u2019ll follow up about the pain.";
     // The pet reacts on its card too; this line reaches athletes who scrolled past it.
     if (petOn && petSave && total > 0) {
-      const before = Math.round((100 * done) / total);
-      const after = Math.round((100 * (done + 1)) / total);
-      text += ` ${petSave.look.name}: ${reactionToExercise(before, after, total - done - 1).text}`;
+      text += ` ${petSave.look.name}: ${reactionToExercise(total, total - done - 1).text}`;
     }
     notify(text);
     return true;
