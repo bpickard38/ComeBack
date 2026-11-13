@@ -10,17 +10,23 @@ import { dayKey } from '../domain/dates';
 import type {
   Appointment,
   Athlete,
+  AthleteNote,
   Availability,
   Exercise,
   ExerciseLog,
+  InjuryRecord,
   Message,
   MessageThread,
   MilestoneTest,
   Result,
+  Team,
   TestResult,
 } from '../domain/types';
+import { overallGoalPercent } from '../domain/goals';
 import type { AthleteProgress } from '../domain/progress';
-import type { ValidAppointment } from '../domain/validation';
+import type { RecoveryStatus } from '../domain/recovery';
+import { aboutThread, coachThread } from '../domain/teams';
+import type { ValidAppointment, ValidPrescription, ValidTeam } from '../domain/validation';
 import type { Profile } from './profile';
 import type { RemoteData } from './state';
 import { supabase } from './supabase';
@@ -28,6 +34,7 @@ import { supabase } from './supabase';
 // Row shapes as Supabase returns them. Nested objects come from joins like
 // "injuries(name)" in a select.
 interface MemberRow {
+  team_id: string;
   user_id: string;
   role: string;
   availability: Availability | null;
@@ -39,7 +46,8 @@ interface CaseRow {
   athlete_id: string;
   status: string;
   start_date: string;
-  injuries: { name: string } | null;
+  cleared_at: string | null;
+  injuries: { name: string; body_region: string | null } | null;
 }
 interface PlanRow {
   id: string;
@@ -93,22 +101,29 @@ export function groupWorkoutSets(list: Array<{ injury_id: string; exercise_id: s
   return sets;
 }
 
+/** Storage bucket for profile photos (see supabase/profile_photos.sql). */
+const PHOTO_BUCKET = 'avatars';
+
 const SENDER_LABEL = { athlete: 'Athlete', trainer: 'Trainer', coach: 'Coach' } as const;
 
 export async function loadAll(profile: Profile): Promise<RemoteData> {
   if (profile.role === 'admin') return {
-    athletes: [], exercises: [], tests: [], logs: [], results: [], appointments: [], messages: [],
-    conversations: [], progress: null, catalog: { injuries: [], exercises: [], workoutSets: {} },
+    teams: [], athletes: [], exercises: [], tests: [], logs: [], results: [], appointments: [], messages: [],
+    conversations: [], injuryHistory: [], notes: null, recovery: null, progress: null,
+    catalog: { injuries: [], exercises: [], workoutSets: {} },
   };
   const isTrainer = profile.role === 'trainer';
   const isCoach = profile.role === 'coach';
   const none = Promise.resolve({ data: [], error: null });
 
-  const [members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary] =
+  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary, notes, coachRecovery, photos] =
     await Promise.all([
-      supabase.from('team_members').select('user_id, role, availability, expected_return, teams(name, sport)'),
-      supabase.from('users').select('id, name, role'),
-      supabase.from('athlete_injuries').select('id, athlete_id, status, start_date, injuries(name)'),
+      // Only the teams you're on come back (row level security).
+      supabase.from('teams').select('id, name, sport').order('name'),
+      supabase.from('team_members').select('team_id, user_id, role, availability, expected_return, teams(name, sport)'),
+      // Contact details are only shown on the trainer's player profiles.
+      supabase.from('users').select(isTrainer ? 'id, name, role, email, phone' : 'id, name, role'),
+      supabase.from('athlete_injuries').select('id, athlete_id, status, start_date, cleared_at, injuries(name, body_region)'),
       supabase.from('plan_exercises').select('id, athlete_injury_id, sets, reps, hold_seconds, active, exercises(name, video_url, description)'),
       supabase.from('exercise_logs').select('athlete_id, plan_exercise_id, logged_at, pain'),
       supabase.from('case_milestones').select('id, athlete_injury_id, baseline, target, milestone_tests(name, description, unit)'),
@@ -117,16 +132,23 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
         .from('appointments')
         .select('id, athlete_id, starts_at, location, title, appointment_tests(case_milestone_id, note), appointment_exercises(plan_exercise_id)')
         .neq('status', 'cancelled'),
-      supabase.from('conversations').select('id, kind, athlete_id'),
+      supabase.from('conversations').select('id, kind, athlete_id, team_id'),
       supabase.from('messages').select('id, conversation_id, sender_id, body, sent_at, read_at').order('sent_at'),
       isTrainer ? supabase.from('injuries').select('id, name').order('name') : none,
       isTrainer ? supabase.from('exercises').select('id, name').order('name') : none,
       isTrainer ? supabase.from('injury_exercises').select('injury_id, exercise_id').order('position') : none,
       // Coaches can't read logs or goals; this function returns only counts.
       isCoach ? supabase.rpc('coach_weekly_summary', { p_today: dayKey(new Date()) }) : none,
+      // Private trainer notes; nobody else can read the table.
+      isTrainer ? supabase.from('athlete_notes').select('athlete_id, body, updated_by, updated_at') : none,
+      // Coaches can't read milestones; this function returns one percentage per athlete.
+      isCoach ? supabase.rpc('coach_recovery') : none,
+      // Asked for on its own: before supabase/profile_photos.sql is run the
+      // column doesn't exist, and that mustn't stop everything else loading.
+      supabase.from('users').select('id, avatar_path'),
     ]);
 
-  const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL }>(users);
+  const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL; email?: string; phone?: string | null }>(users);
   const userById = new Map(userRows.map((u) => [u.id, u]));
 
   // Each athlete's current cases: every active one, oldest first. An athlete
@@ -147,16 +169,48 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     prescription: prescriptionText(p.sets, p.reps, p.hold_seconds),
     videoUrl: p.exercises?.video_url ?? null,
     description: p.exercises?.description ?? null,
+    caseId: p.athlete_injury_id,
+    sets: p.sets,
+    reps: p.reps,
+    holdSeconds: p.hold_seconds,
+    active: p.active,
   }));
 
+  const memberRows = rows<MemberRow>(members);
+  const teamList: Team[] = rows<{ id: string; name: string; sport: string | null }>(teams).map((t) => ({
+    ...t,
+    coachNames: memberRows
+      .filter((m) => m.team_id === t.id && m.role === 'coach')
+      .map((m) => userById.get(m.user_id)?.name ?? '')
+      .filter(Boolean),
+  }));
+
+  // Profile photos: a path in the "avatars" storage bucket, turned into a web address.
+  const photoUrl = new Map<string, string>();
+  if (!photos.error) {
+    for (const row of rows<{ id: string; avatar_path: string | null }>(photos)) {
+      if (row.avatar_path) photoUrl.set(row.id, supabase.storage.from(PHOTO_BUCKET).getPublicUrl(row.avatar_path).data.publicUrl);
+    }
+  }
+
+  // One entry per athlete, even if they're on two of your teams.
   const athletes: Athlete[] = [];
-  for (const m of rows<MemberRow>(members)) {
-    if (m.role !== 'athlete' || athletes.some((a) => a.id === m.user_id)) continue;
+  for (const m of memberRows) {
+    if (m.role !== 'athlete') continue;
+    const already = athletes.find((a) => a.id === m.user_id);
+    if (already) {
+      already.teamIds.push(m.team_id);
+      continue;
+    }
     const current = activeCases.get(m.user_id) ?? [];
     athletes.push({
       id: m.user_id,
       name: userById.get(m.user_id)?.name ?? 'Athlete',
       sport: m.teams?.sport ?? m.teams?.name ?? '',
+      teamIds: [m.team_id],
+      photoUrl: photoUrl.get(m.user_id) ?? null,
+      email: userById.get(m.user_id)?.email,
+      phone: userById.get(m.user_id)?.phone,
       injuries: current.map((c) => ({ caseId: c.id, name: c.injuries?.name ?? 'Injury' })),
       assignedExerciseIds: planRows
         .filter((p) => p.active && current.some((c) => c.id === p.athlete_injury_id))
@@ -170,12 +224,14 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
 
   // Goals only for current cases; results only for those goals.
   const tests: MilestoneTest[] = [];
-  for (const g of rows<GoalRow>(goals)) {
+  const goalRows = rows<GoalRow>(goals);
+  for (const g of goalRows) {
     const athleteId = caseAthlete.get(g.athlete_injury_id);
     if (!athleteId || !activeCaseIds.has(g.athlete_injury_id)) continue;
     tests.push({
       id: g.id,
       athleteId,
+      caseId: g.athlete_injury_id,
       name: g.milestone_tests?.name ?? 'Test',
       description: g.milestone_tests?.description ?? '',
       unit: g.milestone_tests?.unit ?? '',
@@ -184,7 +240,39 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     });
   }
   const testAthlete = new Map(tests.map((t) => [t.id, t.athleteId]));
-  const resultList: TestResult[] = rows<{ case_milestone_id: string; value: number; recorded_at: string; source: 'athlete' | 'trainer' }>(results)
+  const resultRows = rows<{ case_milestone_id: string; value: number; recorded_at: string; source: 'athlete' | 'trainer' }>(results);
+
+  // Injury history for the trainer's player profiles: every case, cleared
+  // ones too, with its plan and where each milestone test ended up.
+  const latestValue = new Map<string, { value: number; at: string }>();
+  for (const r of resultRows) {
+    const seen = latestValue.get(r.case_milestone_id);
+    if (!seen || r.recorded_at >= seen.at) latestValue.set(r.case_milestone_id, { value: Number(r.value), at: r.recorded_at });
+  }
+  const injuryHistory: InjuryRecord[] = isTrainer
+    ? caseRows.map((c) => ({
+        caseId: c.id,
+        athleteId: c.athlete_id,
+        name: c.injuries?.name ?? 'Injury',
+        bodyRegion: c.injuries?.body_region ?? null,
+        startDate: c.start_date,
+        clearedAt: c.cleared_at,
+        exercises: planRows
+          .filter((p) => p.athlete_injury_id === c.id)
+          .map((p) => `${p.exercises?.name ?? 'Exercise'}: ${prescriptionText(p.sets, p.reps, p.hold_seconds)}`),
+        goals: goalRows
+          .filter((g) => g.athlete_injury_id === c.id)
+          .map((g) => ({
+            name: g.milestone_tests?.name ?? 'Test',
+            unit: g.milestone_tests?.unit ?? '',
+            baseline: Number(g.baseline),
+            target: Number(g.target),
+            latest: latestValue.get(g.id)?.value ?? null,
+          })),
+      }))
+    : [];
+
+  const resultList: TestResult[] = resultRows
     .filter((r) => testAthlete.has(r.case_milestone_id))
     .map((r) => ({
       athleteId: testAthlete.get(r.case_milestone_id)!,
@@ -209,11 +297,23 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     exerciseIds: a.appointment_exercises.map((e) => e.plan_exercise_id),
   }));
 
-  // Database conversations become the app's threads: "athlete:<id>" or "coach-trainer".
+  // Database conversations become the app's threads: "athlete:<athlete id>",
+  // "coach:<team id>" since every team has its own coach conversation, or
+  // "about:<team id>:<athlete id>" for staff talking about one athlete.
   const threadOf = new Map<string, MessageThread>();
   const conversationList: RemoteData['conversations'] = [];
-  for (const c of rows<{ id: string; kind: string; athlete_id: string | null }>(conversations)) {
-    const thread: MessageThread = c.kind === 'coach_trainer' ? 'coach-trainer' : `athlete:${c.athlete_id}`;
+  const conversationRows = rows<{ id: string; kind: string; athlete_id: string | null; team_id: string | null }>(conversations);
+  // A coach conversation from before conversations had a team (live_data.sql)
+  // counts as the first team's, unless that team already has its own.
+  conversationRows.sort((a, b) => Number(a.team_id === null) - Number(b.team_id === null));
+  for (const c of conversationRows) {
+    const thread: MessageThread =
+      c.kind === 'coach_trainer'
+        ? coachThread(c.team_id ?? teamList[0]?.id ?? '')
+        : c.kind === 'coach_athlete'
+          ? aboutThread(c.team_id ?? '', c.athlete_id ?? '')
+          : `athlete:${c.athlete_id}`;
+    if (c.kind === 'coach_trainer' && c.team_id === null && conversationList.some((x) => x.thread === thread)) continue;
     threadOf.set(c.id, thread);
     conversationList.push({ thread, id: c.id });
   }
@@ -247,7 +347,47 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
           goalsImproved: Number(r.goals_improved),
         }));
 
+  // Recovery progress. Trainers and athletes can read the milestones, so
+  // it's worked out here; a coach gets the same percentage from the database.
+  // Before supabase/recovery_pace.sql is run the coach's bar says so.
+  const recovery: Record<string, RecoveryStatus> | null = isCoach
+    ? coachRecovery.error
+      ? null
+      : Object.fromEntries(
+          // cleared_on is missing until the latest recovery_pace.sql is run.
+          rows<{ athlete_id: string; started: string | null; percent: number | null; cleared_on?: string | null }>(coachRecovery).map((r) => [
+            r.athlete_id,
+            { percent: r.percent === null ? null : Number(r.percent), started: r.started, clearedOn: r.cleared_on ?? null },
+          ]),
+        )
+    : Object.fromEntries(
+        athletes.map((a) => {
+          const mine = tests.filter((t) => t.athleteId === a.id);
+          return [
+            a.id,
+            {
+              percent: mine.length ? overallGoalPercent(mine, resultList, a.id) : null,
+              // Cases are sorted oldest first.
+              started: activeCases.get(a.id)?.[0]?.start_date ?? null,
+            },
+          ];
+        }),
+      );
+
+  // Before supabase/athlete_notes.sql is run the table doesn't exist; the
+  // profile then says so instead of offering a box that can't save.
+  const noteMap: Record<string, AthleteNote> | null =
+    !isTrainer || notes.error
+      ? null
+      : Object.fromEntries(
+          rows<{ athlete_id: string; body: string; updated_by: string | null; updated_at: string }>(notes).map((n) => [
+            n.athlete_id,
+            { text: n.body, updatedAt: n.updated_at, updatedBy: n.updated_by ? userById.get(n.updated_by)?.name : undefined },
+          ]),
+        );
+
   return {
+    teams: teamList,
     athletes,
     exercises,
     tests,
@@ -256,6 +396,9 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     appointments: appointmentList,
     messages: messageList,
     conversations: conversationList,
+    injuryHistory,
+    notes: noteMap,
+    recovery,
     progress,
     catalog: {
       injuries: rows<{ id: string; name: string }>(injuries),
@@ -334,6 +477,88 @@ export async function updateAvailability(athleteId: string, availability: Availa
   if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can change their status.' };
   return { ok: true, value: undefined };
 }
+
+/** A trainer starts another team. The database makes its join codes and coach conversation. */
+export async function createTeam(team: ValidTeam): Promise<Result<{ id: string }>> {
+  const { data, error } = await supabase.rpc('create_team', { p_name: team.name, p_sport: team.sport, p_school: team.school });
+  return error ? { ok: false, error: error.message } : { ok: true, value: { id: data as string } };
+}
+
+/**
+ * Finds or starts the staff conversation about one athlete and makes sure the
+ * team's trainers and coaches are in it (see supabase/coach_athlete_chat.sql).
+ */
+export async function openAboutConversation(teamId: string, athleteId: string): Promise<Result> {
+  const { error } = await supabase.rpc('coach_athlete_conversation', { p_team: teamId, p_athlete: athleteId });
+  return error ? { ok: false, error: error.message } : { ok: true, value: undefined };
+}
+
+/** Saves the trainer's note on an athlete, replacing the last one. */
+export async function saveNote(athleteId: string, text: string, trainerId: string): Promise<Result<{ updatedAt: string }>> {
+  const updatedAt = new Date().toISOString();
+  const { error } = await supabase
+    .from('athlete_notes')
+    .upsert({ athlete_id: athleteId, body: text, updated_by: trainerId, updated_at: updatedAt }, { onConflict: 'athlete_id' });
+  return error ? { ok: false, error: error.message } : { ok: true, value: { updatedAt } };
+}
+
+/** Trainer changes where a milestone test needs to get to. */
+export async function updateGoalTarget(testId: string, target: number): Promise<Result> {
+  const { data, error } = await supabase.from('case_milestones').update({ target }).eq('id', testId).select('id');
+  if (error) return { ok: false, error: error.message };
+  // Security rules turn a forbidden update into "0 rows changed", not an error.
+  if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can change their goals.' };
+  return { ok: true, value: undefined };
+}
+
+/** Trainer changes one exercise's sets, reps and hold, or takes it off the plan (active: false). */
+export async function updatePlanExercise(planId: string, change: Partial<ValidPrescription> & { active?: boolean }): Promise<Result> {
+  const { data, error } = await supabase
+    .from('plan_exercises')
+    .update({
+      ...(change.sets !== undefined && { sets: change.sets }),
+      ...(change.reps !== undefined && { reps: change.reps }),
+      ...(change.holdSeconds !== undefined && { hold_seconds: change.holdSeconds }),
+      ...(change.active !== undefined && { active: change.active }),
+    })
+    .eq('id', planId)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can change their plan.' };
+  return { ok: true, value: undefined };
+}
+
+/**
+ * Saves someone's profile photo: your own, or (as their trainer) an
+ * athlete's. Each upload gets a new file name so browsers don't keep showing
+ * the old picture; the last one is removed. Pass null to take the photo down.
+ */
+export async function savePhoto(ownerId: string, photo: Blob | null, isOwn: boolean): Promise<Result> {
+  const bucket = supabase.storage.from(PHOTO_BUCKET);
+  const previous = await supabase.from('users').select('avatar_path').eq('id', ownerId).maybeSingle();
+  if (previous.error) return { ok: false, error: PHOTOS_NOT_SET_UP };
+
+  let path: string | null = null;
+  if (photo) {
+    path = `${ownerId}/${Date.now()}.jpg`;
+    const uploaded = await bucket.upload(path, photo, { contentType: 'image/jpeg', cacheControl: '31536000' });
+    if (uploaded.error) return { ok: false, error: uploaded.error.message };
+  }
+
+  // You may edit your own row; a trainer goes through a database function
+  // that checks they're this athlete's trainer.
+  const { error } = isOwn
+    ? await supabase.from('users').update({ avatar_path: path }).eq('id', ownerId)
+    : await supabase.rpc('set_athlete_photo', { p_athlete: ownerId, p_path: path });
+  if (error) {
+    if (path) await bucket.remove([path]);
+    return { ok: false, error: isOwn ? error.message : `${error.message} If this keeps happening, the profile photos script needs running again.` };
+  }
+  if (previous.data?.avatar_path) await bucket.remove([previous.data.avatar_path]);
+  return { ok: true, value: undefined };
+}
+
+const PHOTOS_NOT_SET_UP = 'Profile photos aren’t set up yet. Ask whoever set up the database to run the profile photos script.';
 
 /** Trainer marks one injury (an athlete_injuries row) as cleared. */
 export async function clearInjury(caseId: string): Promise<Result> {

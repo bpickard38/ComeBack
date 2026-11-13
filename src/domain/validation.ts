@@ -20,6 +20,52 @@ export function validateMessage(text: string): Result<string> {
   return { ok: true, value: trimmed };
 }
 
+export interface TeamInput {
+  name: string;
+  /** Optional, '' when left blank. */
+  sport: string;
+  school: string;
+}
+
+/** Same shape, trimmed and with a name. */
+export type ValidTeam = TeamInput;
+
+export function validateTeam(input: TeamInput): Result<ValidTeam> {
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: 'Give your team a name.' };
+  return { ok: true, value: { name, sport: input.sport.trim(), school: input.school.trim() } };
+}
+
+/** A prescription as typed into the trainer's number boxes; '' means not used. */
+export interface PrescriptionInput {
+  sets: string;
+  reps: string;
+  hold: string;
+}
+
+export interface ValidPrescription {
+  sets: number | null;
+  reps: number | null;
+  holdSeconds: number | null;
+}
+
+/** Each of sets, reps and hold is either blank or a whole number from 1 to 999. */
+export function validatePrescription(input: PrescriptionInput): Result<ValidPrescription> {
+  const parse = (raw: string): number | null | undefined => {
+    const trimmed = raw.trim();
+    if (trimmed === '') return null;
+    const n = Number(trimmed);
+    return Number.isInteger(n) && n >= 1 && n <= 999 ? n : undefined;
+  };
+  const sets = parse(input.sets);
+  const reps = parse(input.reps);
+  const holdSeconds = parse(input.hold);
+  if (sets === undefined || reps === undefined || holdSeconds === undefined) {
+    return { ok: false, error: 'Sets, reps and hold must be whole numbers of 1 or more, or left blank.' };
+  }
+  return { ok: true, value: { sets, reps, holdSeconds } };
+}
+
 export interface AppointmentInput {
   athleteId: string;
   title: string;

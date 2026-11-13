@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -10 1280 850" width="1280" height="850" role="img" aria-label="Context diagram of the ComeBack platform as a single process with seven external entities: Athlete, Athletic Trainer, Coach, YouTube, Browser Push Service, Calendar Apps and Messaging Apps. Solid arrows show data leaving the platform; dotted arrows show input or responses coming back."><style>
+.ent{fill:#ffffff;stroke:#18212b;stroke-width:1.6}
+.proc{fill:#e9f4f1;stroke:#0f766e;stroke-width:2.2}
+.proc-rule{stroke:#0f766e;stroke-width:1.4}
+.rule{stroke:#56616d;stroke-width:.8;opacity:.5}
+.out{stroke:#18212b;stroke-width:1.8;fill:none}
+.in{stroke:#18212b;stroke-width:1.8;fill:none;stroke-dasharray:7 5}
+.head{fill:#18212b}
+.lbl{fill:#18212b;font:500 15px Helvetica, Arial, sans-serif}
+.ent-name{fill:#18212b;font:600 16px Helvetica, Arial, sans-serif}
+.ent-sub{fill:#56616d;font:12px Helvetica, Arial, sans-serif}
+.proc-id{fill:#0f766e;font:600 15px Helvetica, Arial, sans-serif}
+.proc-name{fill:#18212b;font:700 26px Helvetica, Arial, sans-serif}
+.proc-sub{fill:#56616d;font:14px Helvetica, Arial, sans-serif}
+</style><rect x="0" y="-10" width="1280" height="850" fill="#ffffff"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<rect class="proc" x="540" y="40" width="200" height="760" rx="26"/>
+<line class="proc-rule" x1="540" y1="84" x2="740" y2="84"/>
+<text class="proc-id" x="640.0" y="69" text-anchor="middle">0</text>
+<text class="proc-name" x="640.0" y="414.0" text-anchor="middle">ComeBack</text>
+<text class="proc-sub" x="640.0" y="438.0" text-anchor="middle">Platform</text>
+<rect class="ent" x="30" y="105.0" width="180" height="120"/>
+<text class="ent-name" x="120.0" y="171" text-anchor="middle">Athlete</text>
+<line class="in" x1="540" y1="151" x2="215" y2="151" marker-end="url(#ah)"/>
+<text class="lbl" x="375.0" y="142.0" text-anchor="middle">Plan and progress</text>
+<line class="out" x1="210" y1="199" x2="545" y2="199" marker-end="url(#ah)"/>
+<text class="lbl" x="375.0" y="190.0" text-anchor="middle">Exercise logs</text>
+<rect class="ent" x="30" y="360.0" width="180" height="120"/>
+<text class="ent-name" x="120.0" y="426" text-anchor="middle">Athletic Trainer</text>
+<line class="in" x1="540" y1="406" x2="215" y2="406" marker-end="url(#ah)"/>
+<text class="lbl" x="375.0" y="397.0" text-anchor="middle">Roster and alerts</text>
+<line class="out" x1="210" y1="454" x2="545" y2="454" marker-end="url(#ah)"/>
+<text class="lbl" x="375.0" y="445.0" text-anchor="middle">Plans and appointments</text>
+<rect class="ent" x="30" y="615.0" width="180" height="120"/>
+<text class="ent-name" x="120.0" y="681" text-anchor="middle">Coach</text>
+<line class="in" x1="540" y1="661" x2="215" y2="661" marker-end="url(#ah)"/>
+<text class="lbl" x="375.0" y="652.0" text-anchor="middle">Athlete availability</text>
+<line class="out" x1="210" y1="709" x2="545" y2="709" marker-end="url(#ah)"/>
+<text class="lbl" x="375.0" y="700.0" text-anchor="middle">Messages to trainer</text>
+<rect class="ent" x="1070" y="75.0" width="180" height="120"/>
+<text class="ent-name" x="1160.0" y="141" text-anchor="middle">YouTube</text>
+<line class="out" x1="740" y1="121" x2="1065" y2="121" marker-end="url(#ah)"/>
+<text class="lbl" x="905.0" y="112.0" text-anchor="middle">Video request</text>
+<line class="in" x1="1070" y1="169" x2="735" y2="169" marker-end="url(#ah)"/>
+<text class="lbl" x="905.0" y="160.0" text-anchor="middle">Tutorial video</text>
+<rect class="ent" x="1070" y="270.0" width="180" height="120"/>
+<text class="ent-name" x="1160.0" y="336" text-anchor="middle">Browser Push Service</text>
+<line class="out" x1="740" y1="316" x2="1065" y2="316" marker-end="url(#ah)"/>
+<text class="lbl" x="905.0" y="307.0" text-anchor="middle">Exercise reminder</text>
+<line class="in" x1="1070" y1="364" x2="735" y2="364" marker-end="url(#ah)"/>
+<text class="lbl" x="905.0" y="355.0" text-anchor="middle">Delivery status</text>
+<rect class="ent" x="1070" y="465.0" width="180" height="120"/>
+<text class="ent-name" x="1160.0" y="531" text-anchor="middle">Calendar Apps</text>
+<line class="out" x1="740" y1="535" x2="1065" y2="535" marker-end="url(#ah)"/>
+<text class="lbl" x="905.0" y="526.0" text-anchor="middle">Appointment event</text>
+<rect class="ent" x="1070" y="640.0" width="180" height="120"/>
+<text class="ent-name" x="1160.0" y="706" text-anchor="middle">Messaging Apps</text>
+<line class="out" x1="740" y1="710" x2="1065" y2="710" marker-end="url(#ah)"/>
+<text class="lbl" x="905.0" y="701.0" text-anchor="middle">Join invitation</text>
+</svg>

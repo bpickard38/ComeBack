@@ -23,6 +23,11 @@ export function AthleteDetail({ athlete }: { athlete: Athlete }) {
           {athlete.sport} &middot; {injuryLabel(athlete)}
         </p>
       </div>
+      {state.role === 'trainer' && (
+        <Link to={`/staff/athletes/${athlete.id}`} className="btn btn--primary align-start strong">
+          Open {athlete.name}&rsquo;s profile
+        </Link>
+      )}
       {state.role === 'trainer' && <InjuryList athlete={athlete} />}
       <AvailabilityEditor athlete={athlete} />
       {state.role === 'trainer' && <AppointmentScheduler athlete={athlete} />}
@@ -68,8 +73,8 @@ function InjuryList({ athlete }: { athlete: Athlete }) {
   );
 }
 
-/** What the coach sees about this athlete. Only the trainer can change it. */
-function AvailabilityEditor({ athlete }: { athlete: Athlete }) {
+/** What the coach sees about this athlete. Only the trainer can change it. Also on the player profile. */
+export function AvailabilityEditor({ athlete }: { athlete: Athlete }) {
   const { commands } = useAppStore();
   const { notify } = useToast();
   const dateId = `return-${athlete.id}`;

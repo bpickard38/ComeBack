@@ -1,6 +1,6 @@
 import { Card } from '../../components/Card';
 import { availabilityLabel } from '../../domain/availability';
-import { currentValue, goalPercent, goalsReached, isGoalReached, overallGoalPercent } from '../../domain/goals';
+import { currentValue, goalPercent, goalsReached, isGoalReached } from '../../domain/goals';
 import { formatCalendarDay, injuryLabel } from '../../format';
 import { testsFor, useAppStore, useSignedInAthlete } from '../../store/AppStore';
 import { GoalCard } from './Goals';
@@ -15,8 +15,9 @@ export function Progress() {
   const me = useSignedInAthlete();
   const tests = testsFor(state, me.id);
   const met = goalsReached(tests, state.results, me.id);
-  const overall = overallGoalPercent(tests, state.results, me.id);
   const allMet = tests.length > 0 && met === tests.length;
+  const next = tests.find((t) => !isGoalReached(t, state.results, me.id));
+  const nextPercent = next ? goalPercent(next, currentValue(next, state.results, me.id)) : 100;
 
   return (
     <>
@@ -32,23 +33,36 @@ export function Progress() {
 
         {tests.length > 0 && (
           <div className="recovery-meter">
-            <div className="recovery-meter__headline">
-              <span className="recovery-meter__pct">{overall}%</span>
-              <span className="muted">of the way to return to play</span>
-            </div>
-            {/* The number above says the same thing, so the bar is hidden from screen readers. */}
-            <div className="recovery-meter__track" aria-hidden="true">
-              <div className="recovery-meter__fill" style={{ width: `${overall}%` }} />
-            </div>
+            {/* The bar tracks only the next milestone. When the trainer records a passing result,
+                it moves on to the one after. Test results drive it, never exercise logs. */}
+            {next ? (
+              <div className="stack-xs">
+                <div className="eyebrow">Next milestone</div>
+                <div className="recovery-meter__headline">
+                  <span className="recovery-meter__name">{next.name}</span>
+                  <span className="recovery-meter__pct">{nextPercent}%</span>
+                </div>
+                {/* The percentage above says the same thing, so the bar is hidden from screen readers. */}
+                <div className="recovery-meter__track" aria-hidden="true">
+                  {nextPercent > 0 && (
+                    <div className="recovery-meter__fill" style={{ width: `${nextPercent}%` }} />
+                  )}
+                </div>
+                <div className="small muted">
+                  {met} of {tests.length} milestones reached
+                </div>
+              </div>
+            ) : (
+              <div className="recovery-meter__headline">
+                <span className="recovery-meter__name">All {tests.length} milestones reached</span>
+              </div>
+            )}
 
             <div className="stack-xs">
-              <div className="small strong">
-                {met} of {tests.length} milestones reached
-              </div>
               <ul className="milestone-chips">
                 {tests.map((test) => {
+                  // Only the next milestone's percentage is shown, in the bar above. Chips just say done or not.
                   const reached = isGoalReached(test, state.results, me.id);
-                  const percent = goalPercent(test, currentValue(test, state.results, me.id));
                   return (
                     <li key={test.id} className={`milestone-chip${reached ? ' milestone-chip--reached' : ''}`}>
                       {reached && (
@@ -57,7 +71,7 @@ export function Progress() {
                         </span>
                       )}
                       <span>{test.name}</span>
-                      <span className="milestone-chip__pct">{reached ? 'Reached' : `${percent}%`}</span>
+                      {reached && <span className="visually-hidden">(reached)</span>}
                     </li>
                   );
                 })}
@@ -66,6 +80,7 @@ export function Progress() {
           </div>
         )}
       </Card>
+
 
       {tests.length === 0 ? (
         <Card>

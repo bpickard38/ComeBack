@@ -4,9 +4,13 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { ToastProvider } from './components/Toast';
 import { AuthGate } from './store/AuthGate';
+import { capturePendingJoin } from './store/pendingJoin';
 import './styles/tokens.css';
 import './styles/global.css';
 import './styles/screens.css';
+
+// Someone who opened a join link: remember the invite until they're signed in.
+capturePendingJoin();
 
 // Entry point: mount the app into <div id="root"> in index.html.
 // BrowserRouter turns the URL into a route, AuthGate makes you sign in and

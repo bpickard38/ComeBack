@@ -15,8 +15,10 @@ import { createContext, useCallback, useContext, useEffect, useReducer, useRef, 
 import { Button } from '../components/Button';
 import { isGoalReached, parseResultValue } from '../domain/goals';
 import { normalizeAvailability } from '../domain/availability';
+import { validateNote } from '../domain/history';
 import { ALREADY_LOGGED, createLog } from '../domain/logs';
 import { athleteThread, unreadIn } from '../domain/messages';
+import { aboutThread, athletesOnTeam, currentTeam } from '../domain/teams';
 import type {
   Athlete,
   Availability,
@@ -26,14 +28,19 @@ import type {
   MessageThread,
   MilestoneTest,
   Result,
+  Team,
   TestResult,
 } from '../domain/types';
 import {
   validateAppointment,
   validateAssignment,
   validateMessage,
+  validatePrescription,
+  validateTeam,
   type AppointmentInput,
   type AssignmentInput,
+  type PrescriptionInput,
+  type TeamInput,
   type ValidAppointment,
 } from '../domain/validation';
 import type { Profile } from './profile';
@@ -45,6 +52,26 @@ const OFFLINE_ERROR = 'Nothing was recorded. Check your connection and try again
 
 /** How often to fetch what other people changed. */
 const REFRESH_MS = 30_000;
+
+// Which team you were last looking at, remembered on this device.
+const teamKey = (userId: string) => `comeback.team.${userId}`;
+
+function savedTeamId(userId: string): string | null {
+  // Storage can be blocked (private windows, some settings), so never let it crash the app.
+  try {
+    return localStorage.getItem(teamKey(userId));
+  } catch {
+    return null;
+  }
+}
+
+function saveTeamId(userId: string, teamId: string) {
+  try {
+    localStorage.setItem(teamKey(userId), teamId);
+  } catch {
+    // Not remembered, but the choice still holds until the page reloads.
+  }
+}
 
 /** One athlete's goals. */
 export function testsFor(state: AppState, athleteId: string): MilestoneTest[] {
@@ -69,6 +96,26 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
     toggleOffline: () => dispatch({ type: 'setOffline', offline: !state.offline }),
     simulateReminder: () => dispatch({ type: 'simulateReminder' }),
     reload,
+
+    /** Trainer or coach picks which of their teams to look at. */
+    selectTeam(teamId: string) {
+      saveTeamId(profile.id, teamId);
+      dispatch({ type: 'selectTeam', teamId });
+    },
+
+    /** Trainer starts another team and lands on it, ready to share its join codes. */
+    async createTeam(input: TeamInput): Promise<Result<{ id: string }>> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can create a team.' };
+      const valid = validateTeam(input);
+      if (!valid.ok) return valid;
+      if (state.offline) return { ok: false, error: `Could not create the team. ${OFFLINE_ERROR}` };
+      const saved = await remote.createTeam(valid.value);
+      if (!saved.ok) return { ok: false, error: `Could not create the team. ${saved.error}` };
+      saveTeamId(profile.id, saved.value.id);
+      dispatch({ type: 'selectTeam', teamId: saved.value.id });
+      await reload(); // brings in the new team
+      return saved;
+    },
 
     async logExercise(
       athleteId: string,
@@ -106,7 +153,8 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
         testId,
         value: parsed.value,
         recordedAt: new Date().toISOString(),
-        source: 'athlete',
+        // A trainer can record a result for the athlete, e.g. after a retest.
+        source: state.role === 'trainer' ? 'trainer' : 'athlete',
       };
       const wasReached = isGoalReached(test, state.results, athleteId);
       const saved = await remote.insertResult(result, profile.id);
@@ -125,6 +173,57 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       if (!saved.ok) return saved;
       await reload(); // new plan exercises get ids from the database
       return valid;
+    },
+
+    /** Trainer moves the goal for one milestone test. */
+    async setGoalTarget(testId: string, raw: string): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change a goal.' };
+      const test = state.tests.find((t) => t.id === testId);
+      if (!test) return { ok: false, error: 'Test not found.' };
+      const parsed = parseResultValue(raw, `the ${test.name} goal`);
+      if (!parsed.ok) return parsed;
+      if (state.offline) return { ok: false, error: `Could not save the goal. ${OFFLINE_ERROR}` };
+      const saved = await remote.updateGoalTarget(testId, parsed.value);
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
+    },
+
+    /** Trainer changes one exercise's sets, reps and hold. */
+    async setPrescription(planId: string, input: PrescriptionInput): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change the plan.' };
+      const valid = validatePrescription(input);
+      if (!valid.ok) return valid;
+      if (state.offline) return { ok: false, error: `Could not save the plan. ${OFFLINE_ERROR}` };
+      const saved = await remote.updatePlanExercise(planId, valid.value);
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
+    },
+
+    /** Trainer takes one exercise off the athlete's daily list. Its past logs stay. */
+    async removeExercise(planId: string): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change the plan.' };
+      if (state.offline) return { ok: false, error: `Could not save the plan. ${OFFLINE_ERROR}` };
+      const saved = await remote.updatePlanExercise(planId, { active: false });
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
+    },
+
+    /**
+     * Sets a profile photo, or removes it with null. Without an athlete id
+     * it's the signed-in person's own; a trainer can pass one of their athletes.
+     */
+    async setPhoto(photo: Blob | null, athleteId?: string): Promise<Result> {
+      const ownerId = athleteId ?? profile.id;
+      const isOwn = ownerId === profile.id;
+      if (!isOwn && state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change an athlete’s photo.' };
+      if (state.offline) return { ok: false, error: `Could not save the photo. ${OFFLINE_ERROR}` };
+      const saved = await remote.savePhoto(ownerId, photo, isOwn);
+      if (!saved.ok) return { ok: false, error: `Could not save the photo. ${saved.error}` };
+      await reload();
+      return saved;
     },
 
     /** Trainer books a visit. The athlete sees it on Today and the Trainer tab. */
@@ -168,7 +267,7 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       if (state.role === 'athlete' && thread !== athleteThread(profile.id)) {
         return { ok: false, error: 'You can only message your trainer.' };
       }
-      if (state.role === 'coach' && thread !== 'coach-trainer') {
+      if (state.role === 'coach' && !thread.startsWith('coach:') && !thread.startsWith('about:')) {
         return { ok: false, error: 'Coaches can only message the trainer.' };
       }
       if (state.offline) return { ok: false, error: `Could not send your message. ${OFFLINE_ERROR}` };
@@ -188,6 +287,32 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       };
       dispatch({ type: 'addMessage', message });
       return { ok: true, value: message };
+    },
+
+    /**
+     * Trainer or coach opens the staff conversation about one athlete. The
+     * first time, the database creates it; after that this does nothing.
+     */
+    async openAboutChat(teamId: string, athleteId: string): Promise<Result> {
+      if (state.role === 'athlete') return { ok: false, error: 'Only trainers and coaches can open this conversation.' };
+      if (state.conversations.some((c) => c.thread === aboutThread(teamId, athleteId))) return { ok: true, value: undefined };
+      if (state.offline) return { ok: false, error: `Could not open the conversation. ${OFFLINE_ERROR}` };
+      const opened = await remote.openAboutConversation(teamId, athleteId);
+      if (!opened.ok) return opened;
+      await reload(); // brings in the new conversation
+      return opened;
+    },
+
+    /** Trainer's private note on an athlete's profile. Saving an empty note clears it. */
+    async saveNote(athleteId: string, text: string): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can keep notes on an athlete.' };
+      const valid = validateNote(text);
+      if (!valid.ok) return valid;
+      if (state.offline) return { ok: false, error: `Could not save your note. ${OFFLINE_ERROR}` };
+      const saved = await remote.saveNote(athleteId, valid.value, profile.id);
+      if (!saved.ok) return { ok: false, error: `Could not save your note. ${saved.error}` };
+      dispatch({ type: 'setNote', athleteId, note: { text: valid.value, updatedAt: saved.value.updatedAt, updatedBy: profile.name } });
+      return { ok: true, value: undefined };
     },
 
     /** Called when a conversation is on screen. Quietly does nothing offline. */
@@ -228,7 +353,7 @@ export function AppStoreProvider({ profile, children }: { profile: Profile; chil
   // ('loaded'), keeping on-screen-only settings like the offline toggle.
   const [state, dispatch] = useReducer((current: AppState | null, action: Action) => {
     if (current) return reducer(current, action);
-    return action.type === 'loaded' ? createInitialState(profile.role, action.data) : null;
+    return action.type === 'loaded' ? createInitialState(profile.role, action.data, savedTeamId(profile.id)) : null;
   }, null);
 
   // Counts saves. A refresh that started before a save finished would bring
@@ -262,7 +387,7 @@ export function AppStoreProvider({ profile, children }: { profile: Profile; chil
 
   // Commands dispatch through this, so saves are counted (see `writes`).
   const countingDispatch = useCallback((action: Action) => {
-    if (action.type !== 'setOffline' && action.type !== 'simulateReminder') writes.current++;
+    if (action.type !== 'setOffline' && action.type !== 'simulateReminder' && action.type !== 'selectTeam') writes.current++;
     dispatch(action);
   }, []);
 
@@ -288,6 +413,16 @@ export function useAppStore(): StoreValue {
   const value = useContext(StoreContext);
   if (!value) throw new Error('useAppStore must be used inside <AppStoreProvider>');
   return value;
+}
+
+/**
+ * The team a trainer or coach is looking at, and its athletes. `team` is
+ * undefined only if they're on no team, which AuthGate doesn't let through.
+ */
+export function useTeam(): { team: Team | undefined; athletes: Athlete[] } {
+  const { state } = useAppStore();
+  const team = currentTeam(state.teams, state.selectedTeamId);
+  return { team, athletes: team ? athletesOnTeam(state.athletes, team.id) : [] };
 }
 
 /** The signed-in athlete, for the athlete screens. */

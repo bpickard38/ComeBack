@@ -1,15 +1,19 @@
 import type {
   Appointment,
   Athlete,
+  AthleteNote,
   Exercise,
   ExerciseLog,
+  InjuryRecord,
   Message,
   MessageThread,
   MilestoneTest,
   Role,
+  Team,
   TestResult,
 } from '../domain/types';
 import type { AthleteProgress } from '../domain/progress';
+import type { RecoveryStatus } from '../domain/recovery';
 
 /** A catalog entry the trainer picks from (injuries, exercises). */
 export interface CatalogItem {
@@ -24,6 +28,9 @@ export interface CatalogItem {
  * details, a trainer gets their teams' athletes.
  */
 export interface RemoteData {
+  /** The teams you're on, by name. A trainer can have several. */
+  teams: Team[];
+  /** Athletes on all of those teams; each lists its teamIds. */
   athletes: Athlete[];
   /** Plan exercises for every athlete above. */
   exercises: Exercise[];
@@ -35,6 +42,15 @@ export interface RemoteData {
   messages: Message[];
   /** Which database conversation each message thread is. */
   conversations: Array<{ thread: MessageThread; id: string }>;
+  /** Every injury on file, active and cleared, for the trainer's player profiles. Empty for coaches. */
+  injuryHistory: InjuryRecord[];
+  /** Trainer notes by athlete id. null for other roles, or when
+   * supabase/athlete_notes.sql hasn't been run yet. */
+  notes: Record<string, AthleteNote> | null;
+  /** Milestone progress and rehab start day by athlete id, for the recovery
+   * bar. For a coach it comes from the database as a percentage only; null
+   * when supabase/recovery_pace.sql hasn't been run yet. */
+  recovery: Record<string, RecoveryStatus> | null;
   /** Per-athlete counts for the coach's weekly summary. null for other roles,
    * or when supabase/weekly_summary.sql hasn't been run yet. */
   progress: AthleteProgress[] | null;
@@ -51,12 +67,14 @@ export interface RemoteData {
 export interface AppState extends RemoteData {
   /** Fixed by the account; see AuthGate. */
   role: Role;
+  /** Which team a trainer or coach is looking at. null means the first one. */
+  selectedTeamId: string | null;
   /** Demo toggle: pretend the connection is down so saves fail. */
   offline: boolean;
   /** Demo button: show the end-of-day reminder regardless of the clock. */
   reminderSimulated: boolean;
 }
 
-export function createInitialState(role: Role, data: RemoteData): AppState {
-  return { role, offline: false, reminderSimulated: false, ...data };
+export function createInitialState(role: Role, data: RemoteData, selectedTeamId: string | null = null): AppState {
+  return { role, selectedTeamId, offline: false, reminderSimulated: false, ...data };
 }
