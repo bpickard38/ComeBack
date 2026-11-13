@@ -9,7 +9,9 @@
      a code (TeamSetup). Then the app opens, locked to their role.
 */
 import { useEffect, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button } from '../components/Button';
+import { InviteAccept } from '../screens/InviteAccept';
 import { SignIn } from '../screens/SignIn';
 import { TeamSetup } from '../screens/TeamSetup';
 import { AppStoreProvider } from './AppStore';
@@ -19,6 +21,8 @@ import { supabase } from './supabase';
 type Loaded = { userId: string; profile: Profile } | { userId: string; error: string };
 
 export function AuthGate({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const isInvitePath = location.pathname === '/invite';
   // undefined = still checking, null = signed out, string = signed-in user's id
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -58,7 +62,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     };
   }, [userId, attempt]);
 
-  if (userId === null) return <SignIn />;
+  if (userId === null) return isInvitePath ? <InviteAccept authenticated={false} /> : <SignIn />;
   if (userId === undefined || loaded?.userId !== userId) {
     return <p className="gate-status" role="status" aria-live="polite">Loading…</p>;
   }
@@ -77,7 +81,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (loaded.profile.teamIds.length === 0) return <TeamSetup profile={loaded.profile} onJoined={reload} />;
+  // Invite links return here after Supabase verifies them. Let invited users
+  // choose their password before team setup or the regular role home takes over.
+  if (isInvitePath) return <InviteAccept authenticated email={loaded.profile.email} />;
+
+  if (loaded.profile.role !== 'admin' && loaded.profile.teamIds.length === 0) return <TeamSetup profile={loaded.profile} onJoined={reload} />;
 
   // key: a different user gets a brand-new store instead of the last one's state.
   return (

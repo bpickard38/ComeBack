@@ -5,7 +5,7 @@
   database sends them.
 */
 
-export type Role = 'athlete' | 'trainer' | 'coach';
+export type Role = 'athlete' | 'trainer' | 'coach' | 'admin';
 
 /** What the coach sees instead of medical details. */
 export type Availability = 'out' | 'limited' | 'cleared';

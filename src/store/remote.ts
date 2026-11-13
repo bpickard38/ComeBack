@@ -96,6 +96,10 @@ export function groupWorkoutSets(list: Array<{ injury_id: string; exercise_id: s
 const SENDER_LABEL = { athlete: 'Athlete', trainer: 'Trainer', coach: 'Coach' } as const;
 
 export async function loadAll(profile: Profile): Promise<RemoteData> {
+  if (profile.role === 'admin') return {
+    athletes: [], exercises: [], tests: [], logs: [], results: [], appointments: [], messages: [],
+    conversations: [], progress: null, catalog: { injuries: [], exercises: [], workoutSets: {} },
+  };
   const isTrainer = profile.role === 'trainer';
   const isCoach = profile.role === 'coach';
   const none = Promise.resolve({ data: [], error: null });

@@ -5,7 +5,7 @@ import { turnOffReminders } from '../push';
 import { useAppStore } from '../store/AppStore';
 import { supabase } from '../store/supabase';
 
-const ROLE_LABEL = { athlete: 'Athlete', trainer: 'Athletic trainer', coach: 'Coach' } as const;
+const ROLE_LABEL = { athlete: 'Athlete', trainer: 'Athletic trainer', coach: 'Coach', admin: 'Admin' } as const;
 
 /** Shared app header: brand, signed-in account, and sign out. */
 export function Header() {

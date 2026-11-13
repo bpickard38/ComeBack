@@ -159,6 +159,7 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
     },
 
     async sendMessage(thread: MessageThread, text: string): Promise<Result<Message>> {
+      if (state.role === 'admin') return { ok: false, error: 'Admin accounts cannot send messages.' };
       const valid = validateMessage(text);
       if (!valid.ok) return valid;
       // Who may write where: athletes only in their own thread with the trainer,
@@ -175,7 +176,7 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       if (!conversation) return { ok: false, error: 'This conversation isn’t set up yet. Ask your trainer.' };
       const saved = await remote.insertMessage(conversation.id, profile.id, valid.value);
       if (!saved.ok) return { ok: false, error: `Could not send your message. ${saved.error}` };
-      const from = ({ trainer: 'Trainer', coach: 'Coach', athlete: 'Athlete' } as const)[state.role];
+      const from: Message['from'] = state.role === 'trainer' ? 'Trainer' : state.role === 'coach' ? 'Coach' : 'Athlete';
       const message: Message = {
         id: saved.value.id,
         thread,

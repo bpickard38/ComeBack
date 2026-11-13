@@ -12,6 +12,7 @@ import { Trainer } from './screens/athlete/Trainer';
 import { StaffHome } from './screens/staff/StaffHome';
 import { StaffLayout } from './screens/staff/StaffLayout';
 import { TrainerMessages } from './screens/staff/TrainerMessages';
+import { AdminDashboard } from './screens/admin/AdminDashboard';
 import { useAppStore } from './store/AppStore';
 
 /** Sends you to your role's home screen. */
@@ -39,6 +40,7 @@ export function App() {
       <main id="main-content" className="main" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<RoleHome />} />
+          <Route path="/admin" element={<RequireRole allowed={['admin']}><AdminDashboard /></RequireRole>} />
           {/* Nested routes: AthleteLayout draws the tabs, the child fills the rest. */}
           <Route
             path="/athlete"

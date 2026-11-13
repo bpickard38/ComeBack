@@ -9,13 +9,14 @@ import { supabase } from './supabase';
 export interface Profile {
   id: string;
   name: string;
+  email: string;
   role: Role;
   teamIds: string[];
 }
 
 export async function loadProfile(userId: string): Promise<Profile | null> {
   const [user, teams] = await Promise.all([
-    supabase.from('users').select('name, role').eq('id', userId).maybeSingle(),
+    supabase.from('users').select('name, email, role').eq('id', userId).maybeSingle(),
     supabase.from('team_members').select('team_id').eq('user_id', userId),
   ]);
   if (user.error) throw user.error;
@@ -24,6 +25,7 @@ export async function loadProfile(userId: string): Promise<Profile | null> {
   return {
     id: userId,
     name: user.data.name,
+    email: user.data.email,
     role: user.data.role as Role,
     teamIds: teams.data.map((t) => t.team_id as string),
   };
