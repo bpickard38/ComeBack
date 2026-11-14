@@ -59,10 +59,29 @@ drop policy if exists "Admin deletes exercises" on public.exercises;
 create policy "Admin deletes exercises" on public.exercises
   for delete to authenticated using (private.is_admin());
 
+drop policy if exists "Admin adds milestones" on public.milestone_tests;
+create policy "Admin adds milestones" on public.milestone_tests
+  for insert to authenticated with check (private.is_admin());
+
+drop policy if exists "Admin edits milestones" on public.milestone_tests;
+create policy "Admin edits milestones" on public.milestone_tests
+  for update to authenticated
+  using (private.is_admin()) with check (private.is_admin());
+
+drop policy if exists "Admin deletes milestones" on public.milestone_tests;
+create policy "Admin deletes milestones" on public.milestone_tests
+  for delete to authenticated using (private.is_admin());
+
 -- Admin catalog deletion also removes prescribed rows and their dependent
 -- logs/appointment links, after the dashboard's confirmation prompt.
 alter table public.plan_exercises drop constraint if exists plan_exercises_exercise_id_fkey;
 alter table public.plan_exercises add constraint plan_exercises_exercise_id_fkey
   foreign key (exercise_id) references public.exercises (id) on delete cascade;
+
+-- Deleting a milestone catalog item also removes linked athlete goals,
+-- results, and appointment test links after the admin confirmation prompt.
+alter table public.case_milestones drop constraint if exists case_milestones_test_id_fkey;
+alter table public.case_milestones add constraint case_milestones_test_id_fkey
+  foreign key (test_id) references public.milestone_tests (id) on delete cascade;
 
 commit;

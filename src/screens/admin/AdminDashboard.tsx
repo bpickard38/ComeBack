@@ -5,11 +5,13 @@ import type { Role } from '../../domain/types';
 import { supabase } from '../../store/supabase';
 import { OkrPanel } from './OkrPanel';
 
-type AdminTab = 'users' | 'exercises' | 'okr';
+type AdminTab = 'users' | 'exercises' | 'milestones' | 'okr';
 interface UserRow { id: string; name: string; email: string; phone: string | null; role: Role; created_at: string }
 interface ExerciseRow { id: string; name: string; description: string | null; video_url: string | null }
+interface MilestoneRow { id: string; name: string; description: string | null; unit: string }
 interface UserDraft { name: string; email: string; phone: string; role: Role }
 interface ExerciseDraft { name: string; description: string; video_url: string }
+interface MilestoneDraft { name: string; description: string; unit: string }
 const ROLES: Role[] = ['athlete', 'trainer', 'coach', 'admin'];
 
 async function edgeFunctionError(error: unknown): Promise<string> {
@@ -34,30 +36,36 @@ export function AdminDashboard() {
   const [tab, setTab] = useState<AdminTab>('users');
   const [users, setUsers] = useState<UserRow[]>([]);
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
+  const [milestones, setMilestones] = useState<MilestoneRow[]>([]);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [userDraft, setUserDraft] = useState<UserDraft | null>(null);
   const [exerciseDraft, setExerciseDraft] = useState<ExerciseDraft | null>(null);
+  const [milestoneDraft, setMilestoneDraft] = useState<MilestoneDraft | null>(null);
   const [addingUser, setAddingUser] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
+  const [addingMilestone, setAddingMilestone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const addButtonRef = useReturnFocus(addingUser || addingExercise);
-  const modalOpen = addingUser || addingExercise;
+  const addButtonRef = useReturnFocus(addingUser || addingExercise || addingMilestone);
+  const modalOpen = addingUser || addingExercise || addingMilestone;
 
   const refresh = useCallback(async () => {
     setError('');
-    const [userResult, exerciseResult] = await Promise.all([
+    const [userResult, exerciseResult, milestoneResult] = await Promise.all([
       supabase.from('users').select('id, name, email, phone, role, created_at').order('created_at', { ascending: false }),
       supabase.from('exercises').select('id, name, description, video_url').order('name'),
+      supabase.from('milestone_tests').select('id, name, description, unit').order('name'),
     ]);
-    if (userResult.error || exerciseResult.error) {
-      setError(userResult.error?.message ?? exerciseResult.error?.message ?? 'Could not load records.');
+    if (userResult.error || exerciseResult.error || milestoneResult.error) {
+      setError(userResult.error?.message ?? exerciseResult.error?.message ?? milestoneResult.error?.message ?? 'Could not load records.');
       return;
     }
     setUsers((userResult.data ?? []) as UserRow[]);
     setExercises((exerciseResult.data ?? []) as ExerciseRow[]);
+    setMilestones((milestoneResult.data ?? []) as MilestoneRow[]);
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -128,6 +136,36 @@ export function AdminDashboard() {
     await persistExercise(exerciseDraft, exercise);
   }
 
+  async function persistMilestone(row: MilestoneDraft, milestone?: MilestoneRow) {
+    row = { name: row.name.trim(), description: row.description.trim(), unit: row.unit.trim() };
+    if (!row.name || !row.unit) { setError('Milestone name and unit are required.'); return; }
+    setBusy(true); setError(''); setNotice('');
+    const savedRow = { name: row.name, description: row.description || null, unit: row.unit };
+    const result = milestone
+      ? await supabase.from('milestone_tests').update(savedRow).eq('id', milestone.id)
+      : await supabase.from('milestone_tests').insert(savedRow);
+    setBusy(false);
+    if (result.error) { setError(result.error.message); return; }
+    setEditingMilestoneId(null); setMilestoneDraft(null); setAddingMilestone(false);
+    setNotice(milestone ? 'Milestone updated.' : 'Milestone added.');
+    await refresh();
+  }
+
+  async function saveMilestone(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const values = new FormData(e.currentTarget);
+    await persistMilestone({
+      name: String(values.get('name') ?? ''),
+      description: String(values.get('description') ?? ''),
+      unit: String(values.get('unit') ?? ''),
+    });
+  }
+
+  async function saveMilestoneRow(milestone: MilestoneRow) {
+    if (!milestoneDraft) return;
+    await persistMilestone(milestoneDraft, milestone);
+  }
+
   async function deleteUser(user: UserRow) {
     if (!window.confirm(`Permanently delete ${user.name}'s account? Related app records will be removed too.`)) return;
     setBusy(true); setError('');
@@ -148,17 +186,28 @@ export function AdminDashboard() {
     await refresh();
   }
 
+  async function deleteMilestone(milestone: MilestoneRow) {
+    if (!window.confirm(`Delete “${milestone.name}”? This also deletes athlete goals and results linked to this milestone.`)) return;
+    setBusy(true); setError('');
+    const { error: deleteError } = await supabase.from('milestone_tests').delete().eq('id', milestone.id);
+    setBusy(false);
+    if (deleteError) { setError(deleteError.message); return; }
+    setNotice('Milestone and linked athlete records deleted.');
+    await refresh();
+  }
+
   return (
     <section className="admin-page" aria-labelledby="admin-title">
       <div className="page-head">
         <div className="stack-xs"><div className="eyebrow">Administration</div><h1 id="admin-title">Admin dashboard</h1></div>
-        {tab !== 'okr' && <Button ref={addButtonRef} variant="primary" disabled={busy || editingUserId !== null || editingExerciseId !== null} onClick={() => { setError(''); setNotice(''); if (tab === 'users') setAddingUser(true); else setAddingExercise(true); }}>
-          {tab === 'users' ? 'Add user' : 'Add exercise'}
+        {tab !== 'okr' && <Button ref={addButtonRef} variant="primary" disabled={busy || editingUserId !== null || editingExerciseId !== null || editingMilestoneId !== null} onClick={() => { setError(''); setNotice(''); if (tab === 'users') setAddingUser(true); else if (tab === 'exercises') setAddingExercise(true); else setAddingMilestone(true); }}>
+          {tab === 'users' ? 'Add user' : tab === 'exercises' ? 'Add exercise' : 'Add milestone'}
         </Button>}
       </div>
       <div className="admin-tabs" role="tablist" aria-label="Admin sections">
         <button type="button" role="tab" aria-selected={tab === 'users'} onClick={() => { setTab('users'); setError(''); setNotice(''); }}>Users</button>
         <button type="button" role="tab" aria-selected={tab === 'exercises'} onClick={() => { setTab('exercises'); setError(''); setNotice(''); }}>Prescribable exercises</button>
+        <button type="button" role="tab" aria-selected={tab === 'milestones'} onClick={() => { setTab('milestones'); setError(''); setNotice(''); }}>Milestones</button>
         <button type="button" role="tab" aria-selected={tab === 'okr'} onClick={() => { setTab('okr'); setError(''); setNotice(''); }}>OKR</button>
       </div>
       {error && !modalOpen && <p className="admin-message admin-message--error" role="alert">{error}</p>}
@@ -198,7 +247,7 @@ export function AdminDashboard() {
             <div className="row"><Button type="submit" variant="primary" disabled={busy}>Send invitation</Button></div>
           </form>
         </AdminModal>
-      </> : <>
+      </> : tab === 'exercises' ? <>
         <div className="table-wrap admin-table-wrap">
           <table className="admin-table"><thead><tr><th>Name</th><th>Description</th><th>Video URL</th><th>Actions</th></tr></thead>
             <tbody>{exercises.map((exercise) => {
@@ -226,6 +275,36 @@ export function AdminDashboard() {
             <label className="label" htmlFor="admin-exercise-video">Video URL</label><input className="field" id="admin-exercise-video" name="video_url" type="url" />
             {error && <p className="admin-message admin-message--error" role="alert">{error}</p>}
             <div className="row"><Button type="submit" variant="primary" disabled={busy}>Save exercise</Button></div>
+          </form>
+        </AdminModal>
+      </> : <>
+        <div className="table-wrap admin-table-wrap">
+          <table className="admin-table"><thead><tr><th>Name</th><th>Description</th><th>Unit</th><th>Actions</th></tr></thead>
+            <tbody>{milestones.map((milestone) => {
+              const isEditing = editingMilestoneId === milestone.id;
+              return <tr key={milestone.id}>
+                <td>{isEditing ? <input className="field admin-cell-input" aria-label="Milestone name" required value={milestoneDraft?.name ?? ''} onChange={(event) => { const value = event.currentTarget.value; setMilestoneDraft((draft) => draft ? { ...draft, name: value } : draft); }} /> : milestone.name}</td>
+                <td>{isEditing ? <textarea className="field field--area admin-cell-input admin-cell-input--area" aria-label="Description" value={milestoneDraft?.description ?? ''} onChange={(event) => { const value = event.currentTarget.value; setMilestoneDraft((draft) => draft ? { ...draft, description: value } : draft); }} /> : milestone.description || '—'}</td>
+                <td>{isEditing ? <input className="field admin-cell-input" aria-label="Unit" required value={milestoneDraft?.unit ?? ''} onChange={(event) => { const value = event.currentTarget.value; setMilestoneDraft((draft) => draft ? { ...draft, unit: value } : draft); }} /> : milestone.unit}</td>
+                <td className="admin-actions">{isEditing ? <>
+                  <Button className="admin-action-btn admin-action-btn--edit" type="button" disabled={busy} onClick={() => void saveMilestoneRow(milestone)}>Save</Button>
+                  <Button className="admin-action-btn" type="button" disabled={busy} onClick={() => { setEditingMilestoneId(null); setMilestoneDraft(null); }}>Cancel</Button>
+                </> : <>
+                  <Button className="admin-action-btn admin-action-btn--edit" type="button" disabled={busy || editingMilestoneId !== null} onClick={() => { setAddingMilestone(false); setMilestoneDraft({ name: milestone.name, description: milestone.description ?? '', unit: milestone.unit }); setEditingMilestoneId(milestone.id); }}>Edit</Button>
+                  <Button className="admin-action-btn admin-action-btn--delete" type="button" disabled={busy || editingMilestoneId !== null} onClick={() => void deleteMilestone(milestone)}>Delete</Button>
+                </>}</td>
+              </tr>;
+            })}
+              {milestones.length === 0 && <tr><td colSpan={4} className="muted">No milestones found.</td></tr>}</tbody>
+          </table>
+        </div>
+        <AdminModal open={addingMilestone} title="Add milestone" onClose={() => setAddingMilestone(false)}>
+          <form className="panel admin-form" onSubmit={(event) => void saveMilestone(event)}>
+            <label className="label" htmlFor="admin-milestone-name">Name</label><input className="field" id="admin-milestone-name" name="name" required />
+            <label className="label" htmlFor="admin-milestone-description">Description</label><textarea className="field field--area" id="admin-milestone-description" name="description" />
+            <label className="label" htmlFor="admin-milestone-unit">Unit</label><input className="field" id="admin-milestone-unit" name="unit" required placeholder="e.g. seconds, reps, cm" />
+            {error && <p className="admin-message admin-message--error" role="alert">{error}</p>}
+            <div className="row"><Button type="submit" variant="primary" disabled={busy}>Save milestone</Button></div>
           </form>
         </AdminModal>
       </>}
