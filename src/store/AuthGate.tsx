@@ -8,18 +8,20 @@
   4. Not on a team yet: trainers create one, athletes and coaches join with
      a code (TeamSetup). Then the app opens, locked to their role.
 */
-import { useEffect, useState, type ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Button } from '../components/Button';
-import { InviteAccept } from '../screens/InviteAccept';
-import { SignIn } from '../screens/SignIn';
-import { TeamSetup } from '../screens/TeamSetup';
-import { clearPendingJoin, pendingJoin } from './pendingJoin';
-import { AppStoreProvider } from './AppStore';
-import { loadProfile, type Profile } from './profile';
-import { supabase } from './supabase';
+import { useEffect, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
+import { Button } from "../components/Button";
+import { InviteAccept } from "../screens/InviteAccept";
+import { SignIn } from "../screens/SignIn";
+import { TeamSetup } from "../screens/TeamSetup";
+import { clearPendingJoin, pendingJoin } from "./pendingJoin";
+import { AppStoreProvider } from "./AppStore";
+import { loadProfile, type Profile } from "./profile";
+import { supabase } from "./supabase";
 
-type Loaded = { userId: string; profile: Profile } | { userId: string; error: string };
+type Loaded =
+  | { userId: string; profile: Profile }
+  | { userId: string; error: string };
 
 interface JoinNotice {
   ok: boolean;
@@ -35,12 +37,17 @@ function redeemInvite(userId: string): Promise<JoinNotice | null> {
   const invite = pendingJoin();
   if (!invite) return inviteAttempts.get(userId) ?? Promise.resolve(null);
   clearPendingJoin();
-  const attempt = Promise.resolve(supabase.rpc('join_team', { p_code: invite.code })).then(
+  const attempt = Promise.resolve(
+    supabase.rpc("join_team", { p_code: invite.code }),
+  ).then(
     ({ error }): JoinNotice =>
       error
         ? { ok: false, text: `That join link didn't work. ${error.message}` }
         : { ok: true, text: "You're on the team. The join link added you." },
-    (): JoinNotice => ({ ok: false, text: "That join link didn't work. Check your connection and open it again." }),
+    (): JoinNotice => ({
+      ok: false,
+      text: "That join link didn't work. Check your connection and open it again.",
+    }),
   );
   inviteAttempts.set(userId, attempt);
   return attempt;
@@ -48,7 +55,7 @@ function redeemInvite(userId: string): Promise<JoinNotice | null> {
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const isInvitePath = location.pathname === '/invite';
+  const isInvitePath = location.pathname === "/invite";
   // undefined = still checking, null = signed out, string = signed-in user's id
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -84,14 +91,23 @@ export function AuthGate({ children }: { children: ReactNode }) {
         (profile) => {
           if (cancelled) return;
           if (!profile) {
-            setLoaded({ userId, error: "Your account isn't set up yet. Sign out and try again in a minute." });
+            setLoaded({
+              userId,
+              error:
+                "Your account isn't set up yet. Sign out and try again in a minute.",
+            });
             return;
           }
           setLoaded({ userId, profile });
         },
         (error) => {
-          console.error('Loading from Supabase failed', error);
-          if (!cancelled) setLoaded({ userId, error: 'Could not load your data. Check your connection and try again.' });
+          console.error("Loading from Supabase failed", error);
+          if (!cancelled)
+            setLoaded({
+              userId,
+              error:
+                "Could not load your data. Check your connection and try again.",
+            });
         },
       );
     return () => {
@@ -99,12 +115,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
     };
   }, [userId, attempt]);
 
-  if (userId === null) return isInvitePath ? <InviteAccept authenticated={false} /> : <SignIn />;
+  if (userId === null)
+    return isInvitePath ? <InviteAccept authenticated={false} /> : <SignIn />;
   if (userId === undefined || loaded?.userId !== userId) {
-    return <p className="gate-status" role="status" aria-live="polite">Loading…</p>;
+    return (
+      <p className="gate-status" role="status" aria-live="polite">
+        Loading…
+      </p>
+    );
   }
 
-  if ('error' in loaded) {
+  if ("error" in loaded) {
     return (
       <div className="gate-status" role="alert">
         <p>{loaded.error}</p>
@@ -120,17 +141,31 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   // Invite links return here after Supabase verifies them. Let invited users
   // choose their password before team setup or the regular role home takes over.
-  if (isInvitePath) return <InviteAccept authenticated email={loaded.profile.email} />;
+  if (isInvitePath)
+    return <InviteAccept authenticated email={loaded.profile.email} />;
 
-  if (loaded.profile.role !== 'admin' && loaded.profile.teamIds.length === 0) {
-    return <TeamSetup profile={loaded.profile} onJoined={reload} problem={joinNotice?.ok === false ? joinNotice.text : undefined} />;
+  if (loaded.profile.role !== "admin" && loaded.profile.teamIds.length === 0) {
+    return (
+      <TeamSetup
+        profile={loaded.profile}
+        onJoined={reload}
+        problem={joinNotice?.ok === false ? joinNotice.text : undefined}
+      />
+    );
   }
 
   // key: a different user gets a brand-new store instead of the last one's state.
   return (
     <AppStoreProvider key={userId} profile={loaded.profile}>
       {joinNotice && (
-        <div className={joinNotice.ok ? 'notice join-notice' : 'notice join-notice join-notice--problem'} role={joinNotice.ok ? 'status' : 'alert'}>
+        <div
+          className={
+            joinNotice.ok
+              ? "notice join-notice"
+              : "notice join-notice join-notice--problem"
+          }
+          role={joinNotice.ok ? "status" : "alert"}
+        >
           <span>{joinNotice.text}</span>
           <Button onClick={() => setJoinNotice(null)}>Dismiss</Button>
         </div>
