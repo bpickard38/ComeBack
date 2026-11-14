@@ -3,8 +3,9 @@ import { Button } from '../../components/Button';
 import { useReturnFocus } from '../../components/useReturnFocus';
 import type { Role } from '../../domain/types';
 import { supabase } from '../../store/supabase';
+import { OkrPanel } from './OkrPanel';
 
-type AdminTab = 'users' | 'exercises';
+type AdminTab = 'users' | 'exercises' | 'okr';
 interface UserRow { id: string; name: string; email: string; phone: string | null; role: Role; created_at: string }
 interface ExerciseRow { id: string; name: string; description: string | null; video_url: string | null }
 interface UserDraft { name: string; email: string; phone: string; role: Role }
@@ -151,18 +152,19 @@ export function AdminDashboard() {
     <section className="admin-page" aria-labelledby="admin-title">
       <div className="page-head">
         <div className="stack-xs"><div className="eyebrow">Administration</div><h1 id="admin-title">Admin dashboard</h1></div>
-        <Button ref={addButtonRef} variant="primary" disabled={busy || editingUserId !== null || editingExerciseId !== null} onClick={() => { setError(''); setNotice(''); if (tab === 'users') setAddingUser(true); else setAddingExercise(true); }}>
+        {tab !== 'okr' && <Button ref={addButtonRef} variant="primary" disabled={busy || editingUserId !== null || editingExerciseId !== null} onClick={() => { setError(''); setNotice(''); if (tab === 'users') setAddingUser(true); else setAddingExercise(true); }}>
           {tab === 'users' ? 'Add user' : 'Add exercise'}
-        </Button>
+        </Button>}
       </div>
       <div className="admin-tabs" role="tablist" aria-label="Admin sections">
         <button type="button" role="tab" aria-selected={tab === 'users'} onClick={() => { setTab('users'); setError(''); setNotice(''); }}>Users</button>
         <button type="button" role="tab" aria-selected={tab === 'exercises'} onClick={() => { setTab('exercises'); setError(''); setNotice(''); }}>Prescribable exercises</button>
+        <button type="button" role="tab" aria-selected={tab === 'okr'} onClick={() => { setTab('okr'); setError(''); setNotice(''); }}>OKR</button>
       </div>
       {error && !modalOpen && <p className="admin-message admin-message--error" role="alert">{error}</p>}
       {notice && <p className="admin-message" role="status">{notice}</p>}
 
-      {tab === 'users' ? <>
+      {tab === 'okr' ? <OkrPanel /> : tab === 'users' ? <>
         <div className="table-wrap admin-table-wrap">
           <table className="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
             <tbody>{users.map((user) => {

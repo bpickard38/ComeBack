@@ -18,3 +18,5 @@
 Invitation acceptance redirects to `/invite` on the app's current origin. The matching origin and path must be allowed in **Authentication → URL Configuration → Redirect URLs**. The **Invite user** email template should link with `{{ .ConfirmationURL }}` so Supabase verifies the invitation before returning to the app.
 
 The Users tab creates invitation-based Auth accounts, edits the Auth email and profile fields together, and deletes the Auth account. Deleting an account cascades to records tied to that user. Exercise deletion also deletes its assigned plans and dependent logs and appointment links.
+
+To enable the OKR tab, run okr.sql in the Supabase SQL Editor after admin_role.sql. The tab reports current-week exercise completion as logged exercise opportunities divided by active assigned exercises per elapsed day of the week. Average recovery time uses cleared injury cases with start_date and cleared_at, in calendar days. Admin proxy sessions are timed guided studies: they save the selected task and duration but do not edit athlete plans or send messages.

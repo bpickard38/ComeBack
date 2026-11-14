@@ -1400,6 +1400,306 @@ a.roster-row {
   gap: var(--space-5);
 }
 
+.okr-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.okr-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.okr-intro h2,
+.okr-intro h3 {
+  margin: 0;
+}
+
+.okr-refresh-btn {
+  display: inline-grid;
+  width: var(--target-min);
+  min-width: var(--target-min);
+  height: var(--target-min);
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.okr-refresh-btn:hover:not(:disabled) {
+  background: transparent;
+  color: var(--accent);
+}
+
+.okr-refresh-btn svg {
+  width: var(--icon-size-md);
+  height: var(--icon-size-md);
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.okr-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.okr-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  --okr-tone: var(--info);
+  --okr-tone-bg: var(--info-bg);
+}
+
+.okr-metric--success {
+  --okr-tone: var(--success);
+  --okr-tone-bg: var(--success-bg);
+}
+
+.okr-metric--warning {
+  --okr-tone: var(--warning);
+  --okr-tone-bg: var(--warning-bg);
+}
+
+.okr-metric--neutral {
+  --okr-tone: var(--text-muted);
+  --okr-tone-bg: var(--surface-raised);
+}
+
+.okr-metric strong {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1;
+}
+
+.okr-metric-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.okr-progress {
+  width: 100%;
+  height: var(--progress-height-lg);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-high);
+}
+
+.okr-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--okr-tone);
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.okr-metric-detail__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.okr-stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.okr-stat strong {
+  color: var(--text);
+  font-size: var(--font-size-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.okr-status-pill {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--okr-tone-bg);
+  color: var(--okr-tone);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.okr-status-pill--success {
+  --okr-tone: var(--success);
+  --okr-tone-bg: var(--success-bg);
+}
+
+.okr-status-pill--warning {
+  --okr-tone: var(--warning);
+  --okr-tone-bg: var(--warning-bg);
+}
+
+.okr-status-pill--neutral {
+  --okr-tone: var(--text-muted);
+  --okr-tone-bg: var(--surface-raised);
+}
+
+.okr-status-pill--info {
+  --okr-tone: var(--info);
+  --okr-tone-bg: var(--info-bg);
+}
+
+.okr-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.okr-recovery-detail {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.okr-proxy {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.okr-proxy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.okr-proxy h3 {
+  margin: 0;
+}
+
+.okr-proxy-heading {
+  padding-right: 7rem;
+}
+
+.okr-record-badge {
+  position: absolute;
+  z-index: 1;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  min-width: 6.25rem;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--record-tone);
+  border-radius: var(--radius-md);
+  background: var(--record-bg);
+  color: var(--record-tone);
+  text-align: center;
+}
+
+.okr-record-badge--trainer {
+  --record-tone: var(--accent);
+  --record-bg: var(--accent-soft);
+}
+
+.okr-record-badge--coach {
+  --record-tone: var(--info);
+  --record-bg: var(--info-bg);
+}
+
+.okr-record-badge span {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.okr-record-badge strong {
+  font-size: var(--font-size-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.okr-timer {
+  position: sticky;
+  z-index: 2;
+  top: var(--space-3);
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+
+.okr-timer strong {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-2xl);
+}
+
+.okr-choice-list,
+.okr-task-options {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.okr-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+
+.okr-choice-grid label,
+.okr-task-options label {
+  display: flex;
+  min-height: var(--target-min);
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.okr-task-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+}
+
+@media (max-width: 40rem) {
+  .okr-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .okr-proxy-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .okr-timer {
+    flex-wrap: wrap;
+  }
+}
+
 .admin-modal {
   width: min(94vw, 38rem);
   max-width: none;
