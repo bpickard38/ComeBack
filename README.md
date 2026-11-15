@@ -6,15 +6,16 @@ Injury rehab tracker that connects college athletes, their athletic trainer and 
 
 ![ComeBack AI exercise workflow](reference/system-architecture.png)
 
-The React app hosted on Vercel uses Supabase for logins and exercise data. The **planned AI exercise workflow** works as follows:
+The React app hosted on Vercel uses Supabase for logins and exercise data. The **AI exercise workflow** (the trainer's Assistant tab) works as follows:
 
-1. A trainer requests an exercise in the React app.
-2. React sends the request to a server-side AI function, which calls the OpenAI API.
-3. OpenAI reads the request and requests a database search through a tool call. The function executes the search against Supabase and returns the result to OpenAI.
-4. If the exercise exists, the workflow reuses it. If it is missing, OpenAI drafts the exercise and requests a create tool call; the function checks trainer authorization, validates the record, and saves it in Supabase.
-5. When the workflow completes, React reloads the full authorized exercise catalog from Supabase so the trainer can see all exercises.
+1. A trainer tells the assistant who they are working with, which injury, and which exercises.
+2. React sends the request to a server-side AI function (`supabase/functions/ai-assistant`), which calls the OpenAI API.
+3. OpenAI reads the request and requests database searches through tool calls (athletes, injuries, exercises). The function executes each search against Supabase as the signed-in trainer and returns the result to OpenAI.
+4. If the injury and exercises exist, the workflow reuses them. If one is missing, OpenAI drafts it; for a new exercise the function also searches YouTube for a tutorial video.
+5. OpenAI hands back a plan. The function validates it and React shows it to the trainer as a card. Nothing has been saved yet.
+6. When the trainer presses Confirm, the function checks trainer authorization, validates the plan again, and saves it in Supabase: new catalog entries first, then the assignment. React reloads so the trainer sees the result.
 
-OpenAI selects tool actions; the server-side function performs database operations. The AI function and OpenAI integration are planned. Existing optional push reminders are omitted from this simplified overview.
+OpenAI selects tool actions; the server-side function performs database operations, and only after the trainer confirms. Setup and details are under [AI assistant](#ai-assistant). Existing optional push reminders are omitted from this simplified overview.
 
 ## Data Flow Diagrams
 
@@ -308,6 +309,50 @@ Each injury in the catalog has a starting workout set (`injury_exercises`). On *
 
 Videos are public YouTube clips, 20 to 60 seconds, from physical therapists and clinics (Harvard Health Publishing, Ask Doctor Jo, Baptist Health, Michigan Medicine, MGH Orthopaedics, Hinge Health, NASM, British Elbow & Shoulder Society, E3 Rehab, Rehab My Patient and others). Links are in `supabase/workout_sets.sql`; to swap one, update `exercises.video_url` in Supabase. Sets and prescriptions are sample starting points for a class project, not medical advice.
 
+## AI assistant
+
+Trainers have an **Assistant** tab. They type what they want in plain words and get a plan to confirm:
+
+- "Maya rolled her ankle. Give her the usual ankle sprain set." The assistant finds Maya, matches "rolled ankle" to Ankle sprain, and proposes that injury's workout set.
+- "Add Copenhagen planks, 3 sets of 20 seconds, to Devon's hamstring plan." Copenhagen plank isn't in the catalog, so the plan adds it, with a one-line how-to and a tutorial video found on YouTube.
+- "Add turf toe as an injury with towel curls and toe yoga." No athlete, so this only adds to the catalogs; the exercises become turf toe's workout set.
+
+Rules it follows:
+
+- **Nothing is saved until the trainer presses Confirm** on the plan card. The card marks anything new ("New injury", "New exercise") and links each video so it can be checked first. Cancel, or just ask for a change ("make it 12 reps"), and a new card replaces the old one.
+- **It only adds.** If the athlete already has that injury, the exercises are added to their plan. Removing an exercise or clearing an injury is still done on the athlete's profile.
+- **The trainer decides the treatment.** With no exercises named and no workout set, it asks instead of choosing.
+- **It has the trainer's access and no more.** The function makes every database call as the signed-in trainer, so row level security still applies: it can't see another trainer's athletes, and coaches and athletes are refused.
+- **A video link can't be invented.** Only a video that the YouTube search returned during that request is accepted, and only videos that allow playing inside another site are searched.
+
+What leaves the app: the trainer's messages, and the names, teams and active injuries of athletes the assistant looks up, are sent to OpenAI to produce the plan. Exercise names are sent to YouTube's search. Logs, pain ratings, test results, notes and messages are never sent.
+
+### Setting it up (once per Supabase project)
+
+You need an OpenAI API key (platform.openai.com > API keys; the account needs a little credit) and, for videos, a YouTube Data API key (Google Cloud console > enable "YouTube Data API v3" > Credentials > API key; free, about 100 searches a day). Without the YouTube key everything works except that new exercises are added with no video.
+
+```sh
+npx supabase login                                   # opens the browser once
+npx supabase link --project-ref <your-project-ref>   # the part before .supabase.co
+npx supabase secrets set OPENAI_API_KEY=sk-... YOUTUBE_API_KEY=AIza...
+npx supabase functions deploy ai-assistant --no-verify-jwt --use-api
+```
+
+No SQL to run: the function uses tables and rules that already exist. `--no-verify-jwt` is there because the function checks the sign-in itself (and refuses anyone who isn't a trainer). The keys live only in Supabase; never put them in `.env.local` or Vercel.
+
+Optional secrets: `OPENAI_MODEL` (default `gpt-5.6-terra`; any OpenAI model that supports tool calls on the Chat Completions API) and `OPENAI_REASONING_EFFORT`. To hide the tab, set `ASSISTANT_FEATURE` to `false` in `src/features.ts`.
+
+Until the function is deployed, the tab is there but answers "The assistant isn't set up yet."
+
+### Where the code is
+
+| File | What it does |
+|---|---|
+| `src/screens/staff/Assistant.tsx` | The tab: conversation and plan card |
+| `src/domain/assistant.ts` | The conversation as the screen keeps it, and how it's written out for the AI |
+| `supabase/functions/ai-assistant/index.ts` | Talks to OpenAI and YouTube, runs the searches, saves a confirmed plan |
+| `supabase/functions/ai-assistant/plan.ts` | The rules a plan must pass, as plain functions, tested in `src/domain/assistant.test.ts` |
+
 ## Where things live
 
 | Folder | What is in it |
@@ -315,7 +360,7 @@ Videos are public YouTube clips, 20 to 60 seconds, from physical therapists and 
 | `src/domain` | Rules as plain functions (streaks, goals, week %), with tests. No React. |
 | `src/data` | Sample data (`seed.ts`) used by the tests |
 | `src/store` | Sign-in gate, loading from and saving to Supabase (`remote.ts`), app state, and the commands screens call |
-| `supabase` | Database setup scripts (run in order, see above), and the `send-reminders` Edge Function in `functions/` |
+| `supabase` | Database setup scripts (run in order, see above), and the Edge Functions in `functions/` (`send-reminders`, `admin-users`, `ai-assistant`) |
 | `public` | Files served as-is: the service worker (`sw.js`), app manifest and icons |
 | `scripts` | `push-secrets.mjs`, which makes the push reminder keys and secrets |
 | `src/components` | Reusable pieces: Button, Card, ProgressBar, Toast, TabBar, app icons |

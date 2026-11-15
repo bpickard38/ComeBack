@@ -16,6 +16,7 @@ import { Button } from '../components/Button';
 import { isGoalReached, parseResultValue } from '../domain/goals';
 import { normalizeAvailability } from '../domain/availability';
 import { validateNote } from '../domain/history';
+import { toHistory, type AssistantAnswer, type AssistantTurn, type Proposal } from '../domain/assistant';
 import { ALREADY_LOGGED, createLog } from '../domain/logs';
 import { athleteThread, unreadIn } from '../domain/messages';
 import { aboutThread, athletesOnTeam, currentTeam } from '../domain/teams';
@@ -173,6 +174,26 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       if (!saved.ok) return saved;
       await reload(); // new plan exercises get ids from the database
       return valid;
+    },
+
+    /**
+     * Trainer's message to the AI assistant. The answer is words, sometimes
+     * with a plan to confirm. Nothing is saved by this.
+     */
+    async askAssistant(turns: AssistantTurn[], teamName: string | null): Promise<Result<AssistantAnswer>> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can use the assistant.' };
+      if (state.offline) return { ok: false, error: `Could not reach the assistant. ${OFFLINE_ERROR}` };
+      return remote.askAssistant(toHistory(turns), teamName);
+    },
+
+    /** Trainer pressed Confirm on the assistant's plan: save it. */
+    async applyAssistantPlan(proposal: Proposal): Promise<Result<{ summary: string }>> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can assign injuries and exercises.' };
+      if (state.offline) return { ok: false, error: `Could not save the plan. ${OFFLINE_ERROR}` };
+      const saved = await remote.applyAssistantPlan(proposal);
+      if (!saved.ok) return saved;
+      await reload(); // new catalog entries and plan exercises get ids from the database
+      return saved;
     },
 
     /** Trainer moves the goal for one milestone test. */

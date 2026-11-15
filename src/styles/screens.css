@@ -2556,3 +2556,37 @@ a.roster-row {
   outline: var(--focus-width) solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* ---------- Trainer's AI assistant (screens/staff/Assistant.tsx) ---------- */
+/* Reuses the .chat styles from Messages; these are only the extra pieces. */
+
+.assistant .chat__head {
+  justify-content: space-between;
+}
+
+.assistant__example {
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  text-align: left;
+  border-radius: var(--radius-md);
+}
+
+.assistant__plan {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 34rem;
+  margin-top: var(--space-3);
+}
+
+.assistant__exercises {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assistant__detail {
+  display: block;
+}

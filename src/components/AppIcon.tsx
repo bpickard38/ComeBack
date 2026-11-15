@@ -7,7 +7,8 @@ export type AppIconName =
   | 'appointments'
   | 'messages'
   | 'roster'
-  | 'availability';
+  | 'availability'
+  | 'assistant';
 
 const PATHS: Record<AppIconName, ReactNode> = {
   today: (
@@ -46,6 +47,12 @@ const PATHS: Record<AppIconName, ReactNode> = {
     <>
       <circle cx="9" cy="8" r="3.5" />
       <path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 5a3.5 3.5 0 0 1 0 6.8M17 14a6 6 0 0 1 4.5 5.8" />
+    </>
+  ),
+  assistant: (
+    <>
+      <path d="M10 4.5 11.6 9a2 2 0 0 0 1.4 1.4l4.5 1.6-4.5 1.6a2 2 0 0 0-1.4 1.4L10 19.5 8.4 15A2 2 0 0 0 7 13.6L2.5 12 7 10.4A2 2 0 0 0 8.4 9z" />
+      <path d="M18.5 3v4M16.5 5h4M19 17v3M17.5 18.5h3" />
     </>
   ),
   availability: (

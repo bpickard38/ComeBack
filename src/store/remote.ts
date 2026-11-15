@@ -6,6 +6,7 @@
   row level security in the database only returns what the signed-in user
   may see, so the same code works for athletes, coaches and trainers.
 */
+import type { AssistantAnswer, Proposal } from '../domain/assistant';
 import { dayKey } from '../domain/dates';
 import type {
   Appointment,
@@ -622,4 +623,34 @@ export async function cancelAppointment(appointmentId: string): Promise<Result> 
   // Security rules turn a forbidden update into "0 rows changed", not an error.
   if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can cancel the appointment.' };
   return { ok: true, value: undefined };
+}
+
+// ---------- AI assistant ----------
+// Both go through the ai-assistant function (supabase/functions/ai-assistant),
+// which holds the OpenAI key. The app never talks to OpenAI directly.
+
+const ASSISTANT_NOT_SET_UP = 'The assistant isn’t set up yet. Whoever set up Supabase needs to deploy the ai-assistant function (README > AI assistant).';
+
+async function callAssistant<T>(body: Record<string, unknown>): Promise<Result<T>> {
+  const { data, error } = await supabase.functions.invoke('ai-assistant', { body });
+  if (!error) return { ok: true, value: data as T };
+  // When the function answers with an error status, its JSON body (with our
+  // message in `error`) is on error.context as an unread Response.
+  const response = (error as { context?: unknown }).context;
+  if (response instanceof Response) {
+    const sent = await response.json().catch(() => null);
+    if (sent && typeof sent.error === 'string') return { ok: false, error: sent.error };
+    if (response.status === 404) return { ok: false, error: ASSISTANT_NOT_SET_UP };
+  }
+  return { ok: false, error: 'Could not reach the assistant. Check your connection and try again.' };
+}
+
+/** Sends the conversation so far; the answer may come with a plan to confirm. Saves nothing. */
+export function askAssistant(history: Array<{ role: 'user' | 'assistant'; content: string }>, teamName: string | null): Promise<Result<AssistantAnswer>> {
+  return callAssistant<AssistantAnswer>({ action: 'chat', messages: history, teamName });
+}
+
+/** Saves a plan the trainer confirmed. */
+export function applyAssistantPlan(proposal: Proposal): Promise<Result<{ summary: string }>> {
+  return callAssistant<{ summary: string }>({ action: 'apply', proposal });
 }

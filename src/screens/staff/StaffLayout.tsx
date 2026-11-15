@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { TabBar, type Tab } from '../../components/TabBar';
 import { unreadIn } from '../../domain/messages';
+import { ASSISTANT_FEATURE } from '../../features';
 import { teamThreads } from '../../domain/teams';
 import { useAppStore } from '../../store/AppStore';
 import { AthleteSearch } from './AthleteSearch';
@@ -22,6 +23,7 @@ export function StaffLayout() {
   const tabs: Tab[] = [
     { to: '/staff', label: 'Roster', icon: 'roster' },
     { to: '/staff/messages', label: 'Messages', icon: 'messages', unreadCount: waiting },
+    ...(ASSISTANT_FEATURE ? [{ to: '/staff/assistant', label: 'Assistant', icon: 'assistant' } satisfies Tab] : []),
   ];
 
   return (

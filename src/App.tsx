@@ -9,6 +9,7 @@ import { AthleteLayout } from './screens/athlete/AthleteLayout';
 import { Progress } from './screens/athlete/Progress';
 import { Today } from './screens/athlete/Today';
 import { Trainer } from './screens/athlete/Trainer';
+import { Assistant } from './screens/staff/Assistant';
 import { AthleteProfile } from './screens/staff/AthleteProfile';
 import { StaffHome } from './screens/staff/StaffHome';
 import { StaffLayout } from './screens/staff/StaffLayout';
@@ -76,6 +77,15 @@ export function App() {
               element={
                 <RequireRole allowed={['trainer']}>
                   <AthleteProfile />
+                </RequireRole>
+              }
+            />
+            {/* The AI assistant assigns injuries and exercises, which only trainers may do. */}
+            <Route
+              path="assistant"
+              element={
+                <RequireRole allowed={['trainer']}>
+                  <Assistant />
                 </RequireRole>
               }
             />
