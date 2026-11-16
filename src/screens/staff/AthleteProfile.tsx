@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
@@ -9,43 +9,50 @@ import { RecoveryBar } from '../../components/RecoveryBar';
 import { useToast } from '../../components/Toast';
 import { upcomingAppointments } from '../../domain/appointments';
 import { availabilityLabel } from '../../domain/availability';
-import {
-  injuryDays,
-  injuryHistory,
-  NOTE_MAX_LENGTH,
-  PAIN_HISTORY_DAYS,
-  painHistory,
-  pastAppointments,
-} from '../../domain/history';
+import { injuryDays, injuryHistory, NOTE_MAX_LENGTH, PAIN_HISTORY_DAYS, painHistory, profileTimeline } from '../../domain/history';
 import { doneOnDay } from '../../domain/logs';
 import { athleteThread, unreadIn } from '../../domain/messages';
 import { PAIN_ALERT_LEVEL } from '../../domain/pain';
-import { PRACTICE_PERCENT, recoveryPace } from '../../domain/recovery';
+import { recoveryPace } from '../../domain/recovery';
+import { isInjured } from '../../domain/roster';
 import { bestStreak, currentStreak } from '../../domain/streak';
 import { aboutThread, coachChatLabel } from '../../domain/teams';
-import type { Appointment, Athlete, InjuryRecord, Team } from '../../domain/types';
+import type { Athlete, InjuryRecord, Team } from '../../domain/types';
 import { weekCompletion, weekStatus } from '../../domain/week';
-import { formatCalendarDay, formatDay, formatNumber, formatSentAt, formatTime, plural } from '../../format';
+import { formatCalendarDay, formatDay, formatNumber, formatSentAt, formatTime, injuryLabel, plural } from '../../format';
 import { useAppStore, useTeam } from '../../store/AppStore';
 import { PhotoButtons } from '../PhotoButtons';
 import { AboutChat } from './AboutChat';
-import { AvailabilityEditor } from './AthleteDetail';
+import { AvailabilityEditor } from './AvailabilityEditor';
 import { PlanEditor } from './PlanEditor';
 
+/** The four parts of the profile below the progress card; one shows at a time. */
+const SECTIONS = ['plan', 'history', 'notes', 'messages'] as const;
+type Section = (typeof SECTIONS)[number];
+const SECTION_LABELS: Record<Section, string> = { plan: 'Plan', history: 'History', notes: 'Notes', messages: 'Messages' };
+
 /**
- * Everything the trainer has on one athlete, on one page: status, every
- * injury they've had here, recent pain, visits and private notes, with the
- * chat beside it. Opened from the roster. Trainer only: the route, and the
- * database rules behind the data, keep coaches out.
+ * Everything the trainer has on one athlete, without a long scroll: who
+ * they are, one progress card (recovery bar, this week, pain, next visit,
+ * what the coach sees), then Plan, History, Notes or Messages, one at a
+ * time. Trainer only: the route, and the database rules behind the data,
+ * keep coaches out.
  */
 export function AthleteProfile() {
   const { athleteId } = useParams();
   const { team, athletes } = useTeam();
+  const { state, profile } = useAppStore();
+  const [params, setParams] = useSearchParams();
   const athlete = athletes.find((a) => a.id === athleteId);
 
   // Not on the team being looked at (a stale link, or the team was switched
   // while this was open): back to that team's roster.
-  if (!team || !athlete) return <Navigate to="/staff" replace />;
+  if (!team || !athlete) return <Navigate to="/staff/team" replace />;
+
+  const asked = params.get('view');
+  const section: Section = SECTIONS.includes(asked as Section) ? (asked as Section) : 'plan';
+  const unread =
+    unreadIn(state.messages, athleteThread(athlete.id), profile.id) + unreadIn(state.messages, aboutThread(team.id, athlete.id), profile.id);
 
   return (
     <>
@@ -54,8 +61,22 @@ export function AthleteProfile() {
           {/* Their own photo once they add one; an empty outline until then. */}
           <ProfilePhoto url={athlete.photoUrl} size="xl" />
           <div className="stack-xs">
-            <div className="eyebrow">Player profile &middot; {team.name}</div>
             <h1>{athlete.name}</h1>
+            <span className="muted">
+              {[athlete.sport, isInjured(athlete) ? injuryLabel(athlete) : 'Healthy', team.name].filter(Boolean).join(' · ')}
+            </span>
+            <span className="small row">
+              {athlete.email && (
+                <a href={`mailto:${athlete.email}`} className="link-button">
+                  {athlete.email}
+                </a>
+              )}
+              {athlete.phone && (
+                <a href={`tel:${athlete.phone}`} className="link-button">
+                  {athlete.phone}
+                </a>
+              )}
+            </span>
             {/* The athlete can set this themselves; the trainer can too. */}
             <PhotoButtons athleteId={athlete.id} name={athlete.name} hasPhoto={Boolean(athlete.photoUrl)} small />
           </div>
@@ -64,184 +85,172 @@ export function AthleteProfile() {
           <Link to={`/staff/record?athlete=${athlete.id}`} className="btn btn--primary">
             Record a visit
           </Link>
-          <Link to="/staff" className="btn btn--secondary">
-            Back to roster
+          <Link to="/staff/team" className="btn btn--secondary">
+            Back to team
           </Link>
         </div>
       </div>
 
-      <div className="staff-grid">
-        <div className="stack-sm">
-          <Recovery athlete={athlete} />
-          <VisitHistory athlete={athlete} />
-          <PlanEditor athlete={athlete} />
-          <Overview athlete={athlete} />
-          <InjuryHistory athlete={athlete} />
-          <PainReports athlete={athlete} />
-          <Visits athlete={athlete} />
-          {/* key: a different athlete starts from their own saved note, not the last draft */}
-          <Notes key={athlete.id} athlete={athlete} />
-        </div>
-        <ProfileChat key={athlete.id} athlete={athlete} team={team} />
+      <Progress athlete={athlete} />
+
+      <div className="profile-sections" role="group" aria-label="Show">
+        {SECTIONS.map((s) => (
+          <button
+            key={s}
+            type="button"
+            className="chip"
+            aria-pressed={s === section}
+            onClick={() => setParams(s === 'plan' ? {} : { view: s }, { replace: true })}
+          >
+            {SECTION_LABELS[s]}
+            {s === 'messages' && unread > 0 && <span className="warn-text"> ({unread})</span>}
+          </button>
+        ))}
       </div>
+
+      {section === 'plan' && <PlanEditor athlete={athlete} />}
+      {section === 'history' && <History athlete={athlete} />}
+      {/* key: a different athlete starts from their own saved note, not the last draft */}
+      {section === 'notes' && <Notes key={athlete.id} athlete={athlete} />}
+      {section === 'messages' && <ProfileChat key={athlete.id} athlete={athlete} team={team} />}
     </>
   );
 }
 
-/** How many visits show before "Show all". */
-const VISITS_SHOWN = 3;
-
 /**
- * Recorded visits, newest first: what happened each time they came in.
- * Private to trainers (supabase/visits.sql). Written from Record.
+ * The one card that's always showing: the recovery bar the coach also sees,
+ * how this week is going, recent pain, the next visit, and the status the
+ * coach sees (with Change to edit it).
  */
-function VisitHistory({ athlete }: { athlete: Athlete }) {
+function Progress({ athlete }: { athlete: Athlete }) {
   const { state } = useAppStore();
-  const [showAll, setShowAll] = useState(false);
-  const first = athlete.name.split(' ')[0];
-  const visits = (state.visits ?? []).filter((v) => v.athleteId === athlete.id);
-  const shown = showAll ? visits : visits.slice(0, VISITS_SHOWN);
-
-  return (
-    <Card aria-labelledby="profile-visit-history">
-      <div className="spread">
-        <h2 id="profile-visit-history">Visit history</h2>
-        <Link to={`/staff/record?athlete=${athlete.id}`} className="btn btn--secondary btn--small">
-          Record a visit
-        </Link>
-      </div>
-      {state.visits === null ? (
-        <p className="muted">Visit records aren’t set up yet. Run supabase/visits.sql in Supabase to turn them on.</p>
-      ) : visits.length === 0 ? (
-        <p className="muted">No visits recorded yet. When {first} comes in, tap Record a visit and say how it went.</p>
-      ) : (
-        <>
-          <ol className="visit-list">
-            {shown.map((v) => (
-              <li key={v.id} className="visit-list__item">
-                <span className="small muted">
-                  {formatSentAt(v.visitedAt)}
-                  {v.trainerName && <> &middot; {v.trainerName}</>}
-                  {v.pain !== null && (
-                    <>
-                      {' '}
-                      &middot; <span className={v.pain >= PAIN_ALERT_LEVEL ? 'strong warn-text' : undefined}>Pain {v.pain}/10</span>
-                    </>
-                  )}
-                </span>
-                <span className="visit-card__summary">{v.summary}</span>
-                {v.doneToday && <span className="small muted">Did: {v.doneToday}</span>}
-              </li>
-            ))}
-          </ol>
-          {visits.length > VISITS_SHOWN && (
-            <Button className="btn--small" onClick={() => setShowAll(!showAll)} aria-expanded={showAll}>
-              {showAll ? 'Show fewer' : `Show all ${visits.length}`}
-            </Button>
-          )}
-        </>
-      )}
-    </Card>
-  );
-}
-
-/**
- * How close they are to playing again, exactly as the coach sees it, and the
- * status and return date the trainer sets for the coach.
- */
-function Recovery({ athlete }: { athlete: Athlete }) {
-  const { state } = useAppStore();
+  const [changing, setChanging] = useState(false);
+  const now = new Date();
   const cleared = athlete.availability === 'cleared';
-  const pace = recoveryPace(state.recovery?.[athlete.id], cleared, new Date());
+  const pace = recoveryPace(state.recovery?.[athlete.id], cleared, now);
+  const assigned = athlete.assignedExerciseIds.length;
+  const week = weekCompletion(athlete, state.logs, now);
+  const pain = painHistory(state.logs, athlete.id, now);
+  const next = upcomingAppointments(state.appointments, athlete.id, now)[0];
 
   return (
-    <Card aria-labelledby="profile-recovery">
-      <div className="stack-xs">
-        <h2 id="profile-recovery">Recovery</h2>
-        <p className="muted">
-          The coach sees this bar and these dates. It fills as milestone tests improve; {PRACTICE_PERCENT}% is back to practice
-          and 100% is back to play. The dates are where {athlete.name.split(' ')[0]} is on pace to get there, so they move with
-          every new result.
-        </p>
-      </div>
+    <Card aria-labelledby="profile-progress">
+      <h2 id="profile-progress" className="visually-hidden">
+        Progress
+      </h2>
       {pace ? (
         <RecoveryBar pace={pace} cleared={cleared} />
       ) : (
-        <p>No milestone tests are set, so there's no recovery bar yet.</p>
+        // No milestone tests to measure recovery by, so the bar shows this week's exercises instead.
+        <div className="recovery-bar">
+          <div className="recovery-bar__head">
+            <span className="strong">{assigned === 0 ? 'No plan yet' : `${week}% of this week's exercises`}</span>
+            <span className="small muted">Add milestone tests under Plan to track recovery</span>
+          </div>
+          <div className="recovery-bar__track" aria-hidden="true">
+            <div className="recovery-bar__fill" style={{ width: `${assigned === 0 ? 0 : week}%` }} />
+          </div>
+        </div>
       )}
-      <AvailabilityEditor athlete={athlete} />
-    </Card>
-  );
-}
-
-/** Where they stand today, and how to reach them. */
-function Overview({ athlete }: { athlete: Athlete }) {
-  const { state } = useAppStore();
-  const now = new Date();
-  const assigned = athlete.assignedExerciseIds.length;
-  const week = weekCompletion(athlete, state.logs, now);
-
-  return (
-    <Card aria-labelledby="profile-overview">
-      <h2 id="profile-overview">At a glance</h2>
-      <dl className="facts">
-        <div>
-          <dt>Status shown to the coach</dt>
-          <dd>
-            {availabilityLabel(athlete.availability)}
-            {athlete.expectedReturn && <>, expected back {formatCalendarDay(athlete.expectedReturn)}</>}
-          </dd>
-        </div>
-        <div>
-          <dt>Sport</dt>
-          <dd>{athlete.sport || 'Not set'}</dd>
-        </div>
+      <dl className="profile-stats">
         <div>
           <dt>Today</dt>
-          <dd>{assigned === 0 ? 'No exercises assigned' : `${doneOnDay(athlete, state.logs, now)} of ${assigned} done`}</dd>
+          <dd>{assigned === 0 ? 'No plan' : `${doneOnDay(athlete, state.logs, now)} of ${assigned} done`}</dd>
         </div>
         <div>
           <dt>This week</dt>
-          <dd>{assigned === 0 ? 'No plan' : `${week}% logged, ${weekStatus(week)}`}</dd>
+          <dd className={assigned > 0 && weekStatus(week) === 'Behind' ? 'warn-text' : undefined}>
+            {assigned === 0 ? 'No plan' : `${week}%, ${weekStatus(week)}`}
+          </dd>
         </div>
         <div>
-          <dt>Streak of full days</dt>
+          <dt>Streak</dt>
           <dd>
             {plural(currentStreak(athlete, state.logs, now), 'day')} (best {bestStreak(athlete, state.logs, now)})
           </dd>
         </div>
         <div>
-          <dt>Email</dt>
-          <dd>{athlete.email ? <a href={`mailto:${athlete.email}`}>{athlete.email}</a> : 'Not on file'}</dd>
+          <dt>Pain, last {PAIN_HISTORY_DAYS} days</dt>
+          <dd className={pain.highest !== null && pain.highest >= PAIN_ALERT_LEVEL ? 'warn-text' : undefined}>
+            {pain.highest === null ? 'None reported' : `Highest ${pain.highest}/10`}
+          </dd>
         </div>
         <div>
-          <dt>Phone</dt>
-          <dd>{athlete.phone ? <a href={`tel:${athlete.phone}`}>{athlete.phone}</a> : 'Not on file'}</dd>
+          <dt>Next visit</dt>
+          <dd>{next ? `${formatDay(next.startsAt)}, ${formatTime(next.startsAt)}` : 'None booked'}</dd>
+        </div>
+        <div>
+          <dt>Coach sees</dt>
+          <dd>
+            {availabilityLabel(athlete.availability)}
+            {athlete.expectedReturn && !cleared && <>, back {formatCalendarDay(athlete.expectedReturn)}</>}{' '}
+            <button type="button" className="link-button small" aria-expanded={changing} onClick={() => setChanging(!changing)}>
+              {changing ? 'Done' : 'Change'}
+            </button>
+          </dd>
         </div>
       </dl>
+      {changing && <AvailabilityEditor athlete={athlete} />}
     </Card>
   );
 }
 
-/** Every injury on file, active first, each with its plan and milestone tests. */
-function InjuryHistory({ athlete }: { athlete: Athlete }) {
+/** How many History lines show before "Show all". */
+const HISTORY_SHOWN = 6;
+
+/**
+ * What's happened, newest first, in one list (recorded visits, past
+ * appointments, high pain), then every injury they've had here.
+ */
+function History({ athlete }: { athlete: Athlete }) {
   const { state } = useAppStore();
-  const records = injuryHistory(state.injuryHistory, athlete.id);
-  const cleared = records.filter((r) => r.clearedAt).length;
+  const [showAll, setShowAll] = useState(false);
+  const exerciseName = (id: string) => state.exercises.find((e) => e.id === id)?.name ?? 'an exercise';
+  const items = profileTimeline(state.visits ?? [], state.appointments, state.logs, exerciseName, athlete.id, new Date());
+  const shown = showAll ? items : items.slice(0, HISTORY_SHOWN);
+  const injuries = injuryHistory(state.injuryHistory, athlete.id);
+  const kindLabel = { visit: 'Visit', appointment: 'Appointment', pain: 'Pain report' };
 
   return (
-    <Card aria-labelledby="profile-injuries">
-      <div className="stack-xs">
-        <h2 id="profile-injuries">Injury history</h2>
-        <p className="muted">
-          {records.length === 0
-            ? 'No injuries on file.'
-            : `${records.length - cleared} active, ${cleared} cleared. Coaches can't see any of this.`}
-        </p>
-      </div>
-      {records.map((r) => (
-        <InjuryPanel key={r.caseId} record={r} />
-      ))}
+    <Card aria-labelledby="profile-history">
+      <h2 id="profile-history">History</h2>
+      {items.length === 0 ? (
+        <p className="muted">Nothing yet. Visits you record, past appointments and high pain ratings show up here.</p>
+      ) : (
+        <>
+          <ol className="visit-list">
+            {shown.map((item) => (
+              <li key={`${item.kind}-${item.at}`} className="visit-list__item">
+                <span className="small muted">
+                  <span className="strong">{kindLabel[item.kind]}</span> &middot; {formatSentAt(item.at)}
+                  {item.pain !== null && (
+                    <>
+                      {' '}
+                      &middot; <span className={item.pain >= PAIN_ALERT_LEVEL ? 'strong warn-text' : undefined}>Pain {item.pain}/10</span>
+                    </>
+                  )}
+                </span>
+                <span className="visit-card__summary">{item.text}</span>
+                {item.detail && <span className="small muted">{item.detail}</span>}
+              </li>
+            ))}
+          </ol>
+          {items.length > HISTORY_SHOWN && (
+            <Button className="btn--small" onClick={() => setShowAll(!showAll)} aria-expanded={showAll}>
+              {showAll ? 'Show fewer' : `Show all ${items.length}`}
+            </Button>
+          )}
+        </>
+      )}
+
+      {injuries.length > 0 && (
+        <div className="stack-sm">
+          <h3 className="strong">Injuries</h3>
+          {injuries.map((r) => (
+            <InjuryPanel key={r.caseId} record={r} />
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
@@ -294,76 +303,6 @@ function InjuryPanel({ record }: { record: InjuryRecord }) {
         </div>
       )}
     </section>
-  );
-}
-
-/** High pain ratings from the last two weeks, with the exercise that caused each. */
-function PainReports({ athlete }: { athlete: Athlete }) {
-  const { state } = useAppStore();
-  const history = painHistory(state.logs, athlete.id, new Date());
-  const exerciseName = (id: string) => state.exercises.find((e) => e.id === id)?.name ?? 'Exercise';
-
-  return (
-    <Card aria-labelledby="profile-pain">
-      <div className="stack-xs">
-        <h2 id="profile-pain">Pain reported</h2>
-        <p className="muted">
-          {history.highest === null
-            ? `No pain ratings in the last ${PAIN_HISTORY_DAYS} days.`
-            : `Last ${PAIN_HISTORY_DAYS} days: ${plural(history.rated, 'rating')}, highest ${history.highest} out of 10.`}
-        </p>
-      </div>
-      {history.highest !== null &&
-        (history.high.length === 0 ? (
-          <p>Nothing at {PAIN_ALERT_LEVEL} or above.</p>
-        ) : (
-          <ul className="plain-list">
-            {history.high.map((l) => (
-              <li key={`${l.exerciseId}-${l.loggedAt}`}>
-                <span className="strong warn-text">Pain {l.pain}</span> on {exerciseName(l.exerciseId)}{' '}
-                <span className="small muted">{formatSentAt(l.loggedAt)}</span>
-              </li>
-            ))}
-          </ul>
-        ))}
-    </Card>
-  );
-}
-
-/** Upcoming and past visits. Booking is under Plan and progress. */
-function Visits({ athlete }: { athlete: Athlete }) {
-  const { state } = useAppStore();
-  const now = new Date();
-  const upcoming = upcomingAppointments(state.appointments, athlete.id, now);
-  const past = pastAppointments(state.appointments, athlete.id, now);
-
-  return (
-    <Card aria-labelledby="profile-visits">
-      <h2 id="profile-visits">Appointments</h2>
-      {upcoming.length === 0 && past.length === 0 && <p className="muted">No appointments yet. Schedule one under Plan and progress.</p>}
-      <VisitList title="Upcoming" visits={upcoming} />
-      <VisitList title="Past" visits={past} />
-    </Card>
-  );
-}
-
-function VisitList({ title, visits }: { title: string; visits: Appointment[] }) {
-  if (visits.length === 0) return null;
-  return (
-    <div className="stack-xs">
-      <div className="small strong">{title}</div>
-      <ul className="plain-list">
-        {visits.map((v) => (
-          <li key={v.id}>
-            {v.title}{' '}
-            <span className="small muted">
-              {formatDay(v.startsAt)}, {formatTime(v.startsAt)}
-              {v.location && <> &middot; {v.location}</>}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

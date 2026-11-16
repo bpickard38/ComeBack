@@ -743,7 +743,8 @@ input.join-code {
   }
 
   /*
-   * The trainer gets the same bottom bar: Team, Exercises, Record, Messages.
+   * The trainer gets the same bottom bar: Today, Team, Record, Exercises,
+   * Messages, with Record in the middle.
    * Record is the trainer's main job, so it's a raised round button.
    */
   .app:has(.staff-layout) {

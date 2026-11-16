@@ -893,7 +893,7 @@
 /* Holds the box and anchors the names that drop down under it. */
 .athlete-search__box {
   position: relative;
-  flex: 0 1 14rem;
+  flex: 1 1 14rem;
 }
 
 /* A compact button for table rows: short, and never breaks its word. */
@@ -1330,7 +1330,7 @@ a.roster-row {
   text-align: left;
 }
 
-.roster-row[aria-pressed='true'] {
+a.roster-row:hover {
   background: var(--surface-high);
 }
 
@@ -2944,5 +2944,72 @@ a.roster-row {
     width: 7.5rem;
     height: 7.5rem;
     margin-bottom: var(--space-2);
+  }
+}
+
+
+
+/* Team rows: photo, then name and injury taking the room, then the status word. */
+.roster-row {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.roster-row__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The small team picker in the Team page's header. */
+.team-pick {
+  width: auto;
+  max-width: 14rem;
+}
+
+/* Team picker and Invite share one row under the team name. */
+.team-actions {
+  flex-wrap: nowrap;
+}
+
+.team-actions .team-pick {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Player profile: the small numbers under the recovery bar, as many across as fit. */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+.profile-stats dt {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.profile-stats dd {
+  margin: 0;
+  font-weight: var(--font-weight-bold);
+}
+
+/* Plan / History / Notes / Messages: one row, sharing the width evenly. */
+.profile-sections {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.profile-sections .chip {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  padding-inline: var(--space-2);
+}
+
+@media (min-width: 60rem) {
+  .profile-sections .chip {
+    flex: 0 0 auto;
+    padding-inline: var(--space-4);
   }
 }

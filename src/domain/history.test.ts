@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addDays } from './dates';
-import { injuryDays, injuryHistory, NOTE_MAX_LENGTH, painHistory, pastAppointments, validateNote } from './history';
-import type { Appointment, ExerciseLog, InjuryRecord } from './types';
+import { injuryDays, injuryHistory, NOTE_MAX_LENGTH, painHistory, pastAppointments, profileTimeline, validateNote } from './history';
+import type { Appointment, ExerciseLog, InjuryRecord, Visit } from './types';
 
 const TODAY = new Date(2026, 10, 11, 14, 0); // Wed Nov 11 2026, 2:00 PM
 
@@ -98,5 +98,36 @@ describe('validateNote', () => {
   it('refuses a note longer than the database allows', () => {
     expect(validateNote('x'.repeat(NOTE_MAX_LENGTH)).ok).toBe(true);
     expect(validateNote('x'.repeat(NOTE_MAX_LENGTH + 1)).ok).toBe(false);
+  });
+});
+
+describe('profileTimeline', () => {
+  const appt = (id: string, daysFromNow: number): Appointment => ({
+    id,
+    athleteId: 'maya',
+    startsAt: addDays(TODAY, daysFromNow).toISOString(),
+    location: 'Training room',
+    title: id,
+    testIds: [],
+    exerciseIds: [],
+  });
+  const visits: Visit[] = [
+    { id: 'v', athleteId: 'maya', visitedAt: addDays(TODAY, -1).toISOString(), summary: 'Feeling better', pain: 3, doneToday: 'Bridges' },
+    { id: 'x', athleteId: 'jordan', visitedAt: addDays(TODAY, -1).toISOString(), summary: 'Not hers', pain: null, doneToday: null },
+  ];
+
+  it('merges visits, past appointments and high pain, newest first', () => {
+    const items = profileTimeline(visits, [appt('check-in', -5), appt('future', 3)], [log(0, 8), log(2, 2)], () => 'Calf raises', 'maya', TODAY);
+    expect(items.map((i) => [i.kind, i.text])).toEqual([
+      ['pain', 'Pain during Calf raises'],
+      ['visit', 'Feeling better'],
+      ['appointment', 'check-in'],
+    ]);
+    expect(items[1].detail).toBe('Did: Bridges');
+  });
+
+  it('skips an appointment on a day a visit was recorded', () => {
+    const items = profileTimeline(visits, [appt('same-day', -1)], [], () => '', 'maya', TODAY);
+    expect(items.map((i) => i.kind)).toEqual(['visit']);
   });
 });

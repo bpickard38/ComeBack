@@ -12,7 +12,7 @@ import { Trainer } from './screens/athlete/Trainer';
 import { Record } from './screens/staff/Record';
 import { Exercises } from './screens/staff/Exercises';
 import { AthleteProfile } from './screens/staff/AthleteProfile';
-import { StaffHome } from './screens/staff/StaffHome';
+import { StaffHome, TeamPage } from './screens/staff/StaffHome';
 import { StaffLayout } from './screens/staff/StaffLayout';
 import { TrainerMessages } from './screens/staff/TrainerMessages';
 import { AdminDashboard } from './screens/admin/AdminDashboard';
@@ -72,6 +72,15 @@ export function App() {
             }
           >
             <Route index element={<StaffHome />} />
+            {/* The trainer's roster; a coach sees theirs on the home screen. */}
+            <Route
+              path="team"
+              element={
+                <RequireRole allowed={['trainer']}>
+                  <TeamPage />
+                </RequireRole>
+              }
+            />
             {/* Medical history and notes: trainer-only, like the data behind it. */}
             <Route
               path="athletes/:athleteId"

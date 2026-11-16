@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { searchAthletes } from '../../domain/search';
 import type { Athlete } from '../../domain/types';
-import { injuryLabel, plural } from '../../format';
+import { injuryLabel } from '../../format';
 import { useAppStore, useTeam } from '../../store/AppStore';
 
 /** How many names show under the box at once; typing more narrows it. */
@@ -33,15 +33,15 @@ export function AthleteSearch() {
 
   return (
     <section className="athlete-search" aria-label="Search all athletes">
-      <label htmlFor="athlete-search" className="strong nowrap">
-        Search all athletes:
+      <label htmlFor="athlete-search" className="visually-hidden">
+        Search all athletes
       </label>
       <div className="athlete-search__box">
       <input
         id="athlete-search"
         type="search"
         className="field field--slim"
-        placeholder={`Search all ${plural(state.teams.length, 'team')}`}
+        placeholder="Search all athletes"
         autoComplete="off"
         value={query}
         onChange={(e) => setQuery(e.target.value)}

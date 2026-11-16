@@ -59,7 +59,7 @@ export function TeamSwitcher() {
 }
 
 /** Name, sport and school for another team. Saving switches to the new team. */
-function NewTeamForm({ onClose }: { onClose: () => void }) {
+export function NewTeamForm({ onClose }: { onClose: () => void }) {
   const { commands } = useAppStore();
   const { notify } = useToast();
   const [name, setName] = useState('');

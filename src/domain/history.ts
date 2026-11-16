@@ -5,7 +5,7 @@
 */
 import { addDays, dayKey } from './dates';
 import { isHighPain } from './pain';
-import type { Appointment, ExerciseLog, InjuryRecord, Result } from './types';
+import type { Appointment, ExerciseLog, InjuryRecord, Result, Visit } from './types';
 
 /** How far back the profile's pain section looks, including today. */
 export const PAIN_HISTORY_DAYS = 14;
@@ -66,4 +66,49 @@ export function validateNote(text: string): Result<string> {
     return { ok: false, error: `Notes can be up to ${NOTE_MAX_LENGTH} characters. This one is ${trimmed.length}.` };
   }
   return { ok: true, value: trimmed };
+}
+
+/** One line in the profile's History: a recorded visit, a past appointment, or a high pain rating. */
+export interface TimelineItem {
+  kind: 'visit' | 'appointment' | 'pain';
+  at: string;
+  /** Pain out of 10, when there is one. */
+  pain: number | null;
+  /** What happened, in words. */
+  text: string;
+  /** Second line: what they did, where, or who recorded it. */
+  detail: string | null;
+}
+
+/**
+ * Everything that's happened with one athlete, newest first, in one list:
+ * recorded visits, past appointments (skipped on a day a visit was recorded,
+ * since the visit says more) and high pain ratings from their exercise logs.
+ */
+export function profileTimeline(
+  visits: Visit[],
+  appointments: Appointment[],
+  logs: ExerciseLog[],
+  exerciseName: (id: string) => string,
+  athleteId: string,
+  now: Date,
+): TimelineItem[] {
+  const mine = visits.filter((v) => v.athleteId === athleteId);
+  const visitDays = new Set(mine.map((v) => dayKey(new Date(v.visitedAt))));
+  const items: TimelineItem[] = [
+    ...mine.map((v) => ({
+      kind: 'visit' as const,
+      at: v.visitedAt,
+      pain: v.pain,
+      text: v.summary,
+      detail: [v.doneToday && `Did: ${v.doneToday}`, v.trainerName].filter(Boolean).join(' · ') || null,
+    })),
+    ...pastAppointments(appointments, athleteId, now)
+      .filter((a) => !visitDays.has(dayKey(new Date(a.startsAt))))
+      .map((a) => ({ kind: 'appointment' as const, at: a.startsAt, pain: null, text: a.title, detail: a.location || null })),
+    ...logs
+      .filter((l) => l.athleteId === athleteId && isHighPain(l.pain))
+      .map((l) => ({ kind: 'pain' as const, at: l.loggedAt, pain: l.pain ?? null, text: `Pain during ${exerciseName(l.exerciseId)}`, detail: null })),
+  ];
+  return items.sort((a, b) => b.at.localeCompare(a.at));
 }

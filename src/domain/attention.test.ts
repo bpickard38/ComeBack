@@ -25,7 +25,7 @@ const devon = athlete('a2', 'Devon Clarke', { injured: true });
 const jordan = athlete('a3', 'Jordan Reyes', { injured: true, exercises: ['plan-1'] });
 const priya = athlete('a4', 'Priya Nair');
 
-const base = { athletes: [maya, devon, jordan, priya], logs: [] as ExerciseLog[], messages: [] as Message[], visits: [] as Visit[] | null, teamId: 'team', trainerId: 't1', now };
+const base = { athletes: [maya, devon, jordan, priya], logs: [] as ExerciseLog[], messages: [] as Message[], visits: [] as Visit[] | null, teamIds: ['team'], trainerId: 't1', now };
 
 describe('needsAttention', () => {
   it('flags recent high pain', () => {

@@ -1,5 +1,5 @@
 /*
-  The Team page's top sections: who's coming in today, and who needs the
+  The Today page: who's coming in today, and who needs the
   trainer's attention. Plain functions over data the app already has, so
   they're tested (attention.test.ts) and the page just draws the result.
 */
@@ -25,7 +25,8 @@ export interface AttentionInput {
   messages: Message[];
   /** null when visit records aren't set up; then visit gaps aren't checked. */
   visits: Visit[] | null;
-  teamId: string;
+  /** The trainer's teams, so a coach asking about the athlete on any of them counts. */
+  teamIds: string[];
   /** The signed-in trainer, so their own messages don't count as unread. */
   trainerId: string;
   now: Date;
@@ -36,14 +37,14 @@ export interface AttentionInput {
  * a coach asking about them, behind on this week's exercises, or no visit
  * in a week while injured. The most reasons first; nobody with none.
  */
-export function needsAttention({ athletes, logs, messages, visits, teamId, trainerId, now }: AttentionInput): AttentionItem[] {
+export function needsAttention({ athletes, logs, messages, visits, teamIds, trainerId, now }: AttentionInput): AttentionItem[] {
   const items: AttentionItem[] = [];
   for (const athlete of athletes) {
     const reasons: string[] = [];
     const pain = highestRecentPain(logs, athlete.id, now);
     if (isHighPain(pain ?? undefined)) reasons.push(`Pain ${pain}/10 reported`);
     if (unreadIn(messages, athleteThread(athlete.id), trainerId) > 0) reasons.push('New message');
-    if (unreadIn(messages, aboutThread(teamId, athlete.id), trainerId) > 0) reasons.push('Coach asked about them');
+    if (teamIds.some((teamId) => unreadIn(messages, aboutThread(teamId, athlete.id), trainerId) > 0)) reasons.push('Coach asked about them');
     if (athlete.assignedExerciseIds.length > 0 && weekStatus(weekCompletion(athlete, logs, now)) === 'Behind') {
       reasons.push('Behind on exercises this week');
     }
