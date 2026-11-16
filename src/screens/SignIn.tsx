@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import type { Role } from '../domain/types';
 import { pendingJoin } from '../store/pendingJoin';
@@ -31,9 +32,10 @@ const MIN_PASSWORD = 6;
  * code (see TeamSetup and supabase/signup.sql).
  */
 export function SignIn() {
+  const location = useLocation();
+  const navigate = useNavigate();
   // Came from a join link: most people need an account, and the link says which kind.
   const [invite] = useState(pendingJoin);
-  const [mode, setMode] = useState<'signIn' | 'signUp'>(invite ? 'signUp' : 'signIn');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +43,7 @@ export function SignIn() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const signingUp = mode === 'signUp';
+  const signingUp = location.pathname === '/signup' || (location.pathname !== '/signin' && Boolean(invite));
   const formReady = Boolean(
     email.trim() &&
       password &&
@@ -49,7 +51,7 @@ export function SignIn() {
   );
 
   function switchMode() {
-    setMode(signingUp ? 'signIn' : 'signUp');
+    navigate(signingUp ? '/signin' : '/signup');
     setError('');
     setNotice('');
   }
@@ -84,7 +86,7 @@ export function SignIn() {
       } else if (!data.session) {
         // Email confirmation is on: no session until they click the link.
         setNotice(`Check ${email.trim()} for a confirmation link, then come back and sign in.`);
-        setMode('signIn');
+        navigate('/signin', { replace: true });
         setPassword('');
       }
       // With a session, AuthGate hears about it and moves on to team setup.

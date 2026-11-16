@@ -12,6 +12,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { Button } from "../components/Button";
 import { InviteAccept } from "../screens/InviteAccept";
+import { Landing } from "../screens/Landing";
+import { LoadingScreen } from "../screens/LoadingScreen";
 import { SignIn } from "../screens/SignIn";
 import { TeamSetup } from "../screens/TeamSetup";
 import { clearPendingJoin, pendingJoin } from "./pendingJoin";
@@ -115,14 +117,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
     };
   }, [userId, attempt]);
 
-  if (userId === null)
-    return isInvitePath ? <InviteAccept authenticated={false} /> : <SignIn />;
+  if (userId === null) {
+    if (isInvitePath) return <InviteAccept authenticated={false} />;
+    if (location.pathname === "/" && !pendingJoin()) return <Landing />;
+    return <SignIn />;
+  }
   if (userId === undefined || loaded?.userId !== userId) {
-    return (
-      <p className="gate-status" role="status" aria-live="polite">
-        Loading…
-      </p>
-    );
+    const isLanding = location.pathname === "/" && !pendingJoin();
+    return <LoadingScreen variant={isLanding ? 'landing' : 'app'} />;
   }
 
   if ("error" in loaded) {
