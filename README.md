@@ -9,7 +9,7 @@ Injury rehab tracker that connects college athletes, their athletic trainer and 
 The React app hosted on Vercel uses Supabase for logins and exercise data. The **AI exercise workflow** (the trainer's Assistant tab) works as follows:
 
 1. A trainer tells the assistant who they are working with, which injury, and which exercises.
-2. React sends the request to a server-side AI function (`supabase/functions/ai-assistant`), which calls the OpenAI API.
+2. React sends the request to a server-side AI function (`supabase/functions/trainer-assistant`), which calls the OpenAI API.
 3. OpenAI reads the request and requests database searches through tool calls (athletes, injuries, exercises). The function executes each search against Supabase as the signed-in trainer and returns the result to OpenAI.
 4. If the injury and exercises exist, the workflow reuses them. If one is missing, OpenAI drafts it; for a new exercise the function also searches YouTube for a tutorial video.
 5. OpenAI hands back a plan. The function validates it and React shows it to the trainer as a card. Nothing has been saved yet.
@@ -311,7 +311,7 @@ Videos are public YouTube clips, 20 to 60 seconds, from physical therapists and 
 
 ## AI assistant
 
-Trainers have an **Assistant** tab. They type what they want in plain words and get a plan to confirm:
+Trainers have an **Assistant** tab. They type or say what they want in plain words and get a plan to confirm. To talk instead of typing, tap the mic, speak, and tap stop: the words appear in the message box to check or fix, then Send.
 
 - "Maya rolled her ankle. Give her the usual ankle sprain set." The assistant finds Maya, matches "rolled ankle" to Ankle sprain, and proposes that injury's workout set.
 - "Add Copenhagen planks, 3 sets of 20 seconds, to Devon's hamstring plan." Copenhagen plank isn't in the catalog, so the plan adds it, with a one-line how-to and a tutorial video found on YouTube.
@@ -323,35 +323,37 @@ Rules it follows:
 - **It only adds.** If the athlete already has that injury, the exercises are added to their plan. Removing an exercise or clearing an injury is still done on the athlete's profile.
 - **The trainer decides the treatment.** With no exercises named and no workout set, it asks instead of choosing.
 - **It has the trainer's access and no more.** The function makes every database call as the signed-in trainer, so row level security still applies: it can't see another trainer's athletes, and coaches and athletes are refused.
-- **A video link can't be invented.** Only a video that the YouTube search returned during that request is accepted, and only videos that allow playing inside another site are searched.
+- **A video link can't be invented.** Only a video that the search returned during that request is accepted, and only videos that allow playing inside another site get through. With a YouTube key the YouTube Data API searches; without one, OpenAI web search looks on youtube.com and each result is checked with YouTube's free oEmbed service, which only answers for public videos that can be embedded.
 
-What leaves the app: the trainer's messages, and the names, teams and active injuries of athletes the assistant looks up, are sent to OpenAI to produce the plan. Exercise names are sent to YouTube's search. Logs, pain ratings, test results, notes and messages are never sent.
+What leaves the app: the trainer's messages (and voice recordings, for speech-to-text), and the names, teams and active injuries of athletes the assistant looks up, are sent to OpenAI to produce the plan. Athlete, injury and exercise names also go with a recording, so they're spelled right. Exercise names are sent to the video search. Logs, pain ratings, test results, notes and messages are never sent.
 
 ### Setting it up (once per Supabase project)
 
-You need an OpenAI API key (platform.openai.com > API keys; the account needs a little credit) and, for videos, a YouTube Data API key (Google Cloud console > enable "YouTube Data API v3" > Credentials > API key; free, about 100 searches a day). Without the YouTube key everything works except that new exercises are added with no video.
+You need an OpenAI API key (platform.openai.com > API keys; the account needs a little credit) and, optionally, a YouTube Data API key (Google Cloud console > enable "YouTube Data API v3" > Credentials > API key; free, about 100 searches a day). Without the YouTube key, videos are found with OpenAI web search instead (slower, and each search costs a little on the OpenAI account).
 
 ```sh
 npx supabase login                                   # opens the browser once
 npx supabase link --project-ref <your-project-ref>   # the part before .supabase.co
-npx supabase secrets set OPENAI_API_KEY=sk-... YOUTUBE_API_KEY=AIza...
-npx supabase functions deploy ai-assistant --no-verify-jwt --use-api
+npx supabase secrets set OPENAI_API_KEY=sk-...       # add YOUTUBE_API_KEY=AIza... if you have one
+npx supabase functions deploy trainer-assistant --no-verify-jwt --use-api
 ```
 
 No SQL to run: the function uses tables and rules that already exist. `--no-verify-jwt` is there because the function checks the sign-in itself (and refuses anyone who isn't a trainer). The keys live only in Supabase; never put them in `.env.local` or Vercel.
 
-Optional secrets: `OPENAI_MODEL` (default `gpt-5.6-terra`; any OpenAI model that supports tool calls on the Chat Completions API) and `OPENAI_REASONING_EFFORT`. To hide the tab, set `ASSISTANT_FEATURE` to `false` in `src/features.ts`.
+Optional secrets: `OPENAI_MODEL` (default `gpt-5.5`; any OpenAI model that supports tool calls on the Chat Completions API) `OPENAI_REASONING_EFFORT`, `OPENAI_TRANSCRIBE_MODEL` (speech-to-text; default `gpt-transcribe`, about half a cent a minute) and `OPENAI_SEARCH_MODEL` (the video web search; default `gpt-5.5`). To hide the tab, set `ASSISTANT_FEATURE` to `false` in `src/features.ts`.
 
-Until the function is deployed, the tab is there but answers "The assistant isn't set up yet."
+Until the function is deployed, the tab is there but answers "The assistant isn't set up yet." The mic only shows in browsers that can record; on iPhone it asks for microphone access the first time.
 
 ### Where the code is
 
 | File | What it does |
 |---|---|
-| `src/screens/staff/Assistant.tsx` | The tab: conversation and plan card |
+| `src/screens/staff/Assistant.tsx` | The tab: conversation, plan card and mic |
+| `src/components/useVoiceRecorder.ts` | Records from the mic until the trainer taps stop |
+| `src/domain/voice.ts` | Audio format, mic volume and adding spoken words to the box, tested in `voice.test.ts` |
 | `src/domain/assistant.ts` | The conversation as the screen keeps it, and how it's written out for the AI |
-| `supabase/functions/ai-assistant/index.ts` | Talks to OpenAI and YouTube, runs the searches, saves a confirmed plan |
-| `supabase/functions/ai-assistant/plan.ts` | The rules a plan must pass, as plain functions, tested in `src/domain/assistant.test.ts` |
+| `supabase/functions/trainer-assistant/index.ts` | Talks to OpenAI and YouTube, runs the searches, turns recordings into text, saves a confirmed plan |
+| `supabase/functions/trainer-assistant/plan.ts` | The rules a plan must pass, as plain functions, tested in `src/domain/assistant.test.ts` |
 
 ## Where things live
 
@@ -360,7 +362,7 @@ Until the function is deployed, the tab is there but answers "The assistant isn'
 | `src/domain` | Rules as plain functions (streaks, goals, week %), with tests. No React. |
 | `src/data` | Sample data (`seed.ts`) used by the tests |
 | `src/store` | Sign-in gate, loading from and saving to Supabase (`remote.ts`), app state, and the commands screens call |
-| `supabase` | Database setup scripts (run in order, see above), and the Edge Functions in `functions/` (`send-reminders`, `admin-users`, `ai-assistant`) |
+| `supabase` | Database setup scripts (run in order, see above), and the Edge Functions in `functions/` (`send-reminders`, `admin-users`, `trainer-assistant`) |
 | `public` | Files served as-is: the service worker (`sw.js`), app manifest and icons |
 | `scripts` | `push-secrets.mjs`, which makes the push reminder keys and secrets |
 | `src/components` | Reusable pieces: Button, Card, ProgressBar, Toast, TabBar, app icons |

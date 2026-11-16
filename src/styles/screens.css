@@ -2590,3 +2590,35 @@ a.roster-row {
 .assistant__detail {
   display: block;
 }
+
+/* The assistant's mic: a ring grows with your voice while it's listening. */
+.assistant__mic {
+  display: inline-flex;
+  width: var(--target-min);
+  height: var(--target-min);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--link);
+}
+
+.assistant__mic[data-listening] {
+  background: var(--danger);
+  color: var(--surface);
+  box-shadow: 0 0 0 calc(var(--mic-level, 0) * 0.75rem) color-mix(in srgb, var(--danger) 35%, transparent);
+  transition: box-shadow 0.1s linear;
+}
+
+.assistant__mic:disabled,
+.assistant .chat__input:disabled {
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant__mic[data-listening] {
+    transition: none;
+  }
+}

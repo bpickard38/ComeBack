@@ -186,6 +186,13 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       return remote.askAssistant(toHistory(turns), teamName);
     },
 
+    /** Trainer spoke to the assistant: the recording as text, for the message box. Saves nothing. */
+    async transcribeSpeech(audio: Blob, fileName: string): Promise<Result<string>> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can use the assistant.' };
+      if (state.offline) return { ok: false, error: `Could not reach the assistant. ${OFFLINE_ERROR}` };
+      return remote.transcribeSpeech(audio, fileName);
+    },
+
     /** Trainer pressed Confirm on the assistant's plan: save it. */
     async applyAssistantPlan(proposal: Proposal): Promise<Result<{ summary: string }>> {
       if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can assign injuries and exercises.' };

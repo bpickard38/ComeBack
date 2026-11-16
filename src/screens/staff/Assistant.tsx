@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { useToast } from '../../components/Toast';
+import { canRecord, useVoiceRecorder } from '../../components/useVoiceRecorder';
 import { planNumbers, withAnswer, type AssistantTurn, type PlanStatus, type Proposal } from '../../domain/assistant';
+import { addSpokenText } from '../../domain/voice';
 import { useAppStore, useTeam } from '../../store/AppStore';
 
 const EXAMPLES = [
@@ -26,7 +28,7 @@ let nextId = 1;
  * or an exercise isn't in the catalog, the plan adds it (new exercises get
  * a tutorial video found on YouTube).
  *
- * The AI itself runs on the server (supabase/functions/ai-assistant); this
+ * The AI itself runs on the server (supabase/functions/trainer-assistant); this
  * screen only shows the conversation.
  */
 export function Assistant() {
@@ -39,6 +41,29 @@ export function Assistant() {
   /** The turn whose plan is being saved right now. */
   const [savingId, setSavingId] = useState<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [transcribing, setTranscribing] = useState(false);
+  const voice = canRecord();
+
+  // Tap the mic, talk, tap stop: the words land in the box to check, then Send.
+  const recorder = useVoiceRecorder({
+    onRecorded: async (audio, fileName) => {
+      setTranscribing(true);
+      const heard = await commands.transcribeSpeech(audio, fileName);
+      setTranscribing(false);
+      if (!heard.ok) return notify(heard.error, 'error');
+      if (!heard.value) return notify('I didn’t catch any words. Tap the mic and try again.', 'error');
+      setDraft((d) => addSpokenText(d, heard.value));
+      requestAnimationFrame(() => {
+        const input = inputRef.current;
+        if (!input) return;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      });
+    },
+    onProblem: (message) => notify(message, 'error'),
+  });
+  const listening = recorder.status !== 'idle';
 
   useEffect(() => {
     kept = { userId: profile.id, turns };
@@ -144,9 +169,9 @@ export function Assistant() {
             </div>
           ))
         )}
-        {thinking && (
+        {(thinking || transcribing) && (
           <div className="msg msg--first msg--theirs" role="status">
-            <div className="msg__bubble muted">Working on it…</div>
+            <div className="msg__bubble muted">{transcribing ? 'Turning your voice into text…' : 'Working on it…'}</div>
           </div>
         )}
       </div>
@@ -156,16 +181,33 @@ export function Assistant() {
           Tell the assistant what to assign
         </label>
         <textarea
+          ref={inputRef}
           id="assistant-input"
           className="chat__input"
           rows={1}
-          placeholder="Who, which injury, which exercises…"
+          placeholder={listening ? 'Listening… tap stop when you’re done' : 'Who, which injury, which exercises…'}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
+          disabled={listening}
         />
-        {draft.trim() !== '' && (
-          <button type="submit" className="chat__send" disabled={thinking}>
+        {voice && (
+          <button
+            type="button"
+            className="assistant__mic"
+            data-listening={listening || undefined}
+            // The ring around the mic grows with your voice.
+            style={{ '--mic-level': recorder.level } as CSSProperties}
+            onClick={listening ? recorder.stop : recorder.start}
+            disabled={thinking || transcribing}
+            aria-pressed={listening}
+            aria-label={listening ? 'Stop recording' : 'Talk to the assistant'}
+          >
+            {listening ? <StopIcon /> : <MicIcon />}
+          </button>
+        )}
+        {draft.trim() !== '' && !listening && (
+          <button type="submit" className="chat__send" disabled={thinking || transcribing}>
             {thinking ? 'Working…' : 'Send'}
           </button>
         )}
@@ -253,5 +295,23 @@ function PlanCard({ proposal, status, saving, onConfirm, onCancel }: PlanCardPro
         </p>
       )}
     </section>
+  );
+}
+
+// Small inline icons; aria-hidden because the mic button has its own label.
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
   );
 }

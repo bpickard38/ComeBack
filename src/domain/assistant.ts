@@ -2,14 +2,14 @@
   The trainer's AI assistant, app side.
 
   The plan types and rules live with the server function
-  (supabase/functions/ai-assistant/plan.ts) because the server enforces
+  (supabase/functions/trainer-assistant/plan.ts) because the server enforces
   them; they're re-exported here so screens import from src/domain as usual.
   What's added here is the conversation as the screen keeps it.
 */
-import type { Proposal } from '../../supabase/functions/ai-assistant/plan';
+import type { Proposal } from '../../supabase/functions/trainer-assistant/plan';
 
-export type { Proposal, ProposedExercise } from '../../supabase/functions/ai-assistant/plan';
-export { newItems, savedSummary } from '../../supabase/functions/ai-assistant/plan';
+export type { Proposal, ProposedExercise } from '../../supabase/functions/trainer-assistant/plan';
+export { newItems, savedSummary } from '../../supabase/functions/trainer-assistant/plan';
 
 /** What happened to a plan card. 'replaced' means a newer plan was shown instead. */
 export type PlanStatus = 'pending' | 'saved' | 'cancelled' | 'replaced';

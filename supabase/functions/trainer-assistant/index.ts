@@ -18,15 +18,24 @@
              saved: new injury, new exercises with their videos, then the
              assignment. OpenAI is not involved in this step at all.
 
+  And voice: a recording sent as a multipart form (field "audio") goes to
+  OpenAI speech-to-text and comes back as { text }, which the app puts in
+  the message box for the trainer to check before sending.
+
   Every database call here is made AS THE TRAINER (their sign-in token is
   passed along), so the row level security rules in erd_schema.sql still
   decide what can be read and written. This function has no extra powers.
 
   Secrets (npx supabase secrets set NAME=value):
     OPENAI_API_KEY   required
-    YOUTUBE_API_KEY  optional; without it new exercises are added with no video
+    YOUTUBE_API_KEY  optional; without it, videos are found with OpenAI web
+                     search on youtube.com instead (see findVideosWithOpenAI)
     OPENAI_MODEL     optional; which OpenAI model to use (default below)
     OPENAI_REASONING_EFFORT  optional; passed to OpenAI as reasoning_effort
+    OPENAI_TRANSCRIBE_MODEL  optional; speech-to-text model (default gpt-transcribe)
+    OPENAI_SEARCH_MODEL      optional; model for the video web search (default gpt-5.5)
+
+  Deploy: npx supabase functions deploy trainer-assistant --no-verify-jwt --use-api
 */
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import {
@@ -34,13 +43,18 @@ import {
   sameName,
   sanitizeProposal,
   savedSummary,
+  youtubeIdFromUrl,
   type PlanContext,
   type Proposal,
   type RawPlan,
 } from './plan.ts';
 
-/** A current lower-cost OpenAI model that supports tool calls on Chat Completions (checked Nov 2026). */
-const DEFAULT_MODEL = 'gpt-5.6-terra';
+/**
+ * An OpenAI model that supports tool calls on Chat Completions. gpt-5.5
+ * worked on this project's OpenAI account on Nov 16, 2026; gpt-5.6-terra
+ * was refused there (400), so set OPENAI_MODEL to try another.
+ */
+const DEFAULT_MODEL = 'gpt-5.5';
 /** How many times OpenAI may ask for tools before we stop waiting for an answer. */
 const MAX_ROUNDS = 8;
 const MAX_HISTORY = 24;
@@ -164,11 +178,12 @@ interface Video {
 /**
  * Short YouTube videos that are allowed to play inside another site
  * (videoEmbeddable), since the athlete watches them inside the app.
- * Returns null when YOUTUBE_API_KEY isn't set or YouTube refuses.
+ * Uses the YouTube Data API when YOUTUBE_API_KEY is set, otherwise OpenAI
+ * web search. Returns null when neither can search.
  */
 async function searchYouTube(exerciseName: string): Promise<Video[] | null> {
   const key = Deno.env.get('YOUTUBE_API_KEY');
-  if (!key) return null;
+  if (!key) return await findVideosWithOpenAI(exerciseName);
   const find = async (duration: 'short' | 'any') => {
     const params = new URLSearchParams({
       part: 'snippet',
@@ -200,6 +215,109 @@ async function searchYouTube(exerciseName: string): Promise<Video[] | null> {
   const short = await find('short');
   if (short === null) return null;
   return short.length ? short : await find('any');
+}
+
+/**
+ * Video search without a YouTube key: OpenAI's web search, limited to
+ * youtube.com, lists candidates, then each one is checked with YouTube's
+ * free oEmbed service (checkVideo). A search answer can name a video that
+ * doesn't exist or can't play in other sites; those never get through.
+ */
+async function findVideosWithOpenAI(exerciseName: string): Promise<Video[] | null> {
+  const key = Deno.env.get('OPENAI_API_KEY');
+  if (!key) return null;
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      // gpt-5.5 was tested with web search on Nov 16, 2026.
+      model: Deno.env.get('OPENAI_SEARCH_MODEL') || 'gpt-5.5',
+      tools: [{ type: 'web_search', filters: { allowed_domains: ['youtube.com'] } }],
+      reasoning: { effort: 'low' },
+      store: false,
+      input:
+        `Find 6 different YouTube videos that demonstrate the rehab exercise "${exerciseName}". ` +
+        'Prefer short clips (under 3 minutes) from physical therapists, athletic trainers, clinics or hospitals, ' +
+        'showing the movement clearly. Avoid long workouts and compilations. List each full youtube.com link on its own line.',
+    }),
+  });
+  if (!response.ok) {
+    console.error('Video web search failed', response.status, await response.text());
+    return null;
+  }
+
+  // Links can be in the answer's text and in its citations.
+  type Part = { text?: string; annotations?: Array<{ url?: string }> };
+  const body = (await response.json()) as { output?: Array<{ type: string; content?: Part[] }> };
+  const parts = (body.output ?? []).filter((o) => o.type === 'message').flatMap((o) => o.content ?? []);
+  const links = [
+    ...parts.flatMap((p) => p.annotations ?? []).map((a) => a.url ?? ''),
+    ...parts.flatMap((p) => p.text?.match(/https?:\/\/[^\s)\]"'<>]+/g) ?? []),
+  ];
+  const ids = [...new Set(links.map((l) => youtubeIdFromUrl(l.replace(/[.,;]+$/, ''))).filter((id): id is string => !!id))].slice(0, 6);
+
+  const checked = await Promise.all(ids.map(checkVideo));
+  return checked.filter((v): v is Video => v !== null).slice(0, 5);
+}
+
+/**
+ * YouTube's oEmbed service answers only for videos that exist, are public
+ * and allow playing inside other sites, with the title and channel. Free,
+ * no key needed.
+ */
+async function checkVideo(videoId: string): Promise<Video | null> {
+  const watch = `https://www.youtube.com/watch?v=${videoId}`;
+  try {
+    const response = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(watch)}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return null;
+    const info = (await response.json()) as { title?: string; author_name?: string };
+    return { video_id: videoId, title: info.title ?? 'YouTube video', channel: info.author_name ?? 'YouTube' };
+  } catch {
+    return null;
+  }
+}
+
+// ---------- Speech to text ----------
+
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // about 10 minutes of speech; OpenAI allows 25 MB
+
+/** A voice recording to text. Names on the trainer's roster and in the catalog help with spelling. */
+async function transcribe(request: Request, db: SupabaseClient, callerId: string): Promise<Response> {
+  const key = Deno.env.get('OPENAI_API_KEY');
+  if (!key) throw new UserFacingError('The assistant isn’t set up yet: the OpenAI key is missing on the server.');
+  const form = await request.formData().catch(() => null);
+  const audio = form?.get('audio');
+  if (!(audio instanceof File) || audio.size === 0) return json({ error: 'No recording came through. Try again.' }, 400);
+  if (audio.size > MAX_AUDIO_BYTES) return json({ error: 'That recording is too long. Keep it under a few minutes.' }, 400);
+
+  const catalog = await loadCatalog(db, callerId);
+  if (!catalog) return json({ error: 'Only trainers can use the assistant.' }, 403);
+  const names = [...catalog.athletes, ...catalog.injuries, ...catalog.exercises].map((x) => x.name);
+  let hint = 'A sports trainer talking about athletes and rehab exercises. Names: ';
+  for (const name of names) {
+    if (hint.length + name.length > 800) break;
+    hint += `${name}, `;
+  }
+
+  const body = new FormData();
+  body.append('file', audio, audio.name || 'speech.webm');
+  body.append('model', Deno.env.get('OPENAI_TRANSCRIBE_MODEL') || 'gpt-transcribe');
+  body.append('prompt', hint.replace(/, $/, '.'));
+  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}` },
+    body,
+  });
+  if (!response.ok) {
+    console.error('Transcription failed', response.status, await response.text());
+    if (response.status === 401) throw new UserFacingError('OpenAI rejected the API key. Whoever set up the assistant needs to check OPENAI_API_KEY.');
+    if (response.status === 429) throw new UserFacingError('OpenAI is refusing requests right now (rate limit or no credit left on the account). Try again in a minute.');
+    throw new UserFacingError('Couldn’t turn the recording into text. Try again, or type instead.');
+  }
+  const { text } = (await response.json()) as { text?: string };
+  return json({ text: (text ?? '').trim() });
 }
 
 // ---------- The tools OpenAI may ask for ----------
@@ -559,6 +677,17 @@ Deno.serve(async (request) => {
   const { data: me } = await db.from('users').select('role').eq('id', user.id).maybeSingle();
   if (me?.role !== 'trainer') return json({ error: 'Only trainers can use the assistant.' }, 403);
 
+  // A voice recording comes as a form with a file, not JSON.
+  if ((request.headers.get('content-type') ?? '').startsWith('multipart/form-data')) {
+    try {
+      return await transcribe(request, db, user.id);
+    } catch (error) {
+      if (error instanceof UserFacingError) return json({ error: error.message }, 502);
+      console.error('trainer-assistant transcription failed', error);
+      return json({ error: 'Something went wrong on the server. Try again.' }, 500);
+    }
+  }
+
   let input: { action?: string; messages?: unknown; teamName?: unknown; proposal?: unknown };
   try {
     input = await request.json();
@@ -572,7 +701,7 @@ Deno.serve(async (request) => {
     return json({ error: 'Unknown action.' }, 400);
   } catch (error) {
     if (error instanceof UserFacingError) return json({ error: error.message }, 502);
-    console.error('ai-assistant failed', error);
+    console.error('trainer-assistant failed', error);
     return json({ error: 'Something went wrong on the server. Try again.' }, 500);
   }
 });

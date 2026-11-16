@@ -5,7 +5,7 @@ import {
   savedSummary,
   type PlanContext,
   type Proposal,
-} from '../../supabase/functions/ai-assistant/plan';
+} from '../../supabase/functions/trainer-assistant/plan';
 import { planNumbers, toHistory, withAnswer, type AssistantTurn } from './assistant';
 
 const VIDEO = 'dQw4w9WgXcQ';

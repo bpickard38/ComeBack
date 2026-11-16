@@ -626,13 +626,13 @@ export async function cancelAppointment(appointmentId: string): Promise<Result> 
 }
 
 // ---------- AI assistant ----------
-// Both go through the ai-assistant function (supabase/functions/ai-assistant),
+// Both go through the trainer-assistant function (supabase/functions/trainer-assistant),
 // which holds the OpenAI key. The app never talks to OpenAI directly.
 
-const ASSISTANT_NOT_SET_UP = 'The assistant isn’t set up yet. Whoever set up Supabase needs to deploy the ai-assistant function (README > AI assistant).';
+const ASSISTANT_NOT_SET_UP = 'The assistant isn’t set up yet. Whoever set up Supabase needs to deploy the trainer-assistant function (README > AI assistant).';
 
-async function callAssistant<T>(body: Record<string, unknown>): Promise<Result<T>> {
-  const { data, error } = await supabase.functions.invoke('ai-assistant', { body });
+async function callAssistant<T>(body: Record<string, unknown> | FormData): Promise<Result<T>> {
+  const { data, error } = await supabase.functions.invoke('trainer-assistant', { body });
   if (!error) return { ok: true, value: data as T };
   // When the function answers with an error status, its JSON body (with our
   // message in `error`) is on error.context as an unread Response.
@@ -653,4 +653,15 @@ export function askAssistant(history: Array<{ role: 'user' | 'assistant'; conten
 /** Saves a plan the trainer confirmed. */
 export function applyAssistantPlan(proposal: Proposal): Promise<Result<{ summary: string }>> {
   return callAssistant<{ summary: string }>({ action: 'apply', proposal });
+}
+
+/**
+ * A voice recording to text (OpenAI speech-to-text, on the server). Sent as
+ * a form with a file; the function tells it apart from the JSON actions.
+ */
+export async function transcribeSpeech(audio: Blob, fileName: string): Promise<Result<string>> {
+  const form = new FormData();
+  form.append('audio', audio, fileName);
+  const result = await callAssistant<{ text?: string }>(form);
+  return result.ok ? { ok: true, value: result.value.text ?? '' } : result;
 }

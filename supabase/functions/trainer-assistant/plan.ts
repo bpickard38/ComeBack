@@ -1,7 +1,7 @@
 /*
   The rules for an assistant plan, as plain functions with no imports.
 
-  This file is shared: the ai-assistant function (index.ts, runs on
+  This file is shared: the trainer-assistant function (index.ts, runs on
   Supabase) uses it to check what the AI asked for, and the app
   (src/domain/assistant.ts) uses the same types to show the plan. Because
   it has no imports and touches no network, Vitest can test it
