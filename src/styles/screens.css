@@ -162,6 +162,7 @@ body:has(.loading-screen) {
 
 .landing__visual {
   position: relative;
+  margin: 0;
   min-width: 0;
   aspect-ratio: 1.12;
   overflow: hidden;
@@ -458,12 +459,15 @@ body:has(.loading-screen) {
   }
 
   .landing__hero {
+    display: flex;
     min-height: 0;
-    grid-template-columns: minmax(0, 1fr);
+    flex-direction: column;
+    align-items: center;
     gap: 2.5rem;
   }
 
   .landing__copy {
+    width: 100%;
     max-width: 42rem;
     gap: 1.25rem;
   }
@@ -530,12 +534,13 @@ body:has(.loading-screen) {
   }
 
   .landing__visual {
-    aspect-ratio: 1.05;
+    aspect-ratio: 3 / 2;
     border-radius: 1rem;
   }
 
   .landing__visual img {
-    object-position: 48% 50%;
+    object-fit: contain;
+    object-position: center;
   }
 
   .landing__features {
