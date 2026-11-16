@@ -577,10 +577,11 @@ async function callOpenAI(messages: ChatMessage[]): Promise<ChatMessage> {
   const key = Deno.env.get('OPENAI_API_KEY');
   if (!key) throw new UserFacingError('The assistant isn’t set up yet: the OpenAI key is missing on the server.');
   const model = Deno.env.get('OPENAI_MODEL') || DEFAULT_MODEL;
-  // How long the model thinks before answering. "low" keeps a reply to a
-  // few seconds; the lists in the first message do most of the work. Set
-  // OPENAI_REASONING_EFFORT to change it, or to "off" for a model without it.
-  const effort = Deno.env.get('OPENAI_REASONING_EFFORT') || 'low';
+  // Optional: how long the model thinks before answering. Left to the
+  // model's default unless the secret is set: gpt-5.5 refused "low" together
+  // with tools on Chat Completions (400, Nov 16 2026), and allowed values
+  // differ by model.
+  const effort = Deno.env.get('OPENAI_REASONING_EFFORT');
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -588,7 +589,7 @@ async function callOpenAI(messages: ChatMessage[]): Promise<ChatMessage> {
       model,
       messages,
       tools: TOOLS,
-      ...(effort !== 'off' ? { reasoning_effort: effort } : {}),
+      ...(effort ? { reasoning_effort: effort } : {}),
     }),
   });
   if (!response.ok) {
