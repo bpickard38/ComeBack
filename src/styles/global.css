@@ -741,6 +741,93 @@ input.join-code {
     top: var(--space-1);
     left: calc(50% + var(--space-2));
   }
+
+  /*
+   * The trainer gets the same bottom bar: Team, Exercises, Record, Messages.
+   * Record is the trainer's main job, so it's a raised round button.
+   */
+  .app:has(.staff-layout) {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  /* Toasts sit just above a bottom bar instead of behind it. */
+  .app:has(.staff-layout) .toast-region,
+  .app:has(.athlete-layout) .toast-region {
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + var(--space-3));
+  }
+
+  .staff-layout__sidebar {
+    position: fixed;
+    z-index: 10;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: 0 0 env(safe-area-inset-bottom);
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 0;
+    background: var(--surface);
+  }
+
+  .tabs--staff {
+    overflow: visible;
+    gap: 0;
+    padding: 0;
+  }
+
+  .tabs--staff .tabs__tab {
+    position: relative;
+    min-height: var(--bottom-nav-height);
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: var(--font-size-xs);
+  }
+
+  .tabs--staff .tabs__tab[aria-current='page'] {
+    background: transparent;
+    color: var(--accent);
+  }
+
+  .tabs--staff .nav-icon {
+    width: var(--space-6);
+    height: var(--space-6);
+  }
+
+  .tabs--staff .tabs__count {
+    position: absolute;
+    top: var(--space-1);
+    left: calc(50% + var(--space-2));
+  }
+
+  /* The raised Record button: an accent circle that sits up out of the bar. */
+  .tabs--staff .tabs__tab--record .nav-icon {
+    box-sizing: content-box;
+    width: var(--space-6);
+    height: var(--space-6);
+    margin-top: calc(-1 * var(--space-6));
+    padding: var(--space-4);
+    border: 4px solid var(--surface);
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .tabs--staff .tabs__tab--record[aria-current='page'] .nav-icon {
+    background: var(--accent-hover);
+    color: var(--on-accent);
+  }
+}
+
+/* On wide screens Record leads the sidebar in the accent color. */
+@media (min-width: 60rem) {
+  .tabs--staff .tabs__tab--record:not([aria-current='page']) .nav-icon {
+    color: var(--accent);
+  }
 }
 
 @media (max-width: 48rem) {

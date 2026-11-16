@@ -90,7 +90,7 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
 ### 2. Create the Supabase project (once per team)
 
 1. At supabase.com, create a new project. Any name and region. Write down the database password.
-2. Open **SQL Editor** and run these eleven files in order. Paste each file's contents into a new query and click Run.
+2. Open **SQL Editor** and run these twelve files in order. Paste each file's contents into a new query and click Run.
    1. `supabase/erd_schema.sql`: the tables, triggers, security rules and catalogs
    2. `supabase/signup.sql`: roles, teams and join codes
    3. `supabase/live_data.sql`: conversations and plan assignment the screens use
@@ -101,7 +101,8 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
    8. `supabase/coach_athlete_chat.sql`: the private trainer and coach conversation about one athlete
    9. `supabase/recovery_pace.sql`: the recovery percentage behind the coach's recovery bar
    10. `supabase/profile_photos.sql`: profile photos (a storage bucket and where each person's photo is)
-   11. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
+   11. `supabase/visits.sql`: visit records from Record a visit (private to trainers)
+   12. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
 
    Already set up? Run `supabase/remove_trophies.sql` once (after deploying the app version without trophies) and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too, then `workout_sets.sql` and `weekly_summary.sql`. Re-run `supabase/push.sql` if you use push reminders.
 3. Under **Authentication > Sign In / Providers**, turn on "Allow new users to sign up". Under Email, turn off "Confirm email" unless you want people to confirm by email first.
@@ -309,9 +310,20 @@ Each injury in the catalog has a starting workout set (`injury_exercises`). On *
 
 Videos are public YouTube clips, 20 to 60 seconds, from physical therapists and clinics (Harvard Health Publishing, Ask Doctor Jo, Baptist Health, Michigan Medicine, MGH Orthopaedics, Hinge Health, NASM, British Elbow & Shoulder Society, E3 Rehab, Rehab My Patient and others). Links are in `supabase/workout_sets.sql`; to swap one, update `exercises.video_url` in Supabase. Sets and prescriptions are sample starting points for a class project, not medical advice.
 
+## The trainer's screens
+
+A trainer opens the app mostly to write down what happened when an athlete came in, so that's the center of it. On a phone the trainer has a bar along the bottom, like the athlete: **Team**, **Exercises**, a raised **Record** button, and **Messages**. On a laptop the same four sit in the left sidebar.
+
+- **Team**: today's booked visits (each with a Record visit button, ticked once it's recorded), **Needs attention** (high pain in the last few days, an unread message from the athlete or a coach, behind on this week's exercises, or no visit in 7+ days while injured), then the full roster with its filters. Join codes are behind **Invite athletes**. The rules are in `src/domain/attention.ts`.
+- **Record**: tap the mic and say what happened, e.g. "Maya came in, ankle feels better, pain about 3, balance was 25 seconds, bump her calf raises to 4 sets of 15, still limited." The AI drafts a **visit card**: how they're doing, pain, what they did, test results (saved to their goals), status for the coach, and plan changes. Fix anything that's off, then **Save visit** writes it all at once. Opened from a player profile or a Team row, it already knows who the visit is about. It also still takes plain plan requests (see AI assistant below).
+- **Exercises**: the library. **Injuries and plans** shows every injury with its starting plan (edit the exercises and numbers, add a new injury, or **Assign to…** an athlete). Changing a starting plan only affects future assignments; plans already given keep their numbers. **All exercises** shows each exercise with its video, how-to and which starting plans use it. Add or edit one, paste a YouTube link, or **Find videos with AI**; a **No video** filter shows what still needs one.
+- **Player profile**: a **Visit history** card (newest first, with pain and what they did) and a **Record a visit** button.
+
+Visits are private like trainer notes: only trainers on a team with the athlete can read or write them (`supabase/visits.sql`). Athletes still see plan and goal changes; coaches still see only the status.
+
 ## AI assistant
 
-Trainers have an **Assistant** tab. They type or say what they want in plain words and get a plan to confirm. To talk instead of typing, tap the mic, speak, and tap stop: the words appear in the message box to check or fix, then Send.
+On **Record**, trainers can also ask for a plan in plain words (typed or spoken) and get a plan card to confirm. To talk instead of typing, tap the mic, speak, and tap stop: the words appear in the message box to check or fix, then Send.
 
 - "Maya rolled her ankle. Give her the usual ankle sprain set." The assistant finds Maya, matches "rolled ankle" to Ankle sprain, and proposes that injury's workout set.
 - "Add Copenhagen planks, 3 sets of 20 seconds, to Devon's hamstring plan." Copenhagen plank isn't in the catalog, so the plan adds it, with a one-line how-to and a tutorial video found on YouTube.
@@ -348,7 +360,8 @@ Until the function is deployed, the tab is there but answers "The assistant isn'
 
 | File | What it does |
 |---|---|
-| `src/screens/staff/Assistant.tsx` | The tab: conversation, plan card and mic |
+| `src/screens/staff/Record.tsx` | Record: conversation, visit card, plan card and mic |
+| `src/screens/staff/VideoPicker.tsx` | Up to 3 checked tutorial videos to pick from (Record and Exercises) |
 | `src/components/useVoiceRecorder.ts` | Records from the mic until the trainer taps stop |
 | `src/domain/voice.ts` | Audio format, mic volume and adding spoken words to the box, tested in `voice.test.ts` |
 | `src/domain/assistant.ts` | The conversation as the screen keeps it, and how it's written out for the AI |

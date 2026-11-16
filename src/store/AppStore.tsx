@@ -44,6 +44,7 @@ import {
   type TeamInput,
   type ValidAppointment,
 } from '../domain/validation';
+import { cleanHowTo, validateCatalogName, validateVideoLink } from '../domain/catalog';
 import type { Profile } from './profile';
 import { reducer, type Action } from './reducer';
 import * as remote from './remote';
@@ -193,6 +194,57 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       const saved = await remote.applyVisit(visit);
       if (!saved.ok) return saved;
       await reload(); // the visit, results and plan changes show up everywhere
+      return saved;
+    },
+
+    /** Exercises page: a new injury for the catalog. Its starting set is added after. */
+    async addInjury(rawName: string, rawRegion: string): Promise<Result<{ id: string }>> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can add injuries.' };
+      const name = validateCatalogName(rawName, state.catalog.injuries, 'injury');
+      if (!name.ok) return name;
+      if (state.offline) return { ok: false, error: `Could not add the injury. ${OFFLINE_ERROR}` };
+      const saved = await remote.insertInjury(name.value, rawRegion.trim().slice(0, 80) || null);
+      if (!saved.ok) return { ok: false, error: `Could not add the injury. ${saved.error}` };
+      await reload();
+      return saved;
+    },
+
+    /** Exercises page: a new exercise, or changes to one (name, how-to, video link). */
+    async saveExercise(input: { id?: string; name: string; howTo: string; videoLink: string }): Promise<Result<{ id: string }>> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change exercises.' };
+      const name = validateCatalogName(input.name, state.catalog.exercises, 'exercise', input.id);
+      if (!name.ok) return name;
+      const video = validateVideoLink(input.videoLink);
+      if (!video.ok) return video;
+      if (state.offline) return { ok: false, error: `Could not save the exercise. ${OFFLINE_ERROR}` };
+      const description = cleanHowTo(input.howTo);
+      const saved = input.id
+        ? await remote.updateExercise(input.id, { name: name.value, description, videoUrl: video.value })
+        : await remote.insertExercise(name.value, description, video.value);
+      if (!saved.ok) return { ok: false, error: `Could not save the exercise. ${saved.error}` };
+      await reload(); // athletes see the new how-to and video within 30 seconds
+      return { ok: true, value: { id: input.id ?? (saved.value as { id: string }).id } };
+    },
+
+    /**
+     * Exercises page: an injury's starting set, in order, with its numbers.
+     * Only future assignments use it; plans already given keep theirs.
+     */
+    async saveStartingSet(injuryId: string, rows: Array<{ exerciseId: string } & PrescriptionInput>): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change starting sets.' };
+      const checked: Array<{ exerciseId: string; sets: number | null; reps: number | null; holdSeconds: number | null }> = [];
+      for (const row of rows) {
+        const numbers = validatePrescription(row);
+        if (!numbers.ok) {
+          const name = state.catalog.exercises.find((e) => e.id === row.exerciseId)?.name ?? 'An exercise';
+          return { ok: false, error: `${name}: ${numbers.error}` };
+        }
+        checked.push({ exerciseId: row.exerciseId, ...numbers.value });
+      }
+      if (state.offline) return { ok: false, error: `Could not save the starting set. ${OFFLINE_ERROR}` };
+      const saved = await remote.saveStartingSet(injuryId, checked);
+      if (!saved.ok) return { ok: false, error: `Could not save the starting set. ${saved.error}` };
+      await reload();
       return saved;
     },
 

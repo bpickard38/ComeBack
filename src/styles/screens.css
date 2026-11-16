@@ -2625,17 +2625,32 @@ a.roster-row {
 
 /* ---------- Record a visit (screens/staff/Record.tsx) ---------- */
 
-/* A plain-text button, for small actions inside a sentence or a card. */
+/*
+ * Plain text for a link or small action inside a sentence or a card.
+ * Links are drawn as buttons everywhere else in the app (global.css),
+ * so this undoes that.
+ */
 .link-button {
+  display: inline;
   min-height: auto;
   padding: 0;
   border: 0;
+  border-radius: 0;
   background: none;
   color: var(--link);
   font: inherit;
+  text-align: inherit;
   text-decoration: underline;
   text-underline-offset: var(--text-underline-offset);
   cursor: pointer;
+}
+
+@media (hover: hover) {
+  a.link-button:hover {
+    background: none;
+    color: var(--link);
+    text-decoration-thickness: 2px;
+  }
 }
 
 /* The first thing on an empty Record screen: one big button to start talking. */
@@ -2826,5 +2841,108 @@ a.roster-row {
 @media (prefers-reduced-motion: reduce) {
   .record__big-mic[data-listening] {
     transition: none;
+  }
+}
+
+/* ---------- Exercises page (screens/staff/Exercises.tsx) ---------- */
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.library-card {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.library-card__title {
+  font-size: var(--font-size-lg);
+}
+
+.library-card__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.library-card__thumb {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  /* It's a link, and links are drawn as buttons (global.css): undo that. */
+  padding: 0;
+  border: 0;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  background: var(--surface-high);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.library-card__thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- Team page: Today and Needs attention (screens/staff/StaffHome.tsx) ---------- */
+
+.team-today {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.team-today .card {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.team-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.team-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.team-list__row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/*
+ * Phones: Record fills the screen between the header and the bottom bar,
+ * so the message box and mic are always in view without scrolling.
+ */
+@media (max-width: 59.99rem) {
+  .record .chat__log {
+    /* Header, card title, message box and the bar with its raised button. */
+    height: calc(100dvh - 26rem - env(safe-area-inset-bottom));
+    min-height: 14rem;
+    max-height: none;
+  }
+
+  .record__big-mic {
+    width: 7.5rem;
+    height: 7.5rem;
+    margin-bottom: var(--space-2);
   }
 }

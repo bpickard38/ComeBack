@@ -10,6 +10,7 @@ import { Progress } from './screens/athlete/Progress';
 import { Today } from './screens/athlete/Today';
 import { Trainer } from './screens/athlete/Trainer';
 import { Record } from './screens/staff/Record';
+import { Exercises } from './screens/staff/Exercises';
 import { AthleteProfile } from './screens/staff/AthleteProfile';
 import { StaffHome } from './screens/staff/StaffHome';
 import { StaffLayout } from './screens/staff/StaffLayout';
@@ -86,6 +87,15 @@ export function App() {
               element={
                 <RequireRole allowed={['trainer']}>
                   <Record />
+                </RequireRole>
+              }
+            />
+            {/* The injury and exercise library; editing catalogs is trainer-only. */}
+            <Route
+              path="exercises"
+              element={
+                <RequireRole allowed={['trainer']}>
+                  <Exercises />
                 </RequireRole>
               }
             />

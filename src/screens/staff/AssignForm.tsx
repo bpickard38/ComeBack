@@ -8,6 +8,8 @@ import { useAppStore } from '../../store/AppStore';
 interface AssignFormProps {
   athletes: Athlete[];
   initialAthleteId: string;
+  /** Start with this injury picked and its workout set ticked (from the Exercises page). */
+  initialInjuryId?: string;
   /** Called with the athlete's id after a successful assignment, or null on cancel. */
   onClose: (assignedTo: string | null) => void;
 }
@@ -16,12 +18,12 @@ interface AssignFormProps {
  * Trainer-only form: pick an athlete, an injury and the exercises to assign.
  * The choices come from the injuries and exercises tables (state.catalog).
  */
-export function AssignForm({ athletes, initialAthleteId, onClose }: AssignFormProps) {
+export function AssignForm({ athletes, initialAthleteId, initialInjuryId = '', onClose }: AssignFormProps) {
   const { state, commands } = useAppStore();
   const { notify } = useToast();
   const [athleteId, setAthleteId] = useState(initialAthleteId);
-  const [injuryId, setInjuryId] = useState('');
-  const [exerciseIds, setExerciseIds] = useState<string[]>([]);
+  const [injuryId, setInjuryId] = useState(initialInjuryId);
+  const [exerciseIds, setExerciseIds] = useState<string[]>(() => state.catalog.workoutSets[initialInjuryId] ?? []);
   const [saving, setSaving] = useState(false);
   const { injuries, exercises, workoutSets } = state.catalog;
   const workoutSet = workoutSets[injuryId] ?? [];

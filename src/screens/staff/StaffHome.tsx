@@ -1,9 +1,12 @@
 import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '../../components/Button';
 import { useReturnFocus } from '../../components/useReturnFocus';
+import { needsAttention, todaysVisits } from '../../domain/attention';
 import { filterRoster, isInjured, isPracticing, type HealthFilter, type PracticeFilter } from '../../domain/roster';
 import { searchAthletes } from '../../domain/search';
-import { formatDay } from '../../format';
+import type { Athlete } from '../../domain/types';
+import { formatDay, formatTime } from '../../format';
 import { useAppStore, useTeam } from '../../store/AppStore';
 import { AssignForm } from './AssignForm';
 import { AthleteDetail } from './AthleteDetail';
@@ -59,8 +62,8 @@ function TrainerView() {
     <>
       <div className="page-head">
         <div className="stack-xs">
-          <div className="eyebrow">{formatDay(new Date())}</div>
-          <h1>{team ? `${team.name} roster` : 'Roster'}</h1>
+          <div className="eyebrow">Team &middot; {formatDay(new Date())}</div>
+          <h1>{team ? team.name : 'Team'}</h1>
         </div>
         <div className="page-head__actions">
           {athletes.length > 0 && (
@@ -78,7 +81,7 @@ function TrainerView() {
                 onChange={(e) => setQuery(e.target.value)}
               />
               <Button ref={codesButtonRef} aria-expanded={showingCodes} onClick={() => setShowingCodes((open) => !open)}>
-                Join codes
+                Invite athletes
               </Button>
             </>
           )}
@@ -102,6 +105,8 @@ function TrainerView() {
           }}
         />
       )}
+
+      {team && athletes.length > 0 && <TeamToday athletes={athletes} teamId={team.id} />}
 
       {athletes.length === 0 ? (
         <p className="muted">No athletes on this team yet. Share a join link or code above to add them.</p>
@@ -156,5 +161,96 @@ function FilterChip({ pressed, onClick, children }: { pressed: boolean; onClick:
     <button type="button" className="chip chip--slim" aria-pressed={pressed} onClick={onClick}>
       {children}
     </button>
+  );
+}
+
+/** How many athletes "Needs attention" lists before "Show all". */
+const ATTENTION_SHOWN = 5;
+
+/**
+ * The top of the Team page: who's coming in today (each with a button to
+ * record the visit) and who needs attention, before the full roster.
+ */
+function TeamToday({ athletes, teamId }: { athletes: Athlete[]; teamId: string }) {
+  const { state, profile } = useAppStore();
+  const [showAll, setShowAll] = useState(false);
+  const now = new Date();
+  const today = todaysVisits(state.appointments, athletes, state.visits, now);
+  const attention = needsAttention({
+    athletes,
+    logs: state.logs,
+    messages: state.messages,
+    visits: state.visits,
+    teamId,
+    trainerId: profile.id,
+    now,
+  });
+  const shown = showAll ? attention : attention.slice(0, ATTENTION_SHOWN);
+
+  return (
+    <div className="team-today">
+      <section className="card" aria-labelledby="team-today-title">
+        <h2 id="team-today-title">Today</h2>
+        {today.length === 0 ? (
+          <p className="muted">
+            No visits booked today. When someone comes in, tap{' '}
+            <Link to="/staff/record" className="link-button">
+              Record
+            </Link>
+            .
+          </p>
+        ) : (
+          <ul className="team-list">
+            {today.map(({ appointment, athlete, recorded }) => (
+              <li key={appointment.id} className="team-list__row">
+                <span className="stack-xs">
+                  <span className="strong">
+                    {formatTime(appointment.startsAt)} &middot; {athlete.name}
+                  </span>
+                  <span className="small muted">{appointment.title}</span>
+                </span>
+                {recorded ? (
+                  <span className="small strong">&#10003; Recorded</span>
+                ) : (
+                  <Link to={`/staff/record?athlete=${athlete.id}`} className="btn btn--primary btn--small">
+                    Record visit
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="card" aria-labelledby="team-attention-title">
+        <h2 id="team-attention-title">Needs attention</h2>
+        {attention.length === 0 ? (
+          <p className="muted">Nothing urgent. No high pain, unread messages or anyone behind this week.</p>
+        ) : (
+          <>
+            <ul className="team-list">
+              {shown.map(({ athlete, reasons }) => (
+                <li key={athlete.id} className="team-list__row">
+                  <span className="stack-xs">
+                    <Link to={`/staff/athletes/${athlete.id}`} className="link-button strong">
+                      {athlete.name}
+                    </Link>
+                    <span className="small warn-text">{reasons.join(' · ')}</span>
+                  </span>
+                  <Link to={`/staff/record?athlete=${athlete.id}`} className="btn btn--secondary btn--small">
+                    Record visit
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {attention.length > ATTENTION_SHOWN && (
+              <Button className="btn--small" onClick={() => setShowAll(!showAll)} aria-expanded={showAll}>
+                {showAll ? 'Show fewer' : `Show all ${attention.length}`}
+              </Button>
+            )}
+          </>
+        )}
+      </section>
+    </div>
   );
 }

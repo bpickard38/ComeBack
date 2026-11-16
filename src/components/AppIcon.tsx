@@ -8,7 +8,9 @@ export type AppIconName =
   | 'messages'
   | 'roster'
   | 'availability'
-  | 'assistant';
+  | 'assistant'
+  | 'record'
+  | 'exercises';
 
 const PATHS: Record<AppIconName, ReactNode> = {
   today: (
@@ -57,6 +59,19 @@ const PATHS: Record<AppIconName, ReactNode> = {
   ),
   availability: (
     <path d="M12 3 20 6v5.5c0 4.5-3.2 7.7-8 9.5-4.8-1.8-8-5-8-9.5V6z" />
+  ),
+  // A microphone: Record a visit.
+  record: (
+    <>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+    </>
+  ),
+  // A dumbbell: the exercise and injury library.
+  exercises: (
+    <>
+      <path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11" />
+    </>
   ),
 };
 

@@ -697,6 +697,52 @@ export function applyVisit(visit: VisitProposal): Promise<Result<{ summary: stri
   return callAssistant<{ summary: string }>({ action: 'apply_visit', visit });
 }
 
+// ---------- Exercises page: the injury and exercise catalogs ----------
+// Trainers may add and edit catalog rows (erd_schema.sql and workout_sets.sql
+// policies). A starting set is copied onto a plan when it's assigned, so
+// editing one only changes future assignments.
+
+export async function insertInjury(name: string, bodyRegion: string | null): Promise<Result<{ id: string }>> {
+  const { data, error } = await supabase.from('injuries').insert({ name, body_region: bodyRegion }).select('id').single();
+  return error ? { ok: false, error: error.message } : { ok: true, value: { id: data.id } };
+}
+
+export async function insertExercise(name: string, description: string | null, videoUrl: string | null): Promise<Result<{ id: string }>> {
+  const { data, error } = await supabase.from('exercises').insert({ name, description, video_url: videoUrl }).select('id').single();
+  return error ? { ok: false, error: error.message } : { ok: true, value: { id: data.id } };
+}
+
+export async function updateExercise(id: string, change: { name: string; description: string | null; videoUrl: string | null }): Promise<Result> {
+  const { data, error } = await supabase
+    .from('exercises')
+    .update({ name: change.name, description: change.description, video_url: change.videoUrl })
+    .eq('id', id)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  // Security rules turn a forbidden update into "0 rows changed", not an error.
+  if (!data?.length) return { ok: false, error: 'Only trainers can edit exercises.' };
+  return { ok: true, value: undefined };
+}
+
+/** Replaces an injury's starting set with this list, in this order. */
+export async function saveStartingSet(
+  injuryId: string,
+  rows: Array<{ exerciseId: string; sets: number | null; reps: number | null; holdSeconds: number | null }>,
+): Promise<Result> {
+  const keep = rows.map((r) => r.exerciseId);
+  // First take off what's no longer in the set, then write the rest.
+  let removing = supabase.from('injury_exercises').delete().eq('injury_id', injuryId);
+  if (keep.length) removing = removing.not('exercise_id', 'in', `(${keep.join(',')})`);
+  const removed = await removing;
+  if (removed.error) return { ok: false, error: removed.error.message };
+  if (!rows.length) return { ok: true, value: undefined };
+  const { error } = await supabase.from('injury_exercises').upsert(
+    rows.map((r, i) => ({ injury_id: injuryId, exercise_id: r.exerciseId, sets: r.sets, reps: r.reps, hold_seconds: r.holdSeconds, position: i + 1 })),
+    { onConflict: 'injury_id,exercise_id' },
+  );
+  return error ? { ok: false, error: error.message } : { ok: true, value: undefined };
+}
+
 /** Up to 3 tutorial videos for an exercise, each checked to play in the app. Can take 20 to 40 seconds. */
 export async function findVideos(exerciseName: string): Promise<Result<VideoOption[]>> {
   const result = await callAssistant<{ videos?: VideoOption[] }>({ action: 'find_videos', exerciseName });

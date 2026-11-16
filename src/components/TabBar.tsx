@@ -6,6 +6,8 @@ export interface Tab {
   label: string;
   icon: AppIconName;
   unreadCount?: number;
+  /** Extra class for one tab, e.g. the trainer's raised Record button. */
+  className?: string;
 }
 
 /**
@@ -18,7 +20,7 @@ export function TabBar({ tabs, label, className = '' }: { tabs: Tab[]; label: st
     <nav className={`tabs ${className}`.trim()} aria-label={label}>
       {tabs.map((t) => (
         // `end` stops "/athlete" from also counting as active on "/athlete/goals".
-        <NavLink key={t.to} to={t.to} end className="tabs__tab">
+        <NavLink key={t.to} to={t.to} end className={`tabs__tab ${t.className ?? ''}`.trim()}>
           <AppIcon name={t.icon} className="nav-icon" />
           <span>{t.label}</span>
           {!!t.unreadCount && (
