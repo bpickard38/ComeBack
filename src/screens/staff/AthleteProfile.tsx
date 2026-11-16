@@ -60,14 +60,20 @@ export function AthleteProfile() {
             <PhotoButtons athleteId={athlete.id} name={athlete.name} hasPhoto={Boolean(athlete.photoUrl)} small />
           </div>
         </div>
-        <Link to="/staff" className="btn btn--secondary">
-          Back to roster
-        </Link>
+        <div className="page-head__actions">
+          <Link to={`/staff/record?athlete=${athlete.id}`} className="btn btn--primary">
+            Record a visit
+          </Link>
+          <Link to="/staff" className="btn btn--secondary">
+            Back to roster
+          </Link>
+        </div>
       </div>
 
       <div className="staff-grid">
         <div className="stack-sm">
           <Recovery athlete={athlete} />
+          <VisitHistory athlete={athlete} />
           <PlanEditor athlete={athlete} />
           <Overview athlete={athlete} />
           <InjuryHistory athlete={athlete} />
@@ -79,6 +85,63 @@ export function AthleteProfile() {
         <ProfileChat key={athlete.id} athlete={athlete} team={team} />
       </div>
     </>
+  );
+}
+
+/** How many visits show before "Show all". */
+const VISITS_SHOWN = 3;
+
+/**
+ * Recorded visits, newest first: what happened each time they came in.
+ * Private to trainers (supabase/visits.sql). Written from Record.
+ */
+function VisitHistory({ athlete }: { athlete: Athlete }) {
+  const { state } = useAppStore();
+  const [showAll, setShowAll] = useState(false);
+  const first = athlete.name.split(' ')[0];
+  const visits = (state.visits ?? []).filter((v) => v.athleteId === athlete.id);
+  const shown = showAll ? visits : visits.slice(0, VISITS_SHOWN);
+
+  return (
+    <Card aria-labelledby="profile-visit-history">
+      <div className="spread">
+        <h2 id="profile-visit-history">Visit history</h2>
+        <Link to={`/staff/record?athlete=${athlete.id}`} className="btn btn--secondary btn--small">
+          Record a visit
+        </Link>
+      </div>
+      {state.visits === null ? (
+        <p className="muted">Visit records aren’t set up yet. Run supabase/visits.sql in Supabase to turn them on.</p>
+      ) : visits.length === 0 ? (
+        <p className="muted">No visits recorded yet. When {first} comes in, tap Record a visit and say how it went.</p>
+      ) : (
+        <>
+          <ol className="visit-list">
+            {shown.map((v) => (
+              <li key={v.id} className="visit-list__item">
+                <span className="small muted">
+                  {formatSentAt(v.visitedAt)}
+                  {v.trainerName && <> &middot; {v.trainerName}</>}
+                  {v.pain !== null && (
+                    <>
+                      {' '}
+                      &middot; <span className={v.pain >= PAIN_ALERT_LEVEL ? 'strong warn-text' : undefined}>Pain {v.pain}/10</span>
+                    </>
+                  )}
+                </span>
+                <span className="visit-card__summary">{v.summary}</span>
+                {v.doneToday && <span className="small muted">Did: {v.doneToday}</span>}
+              </li>
+            ))}
+          </ol>
+          {visits.length > VISITS_SHOWN && (
+            <Button className="btn--small" onClick={() => setShowAll(!showAll)} aria-expanded={showAll}>
+              {showAll ? 'Show fewer' : `Show all ${visits.length}`}
+            </Button>
+          )}
+        </>
+      )}
+    </Card>
   );
 }
 

@@ -256,3 +256,220 @@ export function savedSummary(proposal: Proposal): string {
   }
   return addedText.trim() || 'Saved.';
 }
+
+// =====================================================================
+// Visits
+//
+// A visit card: what happened when an athlete came in. The AI drafts it
+// from what the trainer said (RawVisit), buildVisit() checks it against
+// the database the same way as a plan, and the trainer edits and saves it.
+// Plan changes inside a visit are an ordinary Proposal, checked by
+// buildProposal() above, so the same rules apply to both.
+// =====================================================================
+
+export type VisitAvailability = 'out' | 'limited' | 'cleared';
+
+export const MAX_SUMMARY = 2000;
+export const MAX_DONE_TODAY = 1000;
+export const MAX_RESULT = 100000;
+
+/** A goal (milestone test) the athlete has, to record a result against. */
+export interface VisitGoal {
+  /** The case_milestones row. */
+  id: string;
+  athleteId: string;
+  name: string;
+  unit: string;
+  target: number;
+}
+
+export interface VisitContext extends PlanContext {
+  goals: VisitGoal[];
+}
+
+export interface VisitResult {
+  goalId: string;
+  name: string;
+  unit: string;
+  target: number;
+  value: number;
+}
+
+export interface VisitProposal {
+  athlete: { id: string; name: string };
+  /** How they're doing, in a few plain sentences. */
+  summary: string;
+  /** Pain they reported, 0 to 10, or null if it didn't come up. */
+  pain: number | null;
+  /** What they did in the training room, or null. */
+  doneToday: string | null;
+  /** Goal tests measured at the visit. */
+  results: VisitResult[];
+  /** A change to what the coach sees, or null for no change. */
+  availability: { status: VisitAvailability; expectedReturn: string | null } | null;
+  /** Exercises to add or re-number on one injury's plan, or null. */
+  plan: Proposal | null;
+}
+
+/** What the AI sends in its propose_visit tool call. Nothing in it is trusted. */
+export interface RawVisit {
+  athlete_id?: unknown;
+  summary?: unknown;
+  pain?: unknown;
+  done_today?: unknown;
+  test_results?: Array<{ goal_id?: unknown; value?: unknown }> | null;
+  availability?: { status?: unknown; expected_return?: unknown } | null;
+  plan_changes?: { injury?: RawPlan['injury']; exercises?: RawPlan['exercises'] } | null;
+}
+
+/** Keeps line breaks (a summary can have paragraphs) but trims each line. */
+function cleanLines(value: unknown, max: number): string {
+  if (typeof value !== 'string') return '';
+  return value
+    .split(/\r?\n/)
+    .map((l) => l.trim().replace(/\s+/g, ' '))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, max);
+}
+
+/** Pain 0 to 10 as a whole number, otherwise null. */
+export function cleanPain(value: unknown): number | null {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 10 ? n : null;
+}
+
+/** A measured value (seconds, degrees, reps...): 0 up to 100000, decimals allowed. */
+export function cleanMeasure(value: unknown): number | null {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= MAX_RESULT ? Math.round(n * 100) / 100 : null;
+}
+
+/** "2026-12-01" if it's a real calendar day, otherwise null. */
+export function cleanDay(value: unknown): string | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : null;
+}
+
+function cleanAvailability(
+  raw: { status?: unknown; expected_return?: unknown; expectedReturn?: unknown } | null | undefined,
+): VisitProposal['availability'] {
+  if (!raw || typeof raw !== 'object') return null;
+  const status = raw.status;
+  if (status !== 'out' && status !== 'limited' && status !== 'cleared') return null;
+  // Cleared means back to full: no return date to wait for.
+  const day = status === 'cleared' ? null : cleanDay(raw.expected_return ?? raw.expectedReturn);
+  return { status, expectedReturn: day };
+}
+
+/**
+ * Checks the AI's draft visit against the database and turns it into the
+ * card the trainer edits. Like buildProposal, errors go back to the AI.
+ */
+export function buildVisit(raw: RawVisit, ctx: VisitContext): PlanResult<VisitProposal> {
+  const found = ctx.athletes.find((a) => a.id === raw.athlete_id);
+  if (!found) return { ok: false, error: "athlete_id is not one of this trainer's athletes. Use an id from the ATHLETES list." };
+  const athlete = { id: found.id, name: found.name };
+
+  const summary = cleanLines(raw.summary, MAX_SUMMARY);
+  if (!summary) return { ok: false, error: 'A visit needs a summary: how the athlete is doing, in a sentence or two.' };
+
+  const results: VisitResult[] = [];
+  for (const item of Array.isArray(raw.test_results) ? raw.test_results : []) {
+    const goal = ctx.goals.find((g) => g.id === item?.goal_id && g.athleteId === athlete.id);
+    if (!goal) {
+      return { ok: false, error: `goal_id ${String(item?.goal_id)} is not one of ${athlete.name}'s goals. Use a goal id listed under that athlete, or leave the result out.` };
+    }
+    const value = cleanMeasure(item.value);
+    if (value === null) return { ok: false, error: `The result for ${goal.name} must be a number in ${goal.unit}.` };
+    if (!results.some((r) => r.goalId === goal.id)) results.push({ goalId: goal.id, name: goal.name, unit: goal.unit, target: goal.target, value });
+  }
+
+  let plan: Proposal | null = null;
+  const changes = raw.plan_changes;
+  if (changes && Array.isArray(changes.exercises) && changes.exercises.length > 0) {
+    const built = buildProposal({ athlete_id: athlete.id, injury: changes.injury ?? null, exercises: changes.exercises }, ctx);
+    if (!built.ok) return { ok: false, error: `plan_changes: ${built.error}` };
+    plan = built.value;
+  }
+
+  return {
+    ok: true,
+    value: {
+      athlete,
+      summary,
+      pain: cleanPain(raw.pain),
+      doneToday: cleanLines(raw.done_today, MAX_DONE_TODAY) || null,
+      results,
+      availability: cleanAvailability(raw.availability),
+      plan,
+    },
+  };
+}
+
+/**
+ * Re-checks a visit that came back from the browser when the trainer
+ * pressed Save (they may have edited it). Shapes and ranges are checked
+ * here; whether this trainer may write for this athlete and goal is
+ * checked by the database's row level security when saving.
+ */
+export function sanitizeVisit(input: unknown): PlanResult<VisitProposal> {
+  const bad: PlanResult<VisitProposal> = { ok: false, error: "That visit can't be read. Record it again." };
+  if (!input || typeof input !== 'object') return bad;
+  const v = input as Record<string, unknown>;
+  const a = v.athlete as { id?: unknown; name?: unknown } | undefined;
+  if (!a || typeof a.id !== 'string' || !a.id) return bad;
+  const athlete = { id: a.id, name: cleanText(a.name).slice(0, MAX_NAME) };
+
+  const summary = cleanLines(v.summary, MAX_SUMMARY);
+  if (!summary) return { ok: false, error: "Write how they're doing before saving." };
+
+  const rawResults = v.results ?? [];
+  if (!Array.isArray(rawResults)) return bad;
+  const results: VisitResult[] = [];
+  for (const r of rawResults as Array<Record<string, unknown>>) {
+    if (!r || typeof r.goalId !== 'string') return bad;
+    const value = cleanMeasure(r.value);
+    if (value === null) return { ok: false, error: `Enter a number for ${cleanText(r.name) || 'each test'}, or remove it.` };
+    results.push({
+      goalId: r.goalId,
+      name: cleanText(r.name).slice(0, MAX_NAME),
+      unit: cleanText(r.unit).slice(0, 20),
+      target: typeof r.target === 'number' ? r.target : 0,
+      value,
+    });
+  }
+
+  let plan: Proposal | null = null;
+  if (v.plan) {
+    const checked = sanitizeProposal(v.plan);
+    if (!checked.ok) return checked;
+    // The plan can only be for the athlete the visit is about.
+    if (checked.value.athlete?.id !== athlete.id) return bad;
+    plan = checked.value;
+  }
+
+  return {
+    ok: true,
+    value: {
+      athlete,
+      summary,
+      pain: cleanPain(v.pain),
+      doneToday: cleanLines(v.doneToday, MAX_DONE_TODAY) || null,
+      results,
+      availability: cleanAvailability(v.availability as { status?: unknown; expectedReturn?: unknown } | null),
+      plan,
+    },
+  };
+}
+
+/** One line for the confirmation toast, e.g. "Saved Maya Torres's visit: 1 test result, plan updated." */
+export function visitSavedSummary(visit: VisitProposal): string {
+  const extras: string[] = [];
+  if (visit.results.length) extras.push(`${visit.results.length} test ${visit.results.length === 1 ? 'result' : 'results'}`);
+  if (visit.availability) extras.push(`status ${visit.availability.status}`);
+  if (visit.plan) extras.push('plan updated');
+  return `Saved ${visit.athlete.name}'s visit${extras.length ? `: ${extras.join(', ')}` : ''}.`;
+}

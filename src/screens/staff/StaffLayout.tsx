@@ -23,7 +23,7 @@ export function StaffLayout() {
   const tabs: Tab[] = [
     { to: '/staff', label: 'Roster', icon: 'roster' },
     { to: '/staff/messages', label: 'Messages', icon: 'messages', unreadCount: waiting },
-    ...(ASSISTANT_FEATURE ? [{ to: '/staff/assistant', label: 'Assistant', icon: 'assistant' } satisfies Tab] : []),
+    ...(ASSISTANT_FEATURE ? [{ to: '/staff/record', label: 'Record', icon: 'assistant' } satisfies Tab] : []),
   ];
 
   return (

@@ -11,6 +11,7 @@ import type {
   Role,
   Team,
   TestResult,
+  Visit,
 } from '../domain/types';
 import type { AthleteProgress } from '../domain/progress';
 import type { RecoveryStatus } from '../domain/recovery';
@@ -19,6 +20,27 @@ import type { RecoveryStatus } from '../domain/recovery';
 export interface CatalogItem {
   id: string;
   name: string;
+}
+
+export interface CatalogInjury extends CatalogItem {
+  bodyRegion?: string | null;
+}
+
+export interface CatalogExercise extends CatalogItem {
+  /** One-line how-to the athlete sees. */
+  description?: string | null;
+  /** Tutorial video (YouTube), or null when there isn't one yet. */
+  videoUrl?: string | null;
+}
+
+/** One exercise in an injury's starting workout set, with its starting numbers. */
+export interface SetDetail {
+  injuryId: string;
+  exerciseId: string;
+  sets: number | null;
+  reps: number | null;
+  holdSeconds: number | null;
+  position: number;
 }
 
 /**
@@ -47,6 +69,9 @@ export interface RemoteData {
   /** Trainer notes by athlete id. null for other roles, or when
    * supabase/athlete_notes.sql hasn't been run yet. */
   notes: Record<string, AthleteNote> | null;
+  /** Recorded visits, newest first. null for other roles, or when
+   * supabase/visits.sql hasn't been run yet. */
+  visits: Visit[] | null;
   /** Milestone progress and rehab start day by athlete id, for the recovery
    * bar. For a coach it comes from the database as a percentage only; null
    * when supabase/recovery_pace.sql hasn't been run yet. */
@@ -56,10 +81,12 @@ export interface RemoteData {
   progress: AthleteProgress[] | null;
   /** What the trainer can assign. Empty for everyone else. */
   catalog: {
-    injuries: CatalogItem[];
-    exercises: CatalogItem[];
+    injuries: CatalogInjury[];
+    exercises: CatalogExercise[];
     /** Each injury's workout set: injury id to exercise ids, in order. */
     workoutSets: Record<string, string[]>;
+    /** The same sets with their starting sets/reps/hold. */
+    setDetails: SetDetail[];
   };
 }
 

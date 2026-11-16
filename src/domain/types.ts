@@ -64,6 +64,19 @@ export interface AthleteNote {
   updatedBy?: string;
 }
 
+/** A recorded visit: what happened when the athlete came in. Trainers only. */
+export interface Visit {
+  id: string;
+  athleteId: string;
+  visitedAt: string;
+  summary: string;
+  /** 0 to 10, or null if it didn't come up. */
+  pain: number | null;
+  doneToday: string | null;
+  /** Name of the trainer who recorded it, when known. */
+  trainerName?: string;
+}
+
 /** A team the signed-in person is on. A trainer can have several. */
 export interface Team {
   id: string;

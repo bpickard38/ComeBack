@@ -16,7 +16,7 @@ import { Button } from '../components/Button';
 import { isGoalReached, parseResultValue } from '../domain/goals';
 import { normalizeAvailability } from '../domain/availability';
 import { validateNote } from '../domain/history';
-import { toHistory, type AssistantAnswer, type AssistantTurn, type Proposal } from '../domain/assistant';
+import { toHistory, type AssistantAnswer, type AssistantTurn, type Proposal, type VideoOption, type VisitProposal } from '../domain/assistant';
 import { ALREADY_LOGGED, createLog } from '../domain/logs';
 import { athleteThread, unreadIn } from '../domain/messages';
 import { aboutThread, athletesOnTeam, currentTeam } from '../domain/teams';
@@ -180,10 +180,27 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
      * Trainer's message to the AI assistant. The answer is words, sometimes
      * with a plan to confirm. Nothing is saved by this.
      */
-    async askAssistant(turns: AssistantTurn[], teamName: string | null): Promise<Result<AssistantAnswer>> {
+    async askAssistant(turns: AssistantTurn[], teamName: string | null, athleteId: string | null = null): Promise<Result<AssistantAnswer>> {
       if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can use the assistant.' };
       if (state.offline) return { ok: false, error: `Could not reach the assistant. ${OFFLINE_ERROR}` };
-      return remote.askAssistant(toHistory(turns), teamName);
+      return remote.askAssistant(toHistory(turns), teamName, athleteId);
+    },
+
+    /** Trainer pressed Save on a visit card: the visit, its test results, status and plan changes. */
+    async applyVisit(visit: VisitProposal): Promise<Result<{ summary: string }>> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can record visits.' };
+      if (state.offline) return { ok: false, error: `Could not save the visit. ${OFFLINE_ERROR}` };
+      const saved = await remote.applyVisit(visit);
+      if (!saved.ok) return saved;
+      await reload(); // the visit, results and plan changes show up everywhere
+      return saved;
+    },
+
+    /** Tutorial videos to pick from for a new exercise. Saves nothing. */
+    async findVideos(exerciseName: string): Promise<Result<VideoOption[]>> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can look for videos.' };
+      if (state.offline) return { ok: false, error: `Could not look for videos. ${OFFLINE_ERROR}` };
+      return remote.findVideos(exerciseName);
     },
 
     /** Trainer spoke to the assistant: the recording as text, for the message box. Saves nothing. */

@@ -6,7 +6,7 @@
   row level security in the database only returns what the signed-in user
   may see, so the same code works for athletes, coaches and trainers.
 */
-import type { AssistantAnswer, Proposal } from '../domain/assistant';
+import type { AssistantAnswer, Proposal, VideoOption, VisitProposal } from '../domain/assistant';
 import { dayKey } from '../domain/dates';
 import type {
   Appointment,
@@ -22,6 +22,7 @@ import type {
   Result,
   Team,
   TestResult,
+  Visit,
 } from '../domain/types';
 import { overallGoalPercent } from '../domain/goals';
 import type { AthleteProgress } from '../domain/progress';
@@ -110,14 +111,14 @@ const SENDER_LABEL = { athlete: 'Athlete', trainer: 'Trainer', coach: 'Coach' } 
 export async function loadAll(profile: Profile): Promise<RemoteData> {
   if (profile.role === 'admin') return {
     teams: [], athletes: [], exercises: [], tests: [], logs: [], results: [], appointments: [], messages: [],
-    conversations: [], injuryHistory: [], notes: null, recovery: null, progress: null,
-    catalog: { injuries: [], exercises: [], workoutSets: {} },
+    conversations: [], injuryHistory: [], notes: null, visits: null, recovery: null, progress: null,
+    catalog: { injuries: [], exercises: [], workoutSets: {}, setDetails: [] },
   };
   const isTrainer = profile.role === 'trainer';
   const isCoach = profile.role === 'coach';
   const none = Promise.resolve({ data: [], error: null });
 
-  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary, notes, coachRecovery, photos] =
+  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary, notes, coachRecovery, photos, visits] =
     await Promise.all([
       // Only the teams you're on come back (row level security).
       supabase.from('teams').select('id, name, sport').order('name'),
@@ -135,9 +136,9 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
         .neq('status', 'cancelled'),
       supabase.from('conversations').select('id, kind, athlete_id, team_id'),
       supabase.from('messages').select('id, conversation_id, sender_id, body, sent_at, read_at').order('sent_at'),
-      isTrainer ? supabase.from('injuries').select('id, name').order('name') : none,
-      isTrainer ? supabase.from('exercises').select('id, name').order('name') : none,
-      isTrainer ? supabase.from('injury_exercises').select('injury_id, exercise_id').order('position') : none,
+      isTrainer ? supabase.from('injuries').select('id, name, body_region').order('name') : none,
+      isTrainer ? supabase.from('exercises').select('id, name, description, video_url').order('name') : none,
+      isTrainer ? supabase.from('injury_exercises').select('injury_id, exercise_id, sets, reps, hold_seconds, position').order('position') : none,
       // Coaches can't read logs or goals; this function returns only counts.
       isCoach ? supabase.rpc('coach_weekly_summary', { p_today: dayKey(new Date()) }) : none,
       // Private trainer notes; nobody else can read the table.
@@ -147,6 +148,8 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       // Asked for on its own: before supabase/profile_photos.sql is run the
       // column doesn't exist, and that mustn't stop everything else loading.
       supabase.from('users').select('id, avatar_path'),
+      // Recorded visits, newest first; trainers only (supabase/visits.sql).
+      isTrainer ? supabase.from('visits').select('id, athlete_id, trainer_id, visited_at, summary, pain, done_today').order('visited_at', { ascending: false }) : none,
     ]);
 
   const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL; email?: string; phone?: string | null }>(users);
@@ -387,6 +390,21 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
           ]),
         );
 
+  // Before supabase/visits.sql is run the table doesn't exist; the profile
+  // then says so, and Record still works for plans.
+  const visitList: Visit[] | null =
+    !isTrainer || visits.error
+      ? null
+      : rows<{ id: string; athlete_id: string; trainer_id: string | null; visited_at: string; summary: string; pain: number | null; done_today: string | null }>(visits).map((v) => ({
+          id: v.id,
+          athleteId: v.athlete_id,
+          visitedAt: v.visited_at,
+          summary: v.summary,
+          pain: v.pain,
+          doneToday: v.done_today,
+          trainerName: v.trainer_id ? userById.get(v.trainer_id)?.name : undefined,
+        }));
+
   return {
     teams: teamList,
     athletes,
@@ -399,16 +417,28 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     conversations: conversationList,
     injuryHistory,
     notes: noteMap,
+    visits: visitList,
     recovery,
     progress,
     catalog: {
-      injuries: rows<{ id: string; name: string }>(injuries),
-      exercises: rows<{ id: string; name: string }>(exerciseCatalog),
+      injuries: rows<{ id: string; name: string; body_region: string | null }>(injuries).map((i) => ({ id: i.id, name: i.name, bodyRegion: i.body_region })),
+      exercises: rows<{ id: string; name: string; description: string | null; video_url: string | null }>(exerciseCatalog).map((e) => ({
+        id: e.id,
+        name: e.name,
+        description: e.description,
+        videoUrl: e.video_url,
+      })),
       // Before supabase/workout_sets.sql is run the table doesn't exist; the
       // form still works, it just doesn't pre-tick a set.
       workoutSets: injurySets.error
         ? {}
         : groupWorkoutSets(rows<{ injury_id: string; exercise_id: string }>(injurySets)),
+      // The same rows with their starting numbers, for the Exercises page.
+      setDetails: injurySets.error
+        ? []
+        : rows<{ injury_id: string; exercise_id: string; sets: number | null; reps: number | null; hold_seconds: number | null; position: number }>(
+            injurySets,
+          ).map((r) => ({ injuryId: r.injury_id, exerciseId: r.exercise_id, sets: r.sets, reps: r.reps, holdSeconds: r.hold_seconds, position: r.position })),
     },
   };
 }
@@ -645,14 +675,32 @@ async function callAssistant<T>(body: Record<string, unknown> | FormData): Promi
   return { ok: false, error: 'Could not reach the assistant. Check your connection and try again.' };
 }
 
-/** Sends the conversation so far; the answer may come with a plan to confirm. Saves nothing. */
-export function askAssistant(history: Array<{ role: 'user' | 'assistant'; content: string }>, teamName: string | null): Promise<Result<AssistantAnswer>> {
-  return callAssistant<AssistantAnswer>({ action: 'chat', messages: history, teamName });
+/**
+ * Sends the conversation so far; the answer may come with a plan or visit
+ * card to check. Saves nothing. athleteId: who Record was opened for, if anyone.
+ */
+export function askAssistant(
+  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  teamName: string | null,
+  athleteId: string | null = null,
+): Promise<Result<AssistantAnswer>> {
+  return callAssistant<AssistantAnswer>({ action: 'chat', messages: history, teamName, athleteId });
 }
 
 /** Saves a plan the trainer confirmed. */
 export function applyAssistantPlan(proposal: Proposal): Promise<Result<{ summary: string }>> {
   return callAssistant<{ summary: string }>({ action: 'apply', proposal });
+}
+
+/** Saves a visit card the trainer checked (and maybe edited). */
+export function applyVisit(visit: VisitProposal): Promise<Result<{ summary: string }>> {
+  return callAssistant<{ summary: string }>({ action: 'apply_visit', visit });
+}
+
+/** Up to 3 tutorial videos for an exercise, each checked to play in the app. Can take 20 to 40 seconds. */
+export async function findVideos(exerciseName: string): Promise<Result<VideoOption[]>> {
+  const result = await callAssistant<{ videos?: VideoOption[] }>({ action: 'find_videos', exerciseName });
+  return result.ok ? { ok: true, value: result.value.videos ?? [] } : result;
 }
 
 /**

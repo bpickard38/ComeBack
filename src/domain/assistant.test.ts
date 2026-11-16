@@ -182,6 +182,26 @@ describe('conversation', () => {
     expect(history[1].content).toContain('the trainer confirmed it and it is saved');
     expect(history[1].content).toContain('"id":"e-calf"');
   });
+
+  it('treats a visit card like a plan card: a new one replaces one still waiting', () => {
+    const visit = {
+      athlete: { id: 'a-maya', name: 'Maya Torres' },
+      summary: 'Ankle feeling better.',
+      pain: 3,
+      doneToday: null,
+      results: [{ goalId: 'g-balance', name: 'Single-leg balance', unit: 'sec', target: 30, value: 25 }],
+      availability: null,
+      plan: null,
+    };
+    const first = withAnswer([], { reply: 'Here’s the plan.', proposal }, 1);
+    const second = withAnswer(first, { reply: 'Here’s the visit.', proposal: null, visit }, 2);
+    expect(second.map((t) => t.status)).toEqual(['replaced', 'pending']);
+    expect(second[1].visit).toEqual(visit);
+
+    const history = toHistory([{ ...second[1], status: 'saved' }]);
+    expect(history[0].content).toContain('[Visit shown to trainer (the trainer confirmed it and it is saved)');
+    expect(history[0].content).toContain('"goal_id":"g-balance"');
+  });
 });
 
 describe('planNumbers', () => {

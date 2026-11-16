@@ -9,7 +9,7 @@ import { AthleteLayout } from './screens/athlete/AthleteLayout';
 import { Progress } from './screens/athlete/Progress';
 import { Today } from './screens/athlete/Today';
 import { Trainer } from './screens/athlete/Trainer';
-import { Assistant } from './screens/staff/Assistant';
+import { Record } from './screens/staff/Record';
 import { AthleteProfile } from './screens/staff/AthleteProfile';
 import { StaffHome } from './screens/staff/StaffHome';
 import { StaffLayout } from './screens/staff/StaffLayout';
@@ -80,15 +80,17 @@ export function App() {
                 </RequireRole>
               }
             />
-            {/* The AI assistant assigns injuries and exercises, which only trainers may do. */}
+            {/* Record a visit (and the AI assistant): visits and plans are trainer-only. */}
             <Route
-              path="assistant"
+              path="record"
               element={
                 <RequireRole allowed={['trainer']}>
-                  <Assistant />
+                  <Record />
                 </RequireRole>
               }
             />
+            {/* The assistant's old address, before it became Record. */}
+            <Route path="assistant" element={<Navigate to="/staff/record" replace />} />
             {/* Coaches message the trainer from their home screen, so this is trainer-only. */}
             <Route
               path="messages"
