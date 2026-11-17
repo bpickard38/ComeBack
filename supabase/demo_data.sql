@@ -224,6 +224,20 @@ begin
       now() - interval '20 hours'
     from public.conversations c where c.id = v_conv;
   end if;
+
+  -- ---------- Player Pet (only once supabase/player_pet.sql has been run) ----------
+  -- Every demo athlete starts without a pet, except Maya: hers joined two
+  -- days ago, so Today opens with a "While you were away" recap of two games
+  -- played on the energy from her logs above.
+  if to_regclass('public.athlete_pets') is not null then
+    delete from public.pet_games g using auth.users u
+    where g.athlete_id = u.id and u.email like 'bpickard38+demo-%';
+    delete from public.athlete_pets p using auth.users u
+    where p.athlete_id = u.id and u.email like 'bpickard38+demo-%';
+    insert into public.athlete_pets (athlete_id, name, jersey_number, started_on)
+    select u.id, 'Rookie', 12, (now() at time zone tz)::date - 2
+    from auth.users u where u.email = 'bpickard38+demo-athlete@gmail.com';
+  end if;
 end;
 $$;
 

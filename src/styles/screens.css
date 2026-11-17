@@ -1331,6 +1331,12 @@ body:has(.loading-screen) {
   white-space: nowrap;
 }
 
+/* The dot and "6 d" never shrink or wrap; only the message text gets cut off. */
+.inbox-row__preview > :not(.inbox-row__snippet) {
+  flex: none;
+  white-space: nowrap;
+}
+
 .inbox-row--unread .inbox-row__name,
 .inbox-row--unread .inbox-row__preview {
   color: var(--text);

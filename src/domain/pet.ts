@@ -172,14 +172,31 @@ export function playGame(athleteId: string, day: Date, energy: number): PetGame 
  * Every game played since the pet joined: one per night, from `startedOn` up
  * to yesterday. Today's game hasn't happened yet, so today's exercises still
  * count toward it.
+ *
+ * `saved` are games already stored in the database. A saved game is final and
+ * is used as is; only days with no saved game are worked out from the logs.
+ * (Otherwise a plan change could rewrite old results.)
  */
-export function gamesPlayed(athlete: Athlete, logs: ExerciseLog[], startedOn: string, today: Date): PetGame[] {
+export function gamesPlayed(
+  athlete: Athlete,
+  logs: ExerciseLog[],
+  startedOn: string,
+  today: Date,
+  saved: PetGame[] = [],
+): PetGame[] {
+  const savedByDay = new Map(saved.map((g) => [g.day, g]));
   const games: PetGame[] = [];
   const [y, m, d] = startedOn.split('-').map(Number);
   for (let day = new Date(y, m - 1, d); dayKey(day) < dayKey(today); day = addDays(day, 1)) {
-    games.push(playGame(athlete.id, day, energyOn(athlete, logs, day)));
+    games.push(savedByDay.get(dayKey(day)) ?? playGame(athlete.id, day, energyOn(athlete, logs, day)));
   }
   return games;
+}
+
+/** The games in `games` that aren't saved yet, so they can be stored. */
+export function unsavedGames(games: PetGame[], saved: PetGame[]): PetGame[] {
+  const savedDays = new Set(saved.map((g) => g.day));
+  return games.filter((g) => !savedDays.has(g.day));
 }
 
 export interface Season {

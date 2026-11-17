@@ -7,6 +7,7 @@ import {
   DEFAULT_LOOK,
   energyOn,
   gamesPlayed,
+  unsavedGames,
   latestGoalReachedAt,
   reactionToExercise,
   petSays,
@@ -130,6 +131,15 @@ describe('pet games', () => {
 
   it('has no games on the first day', () => {
     expect(gamesPlayed(athlete, [], dayKey(TODAY), TODAY)).toEqual([]);
+  });
+
+  it('keeps saved games as they were, even if the logs say otherwise now', () => {
+    const started = dayKey(addDays(TODAY, -2));
+    const saved = [{ ...playGame(athlete.id, addDays(TODAY, -2), 0), won: true, ourScore: 99, theirScore: 0 }];
+    const games = gamesPlayed(athlete, [log('e1', 2), log('e2', 2)], started, TODAY, saved);
+    expect(games[0]).toEqual(saved[0]);
+    expect(games).toHaveLength(2);
+    expect(unsavedGames(games, saved)).toEqual([games[1]]);
   });
 
   it('only shows recaps for games after the last one seen', () => {

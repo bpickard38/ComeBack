@@ -35,7 +35,7 @@ export function Header() {
         <span className="account__who">
           {profile.name}
           {profile.role !== 'athlete' && (
-            <span className="account__role">&middot; {ROLE_LABEL[profile.role]}</span>
+            <span className="account__role"> &middot; {ROLE_LABEL[profile.role]}</span>
           )}
         </span>
         {athlete && (

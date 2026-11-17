@@ -34,8 +34,9 @@ export function Today() {
   const me = useSignedInAthlete();
   // Which tutorial is open. Only one at a time, like the prototype.
   const [openId, setOpenId] = useState<string | null>(null);
-  // Player Pet: optional, saved on this device. See src/features.ts to hide it for everyone.
-  const [petSave, setPetSave] = usePetSave(me.id);
+  // Player Pet: optional, saved in the database. See src/features.ts to hide it for everyone.
+  const pet = usePetSave(me.id);
+  const { save: petSave, update: setPetSave } = pet;
   const [petJustAdded, setPetJustAdded] = useState(false);
   const petOn = PET_FEATURE && petSave?.enabled === true;
 
@@ -103,6 +104,9 @@ export function Today() {
           results={state.results}
           save={petSave}
           onChange={setPetSave}
+          savedGames={pet.savedGames}
+          onGamesPlayed={pet.recordGames}
+          canSaveGames={pet.ready && pet.inDatabase}
           startEditing={petJustAdded}
         />
       )}
@@ -164,7 +168,7 @@ export function Today() {
         </Link>
       )}
 
-      {PET_FEATURE && !petOn && (
+      {PET_FEATURE && !petOn && pet.ready && (
         <PetOffCard
           save={petSave}
           onChange={(save, firstTime) => {

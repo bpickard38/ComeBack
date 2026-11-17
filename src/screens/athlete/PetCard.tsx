@@ -24,6 +24,7 @@ import {
   petState,
   reactionToExercise,
   SKIN_TONES,
+  unsavedGames,
   unseenGames,
   validatePetLook,
   type PetGame,
@@ -39,6 +40,12 @@ interface PetCardProps {
   results: TestResult[];
   save: PetSave;
   onChange: (save: PetSave) => void;
+  /** Games already saved in the database. They're final, so his record never changes. */
+  savedGames: PetGame[];
+  /** Saves games he played since the last visit. */
+  onGamesPlayed: (games: PetGame[]) => void;
+  /** False until the saved games have loaded (or when the pet tables don't exist yet). */
+  canSaveGames: boolean;
   /** Open the detail view with the name box right away (first time the pet is turned on). */
   startEditing?: boolean;
 }
@@ -57,7 +64,18 @@ function shortDay(day: string): string {
 /** How long a reaction (cheer or celebration) lasts before he goes back to his resting pose. */
 const REACTION_MS = 3500;
 
-export function PetCard({ athlete, logs, tests, results, save, onChange, startEditing = false }: PetCardProps) {
+export function PetCard({
+  athlete,
+  logs,
+  tests,
+  results,
+  save,
+  onChange,
+  savedGames,
+  onGamesPlayed,
+  canSaveGames,
+  startEditing = false,
+}: PetCardProps) {
   const [detailOpen, setDetailOpen] = useState(startEditing);
   const [reaction, setReaction] = useState<(PetReaction & { id: number }) | null>(null);
   const { look } = save;
@@ -67,11 +85,17 @@ export function PetCard({ athlete, logs, tests, results, save, onChange, startEd
   const { name } = look;
   const energy = energyOn(athlete, logs, now);
   const exercisesLeft = athlete.assignedExerciseIds.length - doneOnDay(athlete, logs, now);
-  const games = gamesPlayed(athlete, logs, save.startedOn, now);
+  const games = gamesPlayed(athlete, logs, save.startedOn, now, savedGames);
   const season = currentSeason(games);
   const unseen = unseenGames(games, save.seenThrough);
   const lastGame = games[games.length - 1];
   const goalAt = latestGoalReachedAt(tests, results, athlete.id, now);
+
+  // Games played since the last visit get saved, so the record keeps them as they were.
+  const toSave = canSaveGames ? unsavedGames(games, savedGames) : [];
+  useEffect(() => {
+    if (toSave.length > 0) onGamesPlayed(toSave);
+  }, [toSave.length, canSaveGames]); // only when there are new games to store
 
   function react(next: PetReaction) {
     setReaction({ ...next, id: Date.now() });

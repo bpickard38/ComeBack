@@ -102,7 +102,8 @@ Or click **Code > Download ZIP** on GitHub, unzip it, and run `npm install` insi
    9. `supabase/recovery_pace.sql`: the recovery percentage behind the coach's recovery bar
    10. `supabase/profile_photos.sql`: profile photos (a storage bucket and where each person's photo is)
    11. `supabase/visits.sql`: visit records from Record a visit (private to trainers)
-   12. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
+   12. `supabase/player_pet.sql`: the athlete's Player Pet and its game record (private to the athlete)
+   13. `supabase/demo_data.sql`: the demo team (optional, see Demo accounts)
 
    Already set up? Run `supabase/remove_trophies.sql` once (after deploying the app version without trophies) and any later migrations you have not applied. If the project predates `multi_injury.sql`, run that too, then `workout_sets.sql` and `weekly_summary.sql`. Re-run `supabase/push.sql` if you use push reminders.
 3. Under **Authentication > Sign In / Providers**, turn on "Allow new users to sign up". Under Email, turn off "Confirm email" unless you want people to confirm by email first.
