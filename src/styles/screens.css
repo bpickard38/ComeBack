@@ -2748,16 +2748,36 @@ a.roster-row:hover {
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  border: 1px solid var(--border);
+  /* Each number is tinted its own color, green at 0 to red at 10 (set in Today.tsx). */
+  border: 2px solid color-mix(in srgb, var(--pain-color, var(--border)) 55%, transparent);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--pain-color, var(--surface)) 14%, var(--surface));
   font-weight: var(--font-weight-bold);
   cursor: pointer;
 }
 
+.pain-option:hover span {
+  border-color: var(--pain-color, var(--border));
+}
+
+/* The picked number fills with its color. Dark text stays readable on every shade. */
 .pain-option:has(input:checked) span {
-  background: var(--accent);
-  color: var(--on-accent);
+  border-color: var(--pain-color, var(--accent));
+  background: var(--pain-color, var(--accent));
+  color: #111114;
+}
+
+/* The line under the numbers that says what the picked one means. */
+.pain-meaning {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.pain-face {
+  flex: none;
 }
 
 .pain-option:has(input:focus-visible) span {

@@ -5,6 +5,35 @@ import type { ExerciseLog, Result } from './types';
 export const PAIN_SCALE = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 /**
+ * What each number means, so athletes can tell a 5 from a 9.
+ * From the class's pain scale reference chart.
+ */
+export const PAIN_LEVELS = [
+  { label: 'No pain', description: 'No pain at all' },
+  { label: 'Very mild', description: 'Very light pain' },
+  { label: 'Mild', description: 'Noticeable pain, but not distracting' },
+  { label: 'Moderate', description: 'Distracting, but manageable' },
+  { label: 'Moderate pain', description: 'More intense, some interference with tasks' },
+  { label: 'Strong', description: 'Strong pain, limits daily activities' },
+  { label: 'Strong pain', description: 'Hard to concentrate, avoids activity' },
+  { label: 'Very strong', description: 'Severe pain, difficult to do most activities' },
+  { label: 'Very severe', description: 'Intense pain, hard to think or move' },
+  { label: 'Extreme', description: 'Worst pain imaginable, unable to function' },
+  { label: 'Worst possible pain', description: 'Unbearable pain, seeking emergency relief' },
+] as const;
+
+/** "Strong pain" for 6. */
+export function painLabel(pain: number): string {
+  return PAIN_LEVELS[pain]?.label ?? '';
+}
+
+/** The color for a pain number: green at 0, through yellow, to red at 10 (a CSS color). */
+export function painColor(pain: number): string {
+  const hue = Math.round(130 - (130 * Math.max(0, Math.min(10, pain))) / 10);
+  return `hsl(${hue} 65% 56%)`;
+}
+
+/**
  * Pain at or above this flags the athlete for the trainer. A guess based on
  * common rehab advice (some discomfort is expected); tune with real trainers.
  */

@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "../../components/Badge";
 import { Button } from "../../components/Button";
@@ -7,7 +7,8 @@ import { ProgressBar } from "../../components/ProgressBar";
 import { useToast } from "../../components/Toast";
 import { useReturnFocus } from "../../components/useReturnFocus";
 import { findLog } from "../../domain/logs";
-import { isHighPain, PAIN_SCALE } from "../../domain/pain";
+import { isHighPain, PAIN_LEVELS, PAIN_SCALE, painColor, painLabel } from "../../domain/pain";
+import { PainFace } from "../../components/PainFace";
 import {
   listNames,
   REMINDER_HOUR,
@@ -238,7 +239,9 @@ function ExerciseCard({
       </div>
 
       {log?.pain !== undefined && (
-        <div className="small muted">Pain you reported: {log.pain} of 10</div>
+        <div className="small muted">
+          Pain you reported: {log.pain} of 10 ({painLabel(log.pain).toLowerCase()})
+        </div>
       )}
 
       {rating && !log && (
@@ -247,11 +250,16 @@ function ExerciseCard({
           <fieldset className="chip-group">
             <legend className="strong">How much pain did you feel?</legend>
             <p className="small muted">
-              0 = no pain, 10 = worst pain you can imagine
+              Tap a number to see what it means. 0 = no pain, 10 = worst possible pain.
             </p>
             <div className="pain-scale">
               {PAIN_SCALE.map((n, i) => (
-                <label key={n} className="pain-option">
+                <label
+                  key={n}
+                  className="pain-option"
+                  title={painLabel(n)}
+                  style={{ "--pain-color": painColor(n) } as CSSProperties}
+                >
                   <input
                     type="radio"
                     className="visually-hidden"
@@ -260,12 +268,29 @@ function ExerciseCard({
                     checked={pain === n}
                     onChange={() => setPain(n)}
                     autoFocus={i === 0}
+                    aria-label={`${n}, ${painLabel(n)}`}
                   />
                   <span>
                     {n}
                   </span>
                 </label>
               ))}
+            </div>
+            {/* What the picked number means, like a row of the pain scale chart. */}
+            <div className="pain-meaning" aria-live="polite">
+              {pain === undefined ? (
+                <span className="small muted">No number picked yet.</span>
+              ) : (
+                <>
+                  <PainFace pain={pain} />
+                  <span className="stack-xs">
+                    <span className="strong">
+                      {pain} &middot; {PAIN_LEVELS[pain].label}
+                    </span>
+                    <span className="small">{PAIN_LEVELS[pain].description}</span>
+                  </span>
+                </>
+              )}
             </div>
           </fieldset>
           {isHighPain(pain) && (

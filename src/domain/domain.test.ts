@@ -11,7 +11,7 @@ import { listNames, missedYesterday, shouldShowReminder } from './reminder';
 import { bestStreak, currentStreak } from './streak';
 import { normalizeAvailability } from './availability';
 import { chatItems, inboxOrder, TIME_GAP_MINUTES, unreadIn } from './messages';
-import { highestRecentPain, validatePain } from './pain';
+import { highestRecentPain, PAIN_LEVELS, PAIN_SCALE, painColor, painLabel, validatePain } from './pain';
 import type { Athlete, ExerciseLog, Message, MessageThread, TestResult } from './types';
 import { validateAppointment, validateAssignment, validateMessage, type AppointmentInput } from './validation';
 import { weekCompletion, weekStatus } from './week';
@@ -247,6 +247,17 @@ describe('seed data', () => {
 });
 
 describe('pain', () => {
+  it('describes every number on the scale', () => {
+    expect(PAIN_LEVELS).toHaveLength(PAIN_SCALE.length);
+    expect(painLabel(0)).toBe('No pain');
+    expect(painLabel(10)).toBe('Worst possible pain');
+  });
+
+  it('colors the scale from green to red', () => {
+    expect(painColor(0)).toBe('hsl(130 65% 56%)');
+    expect(painColor(10)).toBe('hsl(0 65% 56%)');
+  });
+
   const painLog = (pain: number | undefined, daysAgo: number, athleteId = athlete.id): ExerciseLog => {
     const d = addDays(TODAY, -daysAgo);
     d.setHours(9, 0);
