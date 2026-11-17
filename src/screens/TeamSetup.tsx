@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Button } from '../components/Button';
+import { DEMO_TEAM_FEATURE } from '../features';
 import type { Profile } from '../store/profile';
 import { supabase } from '../store/supabase';
 
@@ -37,6 +38,16 @@ export function TeamSetup({ profile, onJoined, problem = '' }: TeamSetupProps) {
     const { error } = isTrainer
       ? await supabase.rpc('create_team', { p_name: teamName, p_sport: sport, p_school: school })
       : await supabase.rpc('join_team', { p_code: code });
+    setBusy(false);
+    if (error) setError(error.message);
+    else onJoined();
+  }
+
+  /** Athletes trying the app in a demo: join Demo Soccer without a code (supabase/demo_join.sql). */
+  async function joinDemo() {
+    setBusy(true);
+    setError('');
+    const { error } = await supabase.rpc('join_demo_team');
     setBusy(false);
     if (error) setError(error.message);
     else onJoined();
@@ -95,6 +106,14 @@ export function TeamSetup({ profile, onJoined, problem = '' }: TeamSetupProps) {
         <Button type="submit" variant="primary" disabled={busy}>
           {busy ? isTrainer ? 'Creating team…' : 'Joining team…' : isTrainer ? 'Create team' : 'Join team'}
         </Button>
+        {DEMO_TEAM_FEATURE && profile.role === 'athlete' && (
+          <div className="demo-join">
+            <p className="small muted">Just trying Comeback out? Join the demo soccer team, no code needed.</p>
+            <Button variant="secondary" disabled={busy} onClick={joinDemo}>
+              Join the demo team
+            </Button>
+          </div>
+        )}
         <Button variant="secondary" onClick={() => supabase.auth.signOut()}>
           Sign out
         </Button>

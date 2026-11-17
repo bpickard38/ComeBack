@@ -8,3 +8,9 @@ export const PET_FEATURE = true;
 
 /** The trainer's AI Assistant tab. Needs the trainer-assistant function deployed (README > AI assistant). */
 export const ASSISTANT_FEATURE = true;
+
+/**
+ * "Join the demo team" on the athlete's join screen, so classmates can try
+ * the app without a code. Needs supabase/demo_join.sql. Turn off after demos.
+ */
+export const DEMO_TEAM_FEATURE = true;
