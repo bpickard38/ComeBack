@@ -5,6 +5,7 @@ import { useToast } from '../../components/Toast';
 import { useReturnFocus } from '../../components/useReturnFocus';
 import { currentValue, isGoalReached } from '../../domain/goals';
 import type { Athlete, AthleteInjury, Exercise, MilestoneTest } from '../../domain/types';
+import type { MilestoneInput } from '../../domain/validation';
 import { formatNumber } from '../../format';
 import { testsFor, useAppStore } from '../../store/AppStore';
 import { AppointmentScheduler } from './AppointmentScheduler';
@@ -12,9 +13,10 @@ import { AssignForm } from './AssignForm';
 
 /**
  * Everything the trainer can change about an athlete's rehab, in one place
- * on their profile: add an injury or exercises, change sets and reps, take
- * an exercise off, record a test result, move a goal, clear an injury, and
- * book visits. The athlete sees each change within 30 seconds.
+ * on their profile: add an injury; and, under Edit on each injury, add or
+ * remove exercises, change sets and reps, add or remove milestone tests,
+ * record a result, move a goal. Also clear an injury and book visits. The
+ * athlete sees each change within 30 seconds.
  */
 export function PlanEditor({ athlete }: { athlete: Athlete }) {
   const [assigning, setAssigning] = useState(false);
@@ -26,12 +28,13 @@ export function PlanEditor({ athlete }: { athlete: Athlete }) {
         <div className="stack-xs">
           <h2 id="profile-plan">Plan and progress</h2>
           <p className="muted">
-            Press Edit on an injury to change it. {athlete.name.split(' ')[0]} sees changes on their screens within 30 seconds.
+            Press <strong>Edit</strong> on an injury to add or change its exercises and milestone tests.{' '}
+            {athlete.name.split(' ')[0]} sees changes within 30 seconds.
           </p>
         </div>
         {!assigning && (
           <Button ref={assignButtonRef} variant="primary" onClick={() => setAssigning(true)}>
-            {athlete.injuries.length ? 'Add injury or exercises' : 'Assign injury and exercises'}
+            {athlete.injuries.length ? 'Add another injury' : 'Assign injury and exercises'}
           </Button>
         )}
       </div>
@@ -108,10 +111,15 @@ function InjuryEditor({ athlete, injury }: { athlete: Athlete; injury: AthleteIn
 
       <div className="stack-sm">
         <div className="small strong">Exercises ({exercises.length})</div>
-        {exercises.length === 0 ? (
-          <p className="small muted">None assigned. Use &ldquo;Add injury or exercises&rdquo; above and pick {injury.name}.</p>
-        ) : editing ? (
-          exercises.map((e) => <ExerciseRow key={e.id} exercise={e} />)
+        {editing ? (
+          <>
+            {exercises.map((e) => (
+              <ExerciseRow key={e.id} exercise={e} />
+            ))}
+            <AddExercise athlete={athlete} injury={injury} onPlan={exercises} />
+          </>
+        ) : exercises.length === 0 ? (
+          <p className="small muted">None yet. Press Edit to add exercises.</p>
         ) : (
           <ul className="plain-list">
             {exercises.map((e) => (
@@ -123,12 +131,18 @@ function InjuryEditor({ athlete, injury }: { athlete: Athlete; injury: AthleteIn
         )}
       </div>
 
-      {tests.length > 0 && (
-        <div className="stack-sm">
-          <div className="small strong">Milestone tests ({tests.length})</div>
-          {editing ? (
-            tests.map((t) => <TestRow key={t.id} test={t} athlete={athlete} />)
-          ) : (
+      <div className="stack-sm">
+        <div className="small strong">Milestone tests ({tests.length})</div>
+        {editing ? (
+          <>
+            {tests.map((t) => (
+              <TestRow key={t.id} test={t} athlete={athlete} />
+            ))}
+            <AddMilestone injury={injury} used={tests} />
+          </>
+        ) : tests.length === 0 ? (
+          <p className="small muted">None yet. Press Edit to add a test, like one-leg balance, to track recovery.</p>
+        ) : (
             <ul className="plain-list">
               {tests.map((t) => (
                 <li key={t.id}>
@@ -140,10 +154,159 @@ function InjuryEditor({ athlete, injury }: { athlete: Athlete; injury: AthleteIn
                 </li>
               ))}
             </ul>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </section>
+  );
+}
+
+/** Edit mode: pick one more exercise from the catalog for this injury. */
+function AddExercise({ athlete, injury, onPlan }: { athlete: Athlete; injury: AthleteInjury; onPlan: Exercise[] }) {
+  const { state, commands } = useAppStore();
+  const { notify } = useToast();
+  const [exerciseId, setExerciseId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const id = `add-exercise-${injury.caseId}`;
+  const taken = new Set(onPlan.map((e) => e.exerciseId));
+  // This injury's usual exercises first, then the rest A to Z.
+  const usual = (injury.injuryId && state.catalog.workoutSets[injury.injuryId]) || [];
+  const choices = state.catalog.exercises
+    .filter((e) => !taken.has(e.id))
+    .sort((a, b) => Number(usual.includes(b.id)) - Number(usual.includes(a.id)) || a.name.localeCompare(b.name));
+
+  async function add(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const result = await commands.addExerciseToInjury(athlete.id, injury.caseId, exerciseId);
+    setBusy(false);
+    if (!result.ok) {
+      notify(result.error, 'error');
+      return;
+    }
+    notify(`${state.catalog.exercises.find((x) => x.id === exerciseId)?.name} added to ${athlete.name}'s ${injury.name} plan.`);
+    setExerciseId('');
+  }
+
+  return (
+    <form className="edit-row edit-row--add" onSubmit={add} aria-label={`Add an exercise for ${injury.name}`}>
+      <div className="stack-xs edit-row__name">
+        <label htmlFor={id} className="small strong">
+          Add an exercise
+        </label>
+        <select id={id} className="field" value={exerciseId} onChange={(e) => setExerciseId(e.target.value)}>
+          <option value="">Pick an exercise…</option>
+          {choices.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+              {usual.includes(e.id) ? ` (usual for ${injury.name})` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Button type="submit" variant="primary" disabled={busy || !exerciseId}>
+        {busy ? 'Adding…' : 'Add exercise'}
+      </Button>
+    </form>
+  );
+}
+
+/** Edit mode: a new milestone test for this injury, picked from the list or made up, with a start and a goal. */
+function AddMilestone({ injury, used }: { injury: AthleteInjury; used: MilestoneTest[] }) {
+  const { state, commands } = useAppStore();
+  const { notify } = useToast();
+  const NEW = 'new';
+  const empty: MilestoneInput = { testId: '', newName: '', newUnit: '', baseline: '', target: '' };
+  const [draft, setDraft] = useState(empty);
+  const [picked, setPicked] = useState('');
+  const [busy, setBusy] = useState(false);
+  const id = (part: string) => `milestone-${part}-${injury.caseId}`;
+  const takenIds = new Set(used.map((t) => t.testId));
+  const choices = state.catalog.tests.filter((t) => !takenIds.has(t.id));
+  const unit = picked === NEW ? draft.newUnit.trim() : (state.catalog.tests.find((t) => t.id === picked)?.unit ?? '');
+
+  async function add(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const result = await commands.addMilestone(injury.caseId, { ...draft, testId: picked === NEW ? '' : picked });
+    setBusy(false);
+    if (!result.ok) {
+      notify(result.error, 'error');
+      return;
+    }
+    const name = picked === NEW ? draft.newName.trim() : state.catalog.tests.find((t) => t.id === picked)?.name;
+    notify(`${name} added as a milestone for ${injury.name}.`);
+    setDraft(empty);
+    setPicked('');
+  }
+
+  const numberField = (key: 'baseline' | 'target', label: string) => (
+    <div className="stack-xs">
+      <label htmlFor={id(key)} className="small muted">
+        {label}
+        {unit && ` (${unit})`}
+      </label>
+      <input
+        id={id(key)}
+        className="field field--number"
+        inputMode="decimal"
+        value={draft[key]}
+        onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+      />
+    </div>
+  );
+
+  return (
+    <form className="edit-row edit-row--add" onSubmit={add} aria-label={`Add a milestone test for ${injury.name}`}>
+      <div className="stack-xs edit-row__name">
+        <label htmlFor={id('test')} className="small strong">
+          Add a milestone test
+        </label>
+        <select id={id('test')} className="field" value={picked} onChange={(e) => setPicked(e.target.value)}>
+          <option value="">Pick a test…</option>
+          {choices.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name} ({t.unit})
+            </option>
+          ))}
+          <option value={NEW}>New test…</option>
+        </select>
+      </div>
+      {picked === NEW && (
+        <>
+          <div className="stack-xs">
+            <label htmlFor={id('name')} className="small muted">
+              Test name
+            </label>
+            <input
+              id={id('name')}
+              className="field"
+              maxLength={60}
+              placeholder="Plank hold"
+              value={draft.newName}
+              onChange={(e) => setDraft({ ...draft, newName: e.target.value })}
+            />
+          </div>
+          <div className="stack-xs">
+            <label htmlFor={id('unit')} className="small muted">
+              Unit
+            </label>
+            <input
+              id={id('unit')}
+              className="field field--unit"
+              maxLength={30}
+              placeholder="seconds"
+              value={draft.newUnit}
+              onChange={(e) => setDraft({ ...draft, newUnit: e.target.value })}
+            />
+          </div>
+        </>
+      )}
+      {numberField('baseline', 'Starts at')}
+      {numberField('target', 'Goal')}
+      <Button type="submit" variant="primary" disabled={busy || !picked}>
+        {busy ? 'Adding…' : 'Add test'}
+      </Button>
+    </form>
   );
 }
 
@@ -221,6 +384,7 @@ function TestRow({ test, athlete }: { test: MilestoneTest; athlete: Athlete }) {
   const [result, setResult] = useState('');
   const [target, setTarget] = useState(formatNumber(test.target));
   const [busy, setBusy] = useState(false);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const current = currentValue(test, state.results, athlete.id);
   const reached = isGoalReached(test, state.results, athlete.id);
   const targetChanged = target.trim() !== formatNumber(test.target);
@@ -240,6 +404,14 @@ function TestRow({ test, athlete }: { test: MilestoneTest; athlete: Athlete }) {
         ? `${test.name}: ${formatNumber(saved.value.result.value)} ${test.unit} recorded. Goal reached.`
         : `${test.name}: ${formatNumber(saved.value.result.value)} ${test.unit} recorded.`,
     );
+  }
+
+  async function remove() {
+    setBusy(true);
+    const saved = await commands.removeMilestone(test.id);
+    setBusy(false);
+    if (!saved.ok) notify(saved.error, 'error');
+    else notify(`${test.name} is no longer a milestone for ${athlete.name}.`);
   }
 
   async function saveTarget() {
@@ -289,6 +461,20 @@ function TestRow({ test, athlete }: { test: MilestoneTest; athlete: Athlete }) {
       <Button disabled={busy || !targetChanged} onClick={saveTarget}>
         Save goal
       </Button>
+      {confirmingRemove ? (
+        <div className="row">
+          <Button className="btn--small" disabled={busy} onClick={remove}>
+            Yes, remove it and its results
+          </Button>
+          <Button className="btn--small" onClick={() => setConfirmingRemove(false)}>
+            Keep
+          </Button>
+        </div>
+      ) : (
+        <Button disabled={busy} onClick={() => setConfirmingRemove(true)} aria-label={`Remove ${test.name}`}>
+          Remove
+        </Button>
+      )}
     </form>
   );
 }

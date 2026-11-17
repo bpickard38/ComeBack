@@ -36,10 +36,12 @@ import {
   validateAppointment,
   validateAssignment,
   validateMessage,
+  validateMilestone,
   validatePrescription,
   validateTeam,
   type AppointmentInput,
   type AssignmentInput,
+  type MilestoneInput,
   type PrescriptionInput,
   type TeamInput,
   type ValidAppointment,
@@ -293,6 +295,49 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       if (!valid.ok) return valid;
       if (state.offline) return { ok: false, error: `Could not save the plan. ${OFFLINE_ERROR}` };
       const saved = await remote.updatePlanExercise(planId, valid.value);
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
+    },
+
+    /**
+     * Trainer adds one exercise from the catalog to an injury that's already
+     * on the plan. The plan keeps its other exercises; the new one starts at
+     * the injury's usual sets and reps, which the trainer can change.
+     */
+    async addExerciseToInjury(athleteId: string, caseId: string, exerciseId: string): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change the plan.' };
+      const injury = state.athletes.find((a) => a.id === athleteId)?.injuries.find((i) => i.caseId === caseId);
+      if (!injury?.injuryId) return { ok: false, error: 'Injury not found. Refresh and try again.' };
+      if (!exerciseId) return { ok: false, error: 'Pick an exercise to add.' };
+      const current = state.exercises
+        .filter((e) => e.caseId === caseId && e.active !== false && e.exerciseId)
+        .map((e) => e.exerciseId!);
+      if (current.includes(exerciseId)) return { ok: false, error: 'That exercise is already on this plan.' };
+      if (state.offline) return { ok: false, error: `Could not save the plan. ${OFFLINE_ERROR}` };
+      const saved = await remote.assignPlan(athleteId, injury.injuryId, [...current, exerciseId]);
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
+    },
+
+    /** Trainer adds a milestone test (a goal with a starting point) to one injury. */
+    async addMilestone(caseId: string, input: MilestoneInput): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can set goals.' };
+      const valid = validateMilestone(input);
+      if (!valid.ok) return valid;
+      if (state.offline) return { ok: false, error: `Could not save the goal. ${OFFLINE_ERROR}` };
+      const saved = await remote.addMilestone(caseId, valid.value.test, valid.value.baseline, valid.value.target);
+      if (!saved.ok) return saved;
+      await reload();
+      return saved;
+    },
+
+    /** Trainer takes a milestone test off an injury. */
+    async removeMilestone(milestoneId: string): Promise<Result> {
+      if (state.role !== 'trainer') return { ok: false, error: 'Only the trainer can change goals.' };
+      if (state.offline) return { ok: false, error: `Could not save the change. ${OFFLINE_ERROR}` };
+      const saved = await remote.removeMilestone(milestoneId);
       if (!saved.ok) return saved;
       await reload();
       return saved;

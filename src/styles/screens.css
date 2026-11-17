@@ -3846,3 +3846,77 @@ a.roster-row:hover {
     padding-inline: var(--space-4);
   }
 }
+
+/* Player profile: status and return date (src/screens/staff/AvailabilityEditor.tsx) */
+.status-card__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4) var(--space-6);
+}
+
+.status-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* One button per status, with what it means underneath the name. */
+.status-option {
+  display: flex;
+  min-height: var(--target-min);
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.status-option .small {
+  color: var(--text-muted);
+}
+
+.status-option:hover {
+  border-color: var(--text-muted);
+}
+
+/* The current status is outlined and tinted in its own color. */
+.status-option--out {
+  --status-color: #d9534f;
+}
+
+.status-option--limited {
+  --status-color: #e0a526;
+}
+
+.status-option--cleared {
+  --status-color: #3a9d5d;
+}
+
+.status-option[aria-pressed='true'] {
+  border-color: var(--status-color);
+  background: color-mix(in srgb, var(--status-color) 16%, var(--surface));
+}
+
+.status-option[aria-pressed='true'] .small {
+  color: var(--text);
+}
+
+/* Plan editor: the "Add an exercise" and "Add a milestone test" rows at the end of each list. */
+.edit-row--add {
+  padding: var(--space-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.edit-row--add select.field {
+  width: 100%;
+}
+
+.field--unit {
+  width: 7rem;
+}

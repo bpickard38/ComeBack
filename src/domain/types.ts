@@ -23,6 +23,8 @@ export interface Exercise {
   description?: string | null;
   /** The injury (athlete_injuries row) this exercise was prescribed for. */
   caseId?: string;
+  /** The exercise in the catalog (exercises table) this plan line is for. */
+  exerciseId?: string;
   /** The prescription as numbers, for the trainer to edit. null means not used. */
   sets?: number | null;
   reps?: number | null;
@@ -35,6 +37,8 @@ export interface Exercise {
 export interface AthleteInjury {
   caseId: string;
   name: string;
+  /** The injury in the catalog (injuries table). */
+  injuryId?: string;
 }
 
 /**
@@ -122,6 +126,8 @@ export interface MilestoneTest {
   athleteId: string;
   /** The injury (athlete_injuries row) this goal belongs to. */
   caseId?: string;
+  /** The test in the catalog (milestone_tests table). */
+  testId?: string;
   name: string;
   /** Plain-language explanation shown to the athlete. */
   description: string;

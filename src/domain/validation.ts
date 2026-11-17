@@ -66,6 +66,48 @@ export function validatePrescription(input: PrescriptionInput): Result<ValidPres
   return { ok: true, value: { sets, reps, holdSeconds } };
 }
 
+/** A new milestone goal, as typed into the trainer's form. */
+export interface MilestoneInput {
+  /** A test from the catalog, or "" to make a new one from newName and newUnit. */
+  testId: string;
+  newName: string;
+  newUnit: string;
+  baseline: string;
+  target: string;
+}
+
+export interface ValidMilestone {
+  test: { testId: string } | { name: string; unit: string };
+  baseline: number;
+  target: number;
+}
+
+/**
+ * A milestone needs a test (picked, or a new one with a name and unit), a
+ * starting number and a goal, both 0 or more. Most tests count up (seconds,
+ * reps, distance), so the goal has to be different from where they start.
+ */
+export function validateMilestone(input: MilestoneInput): Result<ValidMilestone> {
+  let test: ValidMilestone['test'];
+  if (input.testId) {
+    test = { testId: input.testId };
+  } else {
+    const name = input.newName.trim();
+    const unit = input.newUnit.trim();
+    if (!name || !unit) return { ok: false, error: 'Pick a test, or give the new one a name and a unit (like seconds or reps).' };
+    if (name.length > 60 || unit.length > 30) return { ok: false, error: 'Keep the test name under 60 letters and the unit under 30.' };
+    test = { name, unit };
+  }
+  const number = (raw: string) => (raw.trim() === '' ? NaN : Number(raw.trim()));
+  const baseline = number(input.baseline);
+  const target = number(input.target);
+  if (!Number.isFinite(baseline) || !Number.isFinite(target) || baseline < 0 || target < 0) {
+    return { ok: false, error: 'Starting point and goal must be numbers, 0 or more.' };
+  }
+  if (baseline === target) return { ok: false, error: 'The goal should be different from where they start.' };
+  return { ok: true, value: { test, baseline, target } };
+}
+
 export interface AppointmentInput {
   athleteId: string;
   title: string;

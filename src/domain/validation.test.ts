@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validatePrescription } from './validation';
+import { validateMilestone, validatePrescription } from './validation';
 
 describe('validatePrescription', () => {
   it('turns what was typed into numbers', () => {
@@ -20,5 +20,25 @@ describe('validatePrescription', () => {
     for (const bad of ['0', '-2', '2.5', 'ten', '1000']) {
       expect(validatePrescription({ sets: bad, reps: '10', hold: '' }).ok).toBe(false);
     }
+  });
+});
+
+describe('validateMilestone', () => {
+  const base = { testId: 't1', newName: '', newUnit: '', baseline: '10', target: '30' };
+
+  it('accepts a picked test with numbers', () => {
+    expect(validateMilestone(base)).toEqual({ ok: true, value: { test: { testId: 't1' }, baseline: 10, target: 30 } });
+  });
+
+  it('makes a new test from a name and unit', () => {
+    const result = validateMilestone({ ...base, testId: '', newName: ' Plank hold ', newUnit: 'seconds' });
+    expect(result.ok && result.value.test).toEqual({ name: 'Plank hold', unit: 'seconds' });
+  });
+
+  it('needs a test, numbers, and a goal that differs from the start', () => {
+    expect(validateMilestone({ ...base, testId: '' }).ok).toBe(false);
+    expect(validateMilestone({ ...base, baseline: '' }).ok).toBe(false);
+    expect(validateMilestone({ ...base, target: '-1' }).ok).toBe(false);
+    expect(validateMilestone({ ...base, target: '10' }).ok).toBe(false);
   });
 });

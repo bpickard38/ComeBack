@@ -26,6 +26,12 @@ export interface CatalogInjury extends CatalogItem {
   bodyRegion?: string | null;
 }
 
+/** A milestone test the trainer can set as a goal, like "One-leg balance" in seconds. */
+export interface CatalogTest extends CatalogItem {
+  unit: string;
+  description?: string | null;
+}
+
 export interface CatalogExercise extends CatalogItem {
   /** One-line how-to the athlete sees. */
   description?: string | null;
@@ -83,6 +89,8 @@ export interface RemoteData {
   catalog: {
     injuries: CatalogInjury[];
     exercises: CatalogExercise[];
+    /** Milestone tests to pick from. */
+    tests: CatalogTest[];
     /** Each injury's workout set: injury id to exercise ids, in order. */
     workoutSets: Record<string, string[]>;
     /** The same sets with their starting sets/reps/hold. */

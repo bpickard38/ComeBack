@@ -8,7 +8,6 @@ import { ProfilePhoto } from '../../components/ProfilePhoto';
 import { RecoveryBar } from '../../components/RecoveryBar';
 import { useToast } from '../../components/Toast';
 import { upcomingAppointments } from '../../domain/appointments';
-import { availabilityLabel } from '../../domain/availability';
 import { injuryDays, injuryHistory, NOTE_MAX_LENGTH, PAIN_HISTORY_DAYS, painHistory, profileTimeline } from '../../domain/history';
 import { doneOnDay } from '../../domain/logs';
 import { athleteThread, unreadIn } from '../../domain/messages';
@@ -91,6 +90,9 @@ export function AthleteProfile() {
         </div>
       </div>
 
+      {/* Status and return date first: what changes most, and what the coach sees. */}
+      <AvailabilityEditor athlete={athlete} />
+
       <Progress athlete={athlete} />
 
       <div className="profile-sections" role="group" aria-label="Show">
@@ -118,13 +120,11 @@ export function AthleteProfile() {
 }
 
 /**
- * The one card that's always showing: the recovery bar the coach also sees,
- * how this week is going, recent pain, the next visit, and the status the
- * coach sees (with Change to edit it).
+ * How they're doing: the recovery bar the coach also sees, how this week is
+ * going, recent pain and the next visit. (Status is changed in the card above.)
  */
 function Progress({ athlete }: { athlete: Athlete }) {
   const { state } = useAppStore();
-  const [changing, setChanging] = useState(false);
   const now = new Date();
   const cleared = athlete.availability === 'cleared';
   const pace = recoveryPace(state.recovery?.[athlete.id], cleared, now);
@@ -145,7 +145,7 @@ function Progress({ athlete }: { athlete: Athlete }) {
         <div className="recovery-bar">
           <div className="recovery-bar__head">
             <span className="strong">{assigned === 0 ? 'No plan yet' : `${week}% of this week's exercises`}</span>
-            <span className="small muted">Add milestone tests under Plan to track recovery</span>
+            <span className="small muted">Add milestone tests under Plan (press Edit on an injury) to track recovery</span>
           </div>
           <div className="recovery-bar__track" aria-hidden="true">
             <div className="recovery-bar__fill" style={{ width: `${assigned === 0 ? 0 : week}%` }} />
@@ -179,18 +179,7 @@ function Progress({ athlete }: { athlete: Athlete }) {
           <dt>Next visit</dt>
           <dd>{next ? `${formatDay(next.startsAt)}, ${formatTime(next.startsAt)}` : 'None booked'}</dd>
         </div>
-        <div>
-          <dt>Coach sees</dt>
-          <dd>
-            {availabilityLabel(athlete.availability)}
-            {athlete.expectedReturn && !cleared && <>, back {formatCalendarDay(athlete.expectedReturn)}</>}{' '}
-            <button type="button" className="link-button small" aria-expanded={changing} onClick={() => setChanging(!changing)}>
-              {changing ? 'Done' : 'Change'}
-            </button>
-          </dd>
-        </div>
       </dl>
-      {changing && <AvailabilityEditor athlete={athlete} />}
     </Card>
   );
 }

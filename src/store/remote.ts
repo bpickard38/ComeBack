@@ -46,6 +46,7 @@ interface MemberRow {
 interface CaseRow {
   id: string;
   athlete_id: string;
+  injury_id: string;
   status: string;
   start_date: string;
   cleared_at: string | null;
@@ -54,6 +55,7 @@ interface CaseRow {
 interface PlanRow {
   id: string;
   athlete_injury_id: string;
+  exercise_id: string;
   sets: number | null;
   reps: number | null;
   hold_seconds: number | null;
@@ -63,6 +65,7 @@ interface PlanRow {
 interface GoalRow {
   id: string;
   athlete_injury_id: string;
+  test_id: string;
   baseline: number;
   target: number;
   milestone_tests: { name: string; description: string | null; unit: string } | null;
@@ -112,23 +115,23 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
   if (profile.role === 'admin') return {
     teams: [], athletes: [], exercises: [], tests: [], logs: [], results: [], appointments: [], messages: [],
     conversations: [], injuryHistory: [], notes: null, visits: null, recovery: null, progress: null,
-    catalog: { injuries: [], exercises: [], workoutSets: {}, setDetails: [] },
+    catalog: { injuries: [], exercises: [], tests: [], workoutSets: {}, setDetails: [] },
   };
   const isTrainer = profile.role === 'trainer';
   const isCoach = profile.role === 'coach';
   const none = Promise.resolve({ data: [], error: null });
 
-  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary, notes, coachRecovery, photos, visits] =
+  const [teams, members, users, cases, plans, logs, goals, results, appointments, conversations, messages, injuries, exerciseCatalog, injurySets, summary, notes, coachRecovery, photos, visits, testCatalog] =
     await Promise.all([
       // Only the teams you're on come back (row level security).
       supabase.from('teams').select('id, name, sport').order('name'),
       supabase.from('team_members').select('team_id, user_id, role, availability, expected_return, teams(name, sport)'),
       // Contact details are only shown on the trainer's player profiles.
       supabase.from('users').select(isTrainer ? 'id, name, role, email, phone' : 'id, name, role'),
-      supabase.from('athlete_injuries').select('id, athlete_id, status, start_date, cleared_at, injuries(name, body_region)'),
-      supabase.from('plan_exercises').select('id, athlete_injury_id, sets, reps, hold_seconds, active, exercises(name, video_url, description)'),
+      supabase.from('athlete_injuries').select('id, athlete_id, injury_id, status, start_date, cleared_at, injuries(name, body_region)'),
+      supabase.from('plan_exercises').select('id, athlete_injury_id, exercise_id, sets, reps, hold_seconds, active, exercises(name, video_url, description)'),
       supabase.from('exercise_logs').select('athlete_id, plan_exercise_id, logged_at, pain'),
-      supabase.from('case_milestones').select('id, athlete_injury_id, baseline, target, milestone_tests(name, description, unit)'),
+      supabase.from('case_milestones').select('id, athlete_injury_id, test_id, baseline, target, milestone_tests(name, description, unit)'),
       supabase.from('test_results').select('case_milestone_id, value, recorded_at, source'),
       supabase
         .from('appointments')
@@ -150,6 +153,8 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       supabase.from('users').select('id, avatar_path'),
       // Recorded visits, newest first; trainers only (supabase/visits.sql).
       isTrainer ? supabase.from('visits').select('id, athlete_id, trainer_id, visited_at, summary, pain, done_today').order('visited_at', { ascending: false }) : none,
+      // Milestone tests the trainer can add as goals.
+      isTrainer ? supabase.from('milestone_tests').select('id, name, unit, description').order('name') : none,
     ]);
 
   const userRows = rows<{ id: string; name: string; role: keyof typeof SENDER_LABEL; email?: string; phone?: string | null }>(users);
@@ -174,6 +179,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
     videoUrl: p.exercises?.video_url ?? null,
     description: p.exercises?.description ?? null,
     caseId: p.athlete_injury_id,
+    exerciseId: p.exercise_id,
     sets: p.sets,
     reps: p.reps,
     holdSeconds: p.hold_seconds,
@@ -215,7 +221,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       photoUrl: photoUrl.get(m.user_id) ?? null,
       email: userById.get(m.user_id)?.email,
       phone: userById.get(m.user_id)?.phone,
-      injuries: current.map((c) => ({ caseId: c.id, name: c.injuries?.name ?? 'Injury' })),
+      injuries: current.map((c) => ({ caseId: c.id, name: c.injuries?.name ?? 'Injury', injuryId: c.injury_id })),
       assignedExerciseIds: planRows
         .filter((p) => p.active && current.some((c) => c.id === p.athlete_injury_id))
         .map((p) => p.id),
@@ -236,6 +242,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
       id: g.id,
       athleteId,
       caseId: g.athlete_injury_id,
+      testId: g.test_id,
       name: g.milestone_tests?.name ?? 'Test',
       description: g.milestone_tests?.description ?? '',
       unit: g.milestone_tests?.unit ?? '',
@@ -428,6 +435,7 @@ export async function loadAll(profile: Profile): Promise<RemoteData> {
         description: e.description,
         videoUrl: e.video_url,
       })),
+      tests: rows<{ id: string; name: string; unit: string; description: string | null }>(testCatalog),
       // Before supabase/workout_sets.sql is run the table doesn't exist; the
       // form still works, it just doesn't pre-tick a set.
       workoutSets: injurySets.error
@@ -531,6 +539,42 @@ export async function saveNote(athleteId: string, text: string, trainerId: strin
     .from('athlete_notes')
     .upsert({ athlete_id: athleteId, body: text, updated_by: trainerId, updated_at: updatedAt }, { onConflict: 'athlete_id' });
   return error ? { ok: false, error: error.message } : { ok: true, value: { updatedAt } };
+}
+
+/**
+ * Trainer adds a milestone test to one injury: where the athlete starts
+ * (baseline) and the goal. A test that isn't in the catalog yet is added to
+ * it first, so it can be picked for other athletes too.
+ */
+export async function addMilestone(
+  caseId: string,
+  test: { testId: string } | { name: string; unit: string },
+  baseline: number,
+  target: number,
+): Promise<Result> {
+  let testId: string;
+  if ('testId' in test) {
+    testId = test.testId;
+  } else {
+    const { data, error } = await supabase
+      .from('milestone_tests')
+      .insert({ name: test.name, unit: test.unit, description: null })
+      .select('id')
+      .single();
+    if (error) return { ok: false, error: error.code === '23505' ? `There's already a test called ${test.name}. Pick it from the list.` : error.message };
+    testId = data.id;
+  }
+  const { error } = await supabase.from('case_milestones').insert({ athlete_injury_id: caseId, test_id: testId, baseline, target });
+  if (error) return { ok: false, error: error.code === '23505' ? 'That test is already a goal for this injury.' : error.message };
+  return { ok: true, value: undefined };
+}
+
+/** Trainer takes a milestone test off an injury (its results go with it). */
+export async function removeMilestone(milestoneId: string): Promise<Result> {
+  const { data, error } = await supabase.from('case_milestones').delete().eq('id', milestoneId).select('id');
+  if (error) return { ok: false, error: error.message };
+  if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can remove their goals.' };
+  return { ok: true, value: undefined };
 }
 
 /** Trainer changes where a milestone test needs to get to. */
