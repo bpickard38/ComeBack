@@ -474,7 +474,9 @@ function makeCommands(state: AppState, dispatch: Dispatch<Action>, profile: Prof
       const next = normalizeAvailability(availability, expectedReturn);
       const saved = await remote.updateAvailability(athleteId, next.availability, next.expectedReturn);
       if (!saved.ok) return saved;
-      dispatch({ type: 'setAvailability', athleteId, ...next });
+      // A transition to cleared also closes active injury cases in Supabase.
+      // Reload so the profile drops their active plans and sees updated history.
+      await reload();
       return { ok: true, value: undefined };
     },
   };

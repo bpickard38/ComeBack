@@ -505,15 +505,12 @@ export async function markRead(conversationId: string, readerId: string): Promis
 }
 
 export async function updateAvailability(athleteId: string, availability: Availability, expectedReturn: string | null): Promise<Result> {
-  const { data, error } = await supabase
-    .from('team_members')
-    .update({ availability, expected_return: expectedReturn })
-    .eq('user_id', athleteId)
-    .eq('role', 'athlete')
-    .select('user_id');
+  const { error } = await supabase.rpc('set_athlete_availability', {
+    p_athlete: athleteId,
+    p_availability: availability,
+    p_expected_return: expectedReturn,
+  });
   if (error) return { ok: false, error: error.message };
-  // Security rules turn a forbidden update into "0 rows changed", not an error.
-  if (!data?.length) return { ok: false, error: 'Only this athlete’s trainer can change their status.' };
   return { ok: true, value: undefined };
 }
 

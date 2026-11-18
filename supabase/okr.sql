@@ -53,10 +53,10 @@ language sql stable security definer set search_path = '' as $$
         * (select (today - monday + 1) from week_bounds) as opportunities
   ),
   recovery as (
-    select count(*)::int as cases,
-      round(avg(ai.cleared_at::date - ai.start_date)::numeric, 1) as average_days
+    select count(ai.recovery_days)::int as cases,
+      round(avg(ai.recovery_days)::numeric, 1) as average_days
     from public.athlete_injuries ai
-    where ai.status = 'cleared' and ai.cleared_at is not null
+    where ai.status = 'cleared' and ai.recovery_days is not null
   )
   select c.completed, c.opportunities,
     case when c.opportunities = 0 then null
