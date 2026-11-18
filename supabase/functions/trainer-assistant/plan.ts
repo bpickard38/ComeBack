@@ -30,17 +30,28 @@ export interface ProposedExercise {
   holdSeconds: number | null;
 }
 
+/** An exercise to take off one of the athlete's active injury plans. */
+export interface RemovedExercise {
+  exerciseId: string;
+  name: string;
+  injuryId: string;
+  injuryName: string;
+}
+
 export interface Proposal {
   /** Who gets the plan. null when the trainer is only adding to the catalogs. */
   athlete: { id: string; name: string } | null;
   /** id is null for an injury that will be added to the catalog. */
   injury: { id: string | null; name: string; bodyRegion: string | null } | null;
   exercises: ProposedExercise[];
+  /** Exercises to take off the athlete's plans. Missing on older cards: treat as none. */
+  removed?: RemovedExercise[];
 }
 
 /** What the AI sends in its propose_plan tool call. Nothing in it is trusted. */
 export interface RawPlan {
   athlete_id?: unknown;
+  remove?: Array<{ exercise_id?: unknown; injury_id?: unknown }> | null;
   injury?: { id?: unknown; name?: unknown; body_region?: unknown } | null;
   exercises?: Array<{
     id?: unknown;
@@ -60,11 +71,14 @@ export interface PlanContext {
   exercises: Array<{ id: string; name: string; video_url: string | null }>;
   /** Videos the YouTube search returned during this request, by video id. */
   videos: Map<string, { title: string }>;
+  /** Each athlete's active injuries and the exercises on them now, for removals. */
+  plans?: Array<{ athleteId: string; injuryId: string; injuryName: string; exercises: Array<{ id: string; name: string }> }>;
 }
 
 export const MAX_NAME = 80;
 export const MAX_DESCRIPTION = 300;
 export const MAX_EXERCISES = 12;
+export const MAX_REMOVED = 30;
 
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
 
@@ -171,15 +185,41 @@ export function buildProposal(raw: RawPlan, ctx: PlanContext): PlanResult<Propos
     if (!exercises.some((e) => (e.id && e.id === next.id) || sameName(e.name, next.name))) exercises.push(next);
   }
 
+  // ----- Removals -----
+  const removeList = Array.isArray(raw.remove) ? raw.remove : [];
+  if (removeList.length > MAX_REMOVED) return { ok: false, error: `A plan can remove at most ${MAX_REMOVED} exercises at once.` };
+  if (removeList.length && !athlete) return { ok: false, error: 'Removing exercises needs athlete_id.' };
+  const removed: RemovedExercise[] = [];
+  for (const item of removeList) {
+    const theirPlans = (ctx.plans ?? []).filter((p) => p.athleteId === athlete!.id);
+    const onPlans = theirPlans.filter(
+      (p) => p.exercises.some((e) => e.id === item?.exercise_id) && (item?.injury_id == null || item.injury_id === '' || p.injuryId === item.injury_id),
+    );
+    if (onPlans.length === 0) {
+      return { ok: false, error: `Exercise ${String(item?.exercise_id)} is not on ${athlete!.name}'s current plan${item?.injury_id ? ' for that injury' : ''}. Only remove exercises listed under that athlete's injuries, by exercise id.` };
+    }
+    // No injury given and it's on more than one plan: it comes off all of them.
+    for (const p of onPlans) {
+      const ex = p.exercises.find((e) => e.id === item.exercise_id)!;
+      if (!removed.some((r) => r.exerciseId === ex.id && r.injuryId === p.injuryId)) {
+        removed.push({ exerciseId: ex.id, name: ex.name, injuryId: p.injuryId, injuryName: p.injuryName });
+      }
+    }
+  }
+  if (removed.some((r) => injury?.id === r.injuryId && exercises.some((e) => e.id === r.exerciseId))) {
+    return { ok: false, error: 'The same exercise is both added and removed on one injury. Keep it in one list only.' };
+  }
+
   // ----- Does it add up to something that can be saved? -----
   if (athlete) {
-    if (!injury) return { ok: false, error: 'Assigning to an athlete needs an injury.' };
-    if (exercises.length === 0) return { ok: false, error: 'Assigning to an athlete needs at least one exercise.' };
+    if (exercises.length > 0 && !injury) return { ok: false, error: 'Assigning to an athlete needs an injury.' };
+    if (exercises.length === 0 && removed.length === 0) return { ok: false, error: 'Assigning to an athlete needs at least one exercise to add or remove.' };
+    if (exercises.length === 0) injury = null;
   } else {
     const addsSomething = injury?.id === null || exercises.some((e) => e.id === null);
     if (!addsSomething) return { ok: false, error: 'Nothing to save: no athlete was given and every injury and exercise is already in the catalog. Ask the trainer which athlete this is for.' };
   }
-  return { ok: true, value: { athlete, injury, exercises } };
+  return { ok: true, value: { athlete, injury, exercises, ...(removed.length ? { removed } : {}) } };
 }
 
 /**
@@ -191,7 +231,7 @@ export function buildProposal(raw: RawPlan, ctx: PlanContext): PlanResult<Propos
 export function sanitizeProposal(input: unknown): PlanResult<Proposal> {
   const bad: PlanResult<Proposal> = { ok: false, error: 'That plan can\'t be read. Ask the assistant again.' };
   if (!input || typeof input !== 'object') return bad;
-  const p = input as { athlete?: unknown; injury?: unknown; exercises?: unknown };
+  const p = input as { athlete?: unknown; injury?: unknown; exercises?: unknown; removed?: unknown };
   const idOrNull = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null);
 
   let athlete: Proposal['athlete'] = null;
@@ -230,9 +270,27 @@ export function sanitizeProposal(input: unknown): PlanResult<Proposal> {
     });
   }
 
-  if (athlete && (!injury || exercises.length === 0)) return bad;
+  const rawRemoved = p.removed ?? [];
+  if (!Array.isArray(rawRemoved) || rawRemoved.length > MAX_REMOVED) return bad;
+  const removed: RemovedExercise[] = [];
+  for (const item of rawRemoved as Array<Record<string, unknown>>) {
+    if (!item || typeof item !== 'object') return bad;
+    const exerciseId = idOrNull(item.exerciseId);
+    const injuryId = idOrNull(item.injuryId);
+    if (!exerciseId || !injuryId) return bad;
+    removed.push({
+      exerciseId,
+      injuryId,
+      name: cleanText(item.name).slice(0, MAX_NAME),
+      injuryName: cleanText(item.injuryName).slice(0, MAX_NAME),
+    });
+  }
+
+  if (removed.length && !athlete) return bad;
+  if (athlete && exercises.length > 0 && !injury) return bad;
+  if (athlete && exercises.length === 0 && removed.length === 0) return bad;
   if (!athlete && injury?.id !== null && !exercises.some((e) => e.id === null)) return bad;
-  return { ok: true, value: { athlete, injury, exercises } };
+  return { ok: true, value: { athlete, injury, exercises, ...(removed.length ? { removed } : {}) } };
 }
 
 /** The new catalog entries a plan would add, for the card and the toast. */
@@ -243,6 +301,11 @@ export function newItems(proposal: Proposal): { injury: string | null; exercises
   };
 }
 
+/** True when a plan (or a visit's plan changes) would change anything. */
+export function planHasChanges(plan: Proposal | null | undefined): boolean {
+  return !!plan && (plan.exercises.length > 0 || (plan.removed?.length ?? 0) > 0);
+}
+
 /** One line for the confirmation toast, e.g. "Assigned 4 exercises to Maya Torres for Ankle sprain." */
 export function savedSummary(proposal: Proposal): string {
   const fresh = newItems(proposal);
@@ -251,9 +314,12 @@ export function savedSummary(proposal: Proposal): string {
   if (fresh.injury) added.push(`the injury ${fresh.injury}`);
   if (fresh.exercises.length) added.push(fresh.exercises.join(', '));
   const addedText = added.length ? ` Added to the catalog: ${added.join(' and ')}.` : '';
-  if (proposal.athlete && proposal.injury) {
-    return `Assigned ${count} ${count === 1 ? 'exercise' : 'exercises'} to ${proposal.athlete.name} for ${proposal.injury.name}.${addedText}`;
+  const removed = proposal.removed ?? [];
+  const removedText = removed.length ? ` Removed ${removed.map((r) => r.name).join(', ')}.` : '';
+  if (proposal.athlete && proposal.injury && count > 0) {
+    return `Assigned ${count} ${count === 1 ? 'exercise' : 'exercises'} to ${proposal.athlete.name} for ${proposal.injury.name}.${removedText}${addedText}`;
   }
+  if (proposal.athlete && removed.length) return `Updated ${proposal.athlete.name}'s plan.${removedText}`;
   return addedText.trim() || 'Saved.';
 }
 
@@ -319,7 +385,7 @@ export interface RawVisit {
   done_today?: unknown;
   test_results?: Array<{ goal_id?: unknown; value?: unknown }> | null;
   availability?: { status?: unknown; expected_return?: unknown } | null;
-  plan_changes?: { injury?: RawPlan['injury']; exercises?: RawPlan['exercises'] } | null;
+  plan_changes?: { injury?: RawPlan['injury']; exercises?: RawPlan['exercises']; remove?: RawPlan['remove'] } | null;
 }
 
 /** Keeps line breaks (a summary can have paragraphs) but trims each line. */
@@ -389,8 +455,10 @@ export function buildVisit(raw: RawVisit, ctx: VisitContext): PlanResult<VisitPr
 
   let plan: Proposal | null = null;
   const changes = raw.plan_changes;
-  if (changes && Array.isArray(changes.exercises) && changes.exercises.length > 0) {
-    const built = buildProposal({ athlete_id: athlete.id, injury: changes.injury ?? null, exercises: changes.exercises }, ctx);
+  const adds = changes && Array.isArray(changes.exercises) ? changes.exercises : [];
+  const removes = changes && Array.isArray(changes.remove) ? changes.remove : [];
+  if (adds.length > 0 || removes.length > 0) {
+    const built = buildProposal({ athlete_id: athlete.id, injury: adds.length ? changes!.injury ?? null : null, exercises: adds, remove: removes }, ctx);
     if (!built.ok) return { ok: false, error: `plan_changes: ${built.error}` };
     plan = built.value;
   }

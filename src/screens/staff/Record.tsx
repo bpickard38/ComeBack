@@ -5,12 +5,14 @@ import { Button } from '../../components/Button';
 import { useToast } from '../../components/Toast';
 import { canRecord, useVoiceRecorder } from '../../components/useVoiceRecorder';
 import {
+  planHasChanges,
   planNumbers,
   withAnswer,
   type AssistantTurn,
   type PlanStatus,
   type Proposal,
   type ProposedExercise,
+  type RemovedExercise,
   type VisitAvailability,
   type VisitProposal,
 } from '../../domain/assistant';
@@ -22,6 +24,7 @@ const EXAMPLES = [
   'Maya came in. Ankle feels better, pain about 3. Balance was 25 seconds. Bump her calf raises to 4 sets of 15.',
   'Devon rolled his ankle at practice. Give him the usual ankle sprain set. He’s out until next Friday.',
   'Add Copenhagen planks, 3 sets of 20 seconds, to Jordan’s plan.',
+  'Maya came in feeling better. Get rid of her ankle exercises and have her do hamstring curls instead.',
 ];
 
 /**
@@ -296,9 +299,10 @@ const STATUS_TEXT: Record<Exclude<PlanStatus, 'pending'>, string> = {
 function PlanCard({ proposal, status, saving, onChange, onConfirm, onCancel }: PlanCardProps) {
   const { state } = useAppStore();
   const { athlete, injury, exercises } = proposal;
+  const removed = proposal.removed ?? [];
   // Same injury already active: the exercises join that plan rather than starting a second one.
   const alreadyHas = !!athlete && !!injury && !!state.athletes.find((a) => a.id === athlete.id)?.injuries.some((i) => i.name === injury.name);
-  const title = athlete ? `Assign to ${athlete.name}` : 'Add to the catalog';
+  const title = !athlete ? 'Add to the catalog' : exercises.length ? `Assign to ${athlete.name}` : `Change ${athlete.name}’s plan`;
   const pending = status === 'pending';
 
   function setExercise(index: number, change: Partial<ProposedExercise>) {
@@ -322,13 +326,21 @@ function PlanCard({ proposal, status, saving, onChange, onConfirm, onCancel }: P
         <ExerciseList exercises={exercises} pending={pending} hasAthlete={!!athlete} onChange={setExercise} />
       )}
 
+      {removed.length > 0 && (
+        <RemovedList
+          removed={removed}
+          pending={pending}
+          onKeep={(index) => onChange({ ...proposal, removed: removed.filter((_, i) => i !== index) })}
+        />
+      )}
+
       {!athlete && injury && exercises.length > 0 && pending && (
         <p className="small muted">These exercises become the workout set for {injury.name}.</p>
       )}
 
       {pending ? (
         <div className="row">
-          <Button variant="primary" onClick={onConfirm} disabled={saving}>
+          <Button variant="primary" onClick={onConfirm} disabled={saving || !planHasChanges(proposal)}>
             {saving ? 'Saving…' : 'Confirm'}
           </Button>
           <Button onClick={onCancel} disabled={saving}>
@@ -405,6 +417,27 @@ function ExerciseList({
   );
 }
 
+/** Exercises coming off the athlete's plan. Keep undoes one before saving. */
+function RemovedList({ removed, pending, onKeep }: { removed: RemovedExercise[]; pending: boolean; onKeep: (index: number) => void }) {
+  return (
+    <div className="stack-xs">
+      <span className="strong">{pending ? 'Taking off the plan' : 'Taken off the plan'}</span>
+      <ul className="assistant__exercises">
+        {removed.map((r, i) => (
+          <li key={`${r.injuryId}-${r.exerciseId}`}>
+            <s>{r.name}</s> <span className="small muted">({r.injuryName})</span>{' '}
+            {pending && (
+              <button type="button" className="link-button small" onClick={() => onKeep(i)}>
+                Keep<span className="visually-hidden"> {r.name}</span>
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** Sets, reps and hold as small number boxes, for fixing what the AI heard. */
 function NumbersEditor({ exercise, onChange }: { exercise: ProposedExercise; onChange: (change: Partial<ProposedExercise>) => void }) {
   const field = (key: 'sets' | 'reps' | 'holdSeconds', label: string) => (
@@ -476,7 +509,7 @@ function VisitCard({
       doneToday: doneToday.trim() || null,
       results: results.map(({ text, ...r }) => ({ ...r, value: Number(text) })),
       availability: availability ? { status: availability, expectedReturn: availability === 'cleared' ? null : returnDay || null } : null,
-      plan: plan && plan.exercises.length > 0 ? plan : null,
+      plan: plan && planHasChanges(plan) ? { ...plan, injury: plan.exercises.length ? plan.injury : null } : null,
     });
   }
 
@@ -491,7 +524,8 @@ function VisitCard({
             visit.doneToday && `Did: ${visit.doneToday}`,
             ...visit.results.map((r) => `${r.name}: ${r.value} ${r.unit}`),
             visit.availability && `Status: ${AVAILABILITY_WORDS[visit.availability.status]}`,
-            visit.plan && `Plan: ${visit.plan.exercises.map((e) => `${e.name} ${planNumbers(e.sets, e.reps, e.holdSeconds)}`.trim()).join(', ')}`,
+            visit.plan && visit.plan.exercises.length > 0 && `Plan: ${visit.plan.exercises.map((e) => `${e.name} ${planNumbers(e.sets, e.reps, e.holdSeconds)}`.trim()).join(', ')}`,
+            visit.plan?.removed?.length && `Removed: ${visit.plan.removed.map((r) => r.name).join(', ')}`,
           ]
             .filter(Boolean)
             .join(' · ')}
@@ -582,18 +616,28 @@ function VisitCard({
         </fieldset>
       )}
 
-      {plan && plan.exercises.length > 0 && (
+      {plan && planHasChanges(plan) && (
         <fieldset className="visit-card__group">
           <legend className="strong">
-            Plan changes{plan.injury ? ` for ${plan.injury.name}` : ''} {plan.injury?.id === null && <Badge tone="warn">New injury</Badge>}
+            Plan changes{plan.injury && plan.exercises.length ? ` for ${plan.injury.name}` : ''}{' '}
+            {plan.injury?.id === null && plan.exercises.length > 0 && <Badge tone="warn">New injury</Badge>}
           </legend>
-          <ExerciseList
-            exercises={plan.exercises}
-            pending
-            hasAthlete
-            onChange={(index, change) => setPlan({ ...plan, exercises: plan.exercises.map((e, i) => (i === index ? { ...e, ...change } : e)) })}
-            onRemove={(index) => setPlan({ ...plan, exercises: plan.exercises.filter((_, i) => i !== index) })}
-          />
+          {plan.exercises.length > 0 && (
+            <ExerciseList
+              exercises={plan.exercises}
+              pending
+              hasAthlete
+              onChange={(index, change) => setPlan({ ...plan, exercises: plan.exercises.map((e, i) => (i === index ? { ...e, ...change } : e)) })}
+              onRemove={(index) => setPlan({ ...plan, exercises: plan.exercises.filter((_, i) => i !== index) })}
+            />
+          )}
+          {(plan.removed?.length ?? 0) > 0 && (
+            <RemovedList
+              removed={plan.removed!}
+              pending
+              onKeep={(index) => setPlan({ ...plan, removed: plan.removed!.filter((_, i) => i !== index) })}
+            />
+          )}
         </fieldset>
       )}
 

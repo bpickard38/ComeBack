@@ -91,7 +91,7 @@ interface AthleteRow {
   /** What the coach sees: out, limited or cleared. */
   availability: string | null;
   /** Each active injury's plan right now, for "bump her calf raises to 4 sets". */
-  plans: Array<{ injury: string; exercises: Array<{ name: string; sets: number | null; reps: number | null; hold_seconds: number | null }> }>;
+  plans: Array<{ injury: string; injury_id: string; exercises: Array<{ id: string; name: string; sets: number | null; reps: number | null; hold_seconds: number | null }> }>;
 }
 interface InjuryRow {
   id: string;
@@ -124,11 +124,11 @@ interface Catalog {
 async function loadCatalog(db: SupabaseClient, callerId: string): Promise<Catalog | null> {
   const [members, cases, injuries, exercises, sets, plans, goals] = await Promise.all([
     db.from('team_members').select('team_id, user_id, role, availability, teams(name)'),
-    db.from('athlete_injuries').select('id, athlete_id, injuries(name)').eq('status', 'active'),
+    db.from('athlete_injuries').select('id, athlete_id, injury_id, injuries(name)').eq('status', 'active'),
     db.from('injuries').select('id, name, body_region').order('name'),
     db.from('exercises').select('id, name, description, video_url').order('name'),
     db.from('injury_exercises').select('injury_id, exercise_id, sets, reps, hold_seconds').order('position'),
-    db.from('plan_exercises').select('athlete_injury_id, sets, reps, hold_seconds, exercises(name)').eq('active', true),
+    db.from('plan_exercises').select('athlete_injury_id, exercise_id, sets, reps, hold_seconds, exercises(name)').eq('active', true),
     db.from('case_milestones').select('id, athlete_injury_id, target, milestone_tests(name, unit)'),
   ]);
   for (const r of [members, cases, injuries, exercises]) if (r.error) throw new Error(r.error.message);
@@ -144,8 +144,8 @@ async function loadCatalog(db: SupabaseClient, callerId: string): Promise<Catalo
   if (users.error) throw new Error(users.error.message);
   const nameOf = new Map(((users.data ?? []) as Array<{ id: string; name: string }>).map((u) => [u.id, u.name]));
 
-  type Case = { id: string; athlete_id: string; injuries: { name: string } | null };
-  type Plan = { athlete_injury_id: string; sets: number | null; reps: number | null; hold_seconds: number | null; exercises: { name: string } | null };
+  type Case = { id: string; athlete_id: string; injury_id: string; injuries: { name: string } | null };
+  type Plan = { athlete_injury_id: string; exercise_id: string; sets: number | null; reps: number | null; hold_seconds: number | null; exercises: { name: string } | null };
   type Goal = { id: string; athlete_injury_id: string; target: number; milestone_tests: { name: string; unit: string } | null };
   const caseRows = (cases.data ?? []) as unknown as Case[];
   const planRows = (plans.error ? [] : plans.data ?? []) as unknown as Plan[];
@@ -162,9 +162,10 @@ async function loadCatalog(db: SupabaseClient, callerId: string): Promise<Catalo
       availability: athleteRows.find((m) => m.user_id === id)?.availability ?? null,
       plans: myCases.map((c) => ({
         injury: c.injuries?.name ?? '',
+        injury_id: c.injury_id,
         exercises: planRows
           .filter((p) => p.athlete_injury_id === c.id)
-          .map((p) => ({ name: p.exercises?.name ?? '', sets: p.sets, reps: p.reps, hold_seconds: p.hold_seconds })),
+          .map((p) => ({ id: p.exercise_id, name: p.exercises?.name ?? '', sets: p.sets, reps: p.reps, hold_seconds: p.hold_seconds })),
       })),
     };
   });
@@ -201,7 +202,7 @@ function catalogText(c: Catalog): string {
 
   const athletes = c.athletes.slice(0, 150).map((a) => {
     const plans = a.plans.length
-      ? a.plans.map((p) => `\n    injury "${p.injury}": ${p.exercises.map((e) => `${e.name} (${numbers(e)})`).join('; ') || 'no exercises'}`).join('')
+      ? a.plans.map((p) => `\n    injury "${p.injury}" [${p.injury_id}]: ${p.exercises.map((e) => `${e.name} [${e.id}] (${numbers(e)})`).join('; ') || 'no exercises'}`).join('')
       : '\n    no active injuries';
     const goals = c.goals.filter((g) => g.athleteId === a.id);
     const goalText = goals.length ? `\n    goals: ${goals.map((g) => `goal_id ${g.id} = ${g.name} (${g.unit}, target ${g.target})`).join('; ')}` : '';
@@ -214,7 +215,7 @@ function catalogText(c: Catalog): string {
   const exercises = c.exercises.slice(0, 300).map((e) => `  ${e.id} | ${e.name}${e.video_url ? '' : ' (no video)'}`);
 
   return [
-    "ATHLETES on the trainer's teams (id | name | teams | status, then active injuries with their current plan, then goals):",
+    "ATHLETES on the trainer's teams (id | name | teams | status, then active injuries [injury id] with their current plan as exercise name [exercise id], then goals):",
     ...(athletes.length ? athletes : ['  none']),
     'INJURIES catalog (id | name | usual workout set with exercise ids):',
     ...(injuries.length ? injuries : ['  none']),
@@ -405,6 +406,16 @@ async function transcribe(request: Request, db: SupabaseClient, callerId: string
 // ---------- The tools OpenAI may ask for ----------
 
 const count = { type: ['integer', 'null'], minimum: 1, maximum: 999 };
+const removeField = {
+  type: 'array',
+  description:
+    "Exercises to take OFF the athlete's current plan, by the exercise id shown on their plan in the ATHLETES list. Give injury_id too when the exercise is on more than one of their injuries. Empty if nothing comes off.",
+  items: {
+    type: 'object',
+    properties: { exercise_id: { type: 'string' }, injury_id: { type: ['string', 'null'] } },
+    required: ['exercise_id'],
+  },
+};
 const TOOLS = [
   {
     type: 'function',
@@ -463,8 +474,9 @@ const TOOLS = [
           plan_changes: {
             type: ['object', 'null'],
             description:
-              "Exercises to add to one of the athlete's injuries, or whose numbers change. List only those, with their new numbers. Same rules as propose_plan. null if the plan doesn't change.",
+              "Exercises to add to one of the athlete's injuries or whose numbers change (exercises, with their new numbers), and exercises to take off (remove). Same rules as propose_plan. null if the plan doesn't change.",
             properties: {
+              remove: removeField,
               injury: {
                 type: ['object', 'null'],
                 properties: { id: { type: ['string', 'null'] }, name: { type: ['string', 'null'] }, body_region: { type: ['string', 'null'] } },
@@ -494,11 +506,12 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'propose_plan',
-      description: 'Show the trainer a plan to confirm. Nothing is saved until they press Confirm. Give athlete_id to assign the plan to an athlete; leave it out to only add a new injury or new exercises to the catalogs.',
+      description: "Show the trainer a plan to confirm. Nothing is saved until they press Confirm. Give athlete_id to add exercises to an athlete's plan or take exercises off it; leave it out to only add a new injury or new exercises to the catalogs.",
       parameters: {
         type: 'object',
         properties: {
           athlete_id: { type: ['string', 'null'], description: 'From search_athletes.' },
+          remove: removeField,
           injury: {
             type: ['object', 'null'],
             description: 'Give id for an injury in the catalog. For a new one leave id out and give name and body_region.',
@@ -548,10 +561,13 @@ Visits:
 - summary: how they're doing, one to three plain sentences, the trainer's meaning in clean words. Don't invent details.
 - Only fill pain, done_today, test_results, availability and plan_changes with what the trainer actually said; otherwise leave them null or empty.
 - test_results only for goals listed under that athlete, by goal_id, in that goal's unit (e.g. "balance was 25 seconds" for a sec goal).
-- plan_changes: only exercises to add or whose numbers change ("bump calf raises to 4 sets of 15"), on one of that athlete's active injuries.
+- plan_changes: exercises to add or whose numbers change ("bump calf raises to 4 sets of 15"), on one of that athlete's active injuries, and exercises to take off in remove.
 - Give sets, reps and hold_seconds for each exercise: the trainer's numbers if they gave them, otherwise the workout set's numbers, otherwise a common starting prescription for that exercise. Use null for a number that does not apply (a timed hold has no reps).
 - When you have everything, call propose_plan. The trainer then sees a card with a Confirm button. Do not ask "shall I go ahead?" first; proposing is the asking.
-- If the athlete already has that injury active, the listed exercises are ADDED to their current plan. You cannot remove exercises or clear injuries; tell the trainer to do that on the athlete's profile.
+- If the athlete already has that injury active, the listed exercises are ADDED to their current plan; exercises already on it stay unless you remove them.
+- Removing: when the trainer says to drop, stop or get rid of exercises ("get rid of her ankle exercises", "no more calf raises"), put each one in remove by its exercise id from that athlete's current plan. "Her ankle exercises" means every exercise on her ankle injury's plan. Only remove what is on their plan now.
+- Swapping ("drop the ankle work and do hamstring curls instead"): remove the old ones and add the new ones in the same card. Add them to the injury the trainer names; if they don't name one, use the injury the removed exercises were on, or ask if that's unclear.
+- You cannot clear (close) an injury; if the trainer asks, tell them to do that on the athlete's profile.
 - To change a plan you proposed that is still pending, call propose_plan again with the complete corrected plan.
 - With no athlete, propose_plan adds new injuries and exercises to the catalogs. A new injury's exercises become its workout set.
 
@@ -626,7 +642,10 @@ async function chat(db: SupabaseClient, callerId: string, input: { messages?: un
   // (action "find_videos") and the trainer picks one.
   const videos: PlanContext['videos'] = new Map();
   const exerciseName = new Map(catalog.exercises.map((e) => [e.id, e.name]));
-  const context = { athletes: catalog.athletes, injuries: catalog.injuries, exercises: catalog.exercises, videos, goals: catalog.goals };
+  const plans = catalog.athletes.flatMap((a) =>
+    a.plans.map((p) => ({ athleteId: a.id, injuryId: p.injury_id, injuryName: p.injury, exercises: p.exercises.map((e) => ({ id: e.id, name: e.name })) })),
+  );
+  const context = { athletes: catalog.athletes, injuries: catalog.injuries, exercises: catalog.exercises, videos, goals: catalog.goals, plans };
 
   type ToolAnswer = { result: unknown; proposal?: Proposal; visit?: VisitProposal };
   async function runTool(name: string, args: Record<string, unknown>): Promise<ToolAnswer> {
@@ -766,11 +785,26 @@ async function savePlan(db: SupabaseClient, plan: Proposal): Promise<SaveProblem
     if (set.error) console.error('Saving the workout set failed', set.error.message);
   }
 
-  // 4. The assignment.
-  if (plan.athlete && injuryId) {
+  // 4. Removals first, so step 5 doesn't put them back when it re-lists
+  //    the current plan. Switched off (active = false), like Remove on the
+  //    profile, so past workout logs keep their exercise.
+  if (plan.athlete && plan.removed?.length) {
+    const cases = await db.from('athlete_injuries').select('id, injury_id').eq('athlete_id', plan.athlete.id).eq('status', 'active');
+    if (cases.error) return fail('Could not read the athlete’s current plan. Try again.', 500);
+    const caseOf = new Map((cases.data as Array<{ id: string; injury_id: string }>).map((c) => [c.injury_id, c.id]));
+    for (const r of plan.removed) {
+      const caseId = caseOf.get(r.injuryId);
+      if (!caseId) continue; // That injury was cleared meanwhile: nothing left to remove.
+      const off = await db.from('plan_exercises').update({ active: false }).eq('athlete_injury_id', caseId).eq('exercise_id', r.exerciseId).select('id');
+      if (off.error) return fail(`Could not remove ${r.name}. ${off.error.message}`);
+    }
+  }
+
+  // 5. The assignment.
+  if (plan.athlete && injuryId && exerciseIds.length) {
     // assign_plan() switches off exercises that aren't in the list it's
-    // given. The assistant only ever adds, so exercises already on this
-    // injury's plan are included again.
+    // given. Removals were done in step 4, so whatever is still on this
+    // injury's plan stays and is included again.
     const open = await db.from('athlete_injuries').select('id').eq('athlete_id', plan.athlete.id).eq('injury_id', injuryId).eq('status', 'active').maybeSingle();
     let all = exerciseIds;
     if (open.data) {

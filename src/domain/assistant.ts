@@ -8,8 +8,8 @@
 */
 import type { Proposal, VisitProposal } from '../../supabase/functions/trainer-assistant/plan';
 
-export type { Proposal, ProposedExercise, VisitAvailability, VisitProposal, VisitResult } from '../../supabase/functions/trainer-assistant/plan';
-export { newItems, savedSummary } from '../../supabase/functions/trainer-assistant/plan';
+export type { Proposal, ProposedExercise, RemovedExercise, VisitAvailability, VisitProposal, VisitResult } from '../../supabase/functions/trainer-assistant/plan';
+export { newItems, planHasChanges, savedSummary } from '../../supabase/functions/trainer-assistant/plan';
 
 /** What happened to a card. 'replaced' means a newer card was shown instead. */
 export type PlanStatus = 'pending' | 'saved' | 'cancelled' | 'replaced';
@@ -91,6 +91,7 @@ function planRecord(proposal: Proposal) {
       reps: e.reps,
       hold_seconds: e.holdSeconds,
     })),
+    remove: (proposal.removed ?? []).map((r) => ({ exercise_id: r.exerciseId, name: r.name, injury_id: r.injuryId, injury: r.injuryName })),
   };
 }
 
